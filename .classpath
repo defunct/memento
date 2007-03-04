@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry excluding="**/.svn|**/.svn/**" output="artifacts/core/target/classes" kind="src" path="artifacts/core/java"/>
+	<classpathentry excluding="**/.svn|**/.svn/**" output="artifacts/core/target/classes/" kind="src" path="artifacts/core/resource"/>
+	<classpathentry excluding="**/.svn|**/.svn/**" output="artifacts/core/test/junit/target/classes" kind="src" path="artifacts/core/test/junit/resource"/>
+	<classpathentry excluding="**/.svn|**/.svn/**" output="artifacts/core/test/junit/target/classes" kind="src" path="artifacts/core/test/junit/java"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="src" path="/sheaf"/>
+	<classpathentry kind="src" path="/swag"/>
+	<classpathentry kind="src" path="/saxon"/>
+	<classpathentry kind="lib" path="/mix/lib/concurrent/concurrent.jar"/>
+	<classpathentry kind="lib" path="/mix/lib/junit/junit.jar"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/relay"/>
+	<classpathentry kind="lib" path="/mix/lib/asm/asm-2.2.3.jar"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/bento"/>
+	<classpathentry kind="lib" path="/mix/lib/jaxen/jaxen-1.1.jar"/>
+	<classpathentry kind="lib" path="/mix/lib/xom/xom-1.1.jar"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/strata"/>
+	<classpathentry kind="output" path="ERRORS-IN-PATH"/>
+</classpath>
