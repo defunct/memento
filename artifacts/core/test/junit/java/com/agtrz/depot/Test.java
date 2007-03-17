@@ -1,5 +1,5 @@
 /* Copyright Alan Gutierrez 2006 */
-package com.agtrz.syndibase;
+package com.agtrz.depot;
 
 import java.io.File;
 import java.io.Serializable;
@@ -10,7 +10,10 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
-import com.agtrz.syndibase.Storage.RecordReference;
+import com.agtrz.depot.Circle;
+import com.agtrz.depot.Person;
+import com.agtrz.depot.Storage;
+import com.agtrz.depot.Storage.RecordReference;
 
 import junit.framework.Assert;
 

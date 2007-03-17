@@ -1,8 +1,10 @@
 /* Copyright Alan Gutierrez 2006 */
-package com.agtrz.syndibase;
+package com.agtrz.depot;
 
 import java.io.File;
 import java.io.IOException;
+
+import com.agtrz.depot.Storage;
 
 import junit.framework.TestCase;
 
