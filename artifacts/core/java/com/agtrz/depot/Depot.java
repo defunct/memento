@@ -29,7 +29,7 @@ import com.agtrz.swag.io.ByteReader;
 import com.agtrz.swag.io.ByteWriter;
 import com.agtrz.swag.io.SizeOf;
 
-public class Storage
+public class Depot
 {
     private final static URI MONKEY_URI = URI.create("http://syndibase.agtrz.com/strata");
 
@@ -179,7 +179,7 @@ public class Storage
 
         public Object resolve(Object txn, Object object)
         {
-            Storage.Mutator mutator = (Storage.Mutator) txn;
+            Depot.Mutator mutator = (Depot.Mutator) txn;
             IndexRecord indexRecord = (IndexRecord) object;
             Record record = (Record) mutator.mapOfObjects.get(indexRecord.key);
             if (record == null)
@@ -196,9 +196,9 @@ public class Storage
                 }
                 catch (ClassNotFoundException e)
                 {
-                    Danger danger = new StorageException(e);
+                    Danger danger = new DepotException(e);
 
-                    danger.source(Storage.class);
+                    danger.source(Depot.class);
                     danger.message("class.not.found");
 
                     throw danger;
@@ -361,7 +361,7 @@ public class Storage
 
         private final Map mapOfRelationshipCreators = new HashMap();
 
-        public Storage create(File file)
+        public Depot create(File file)
         {
             Bento.Creator newBento = new Bento.Creator();
             newBento.addStaticPage(MONKEY_URI, Bento.ADDRESS_SIZE * 2);
@@ -435,7 +435,7 @@ public class Storage
             mutator.getJournal().commit();
             bento.close();
 
-            return new Storage.Opener().open(file);
+            return new Depot.Opener().open(file);
         }
 
         public BagCreator newBag(String name)
@@ -455,7 +455,7 @@ public class Storage
 
     public final static class Opener
     {
-        public Storage open(File file)
+        public Depot open(File file)
         {
             Bento bento = new Bento.Opener().open(file);
             Bento.Mutator mutator = bento.mutate();
@@ -496,7 +496,7 @@ public class Storage
                 throw new AsinineCheckedExceptionThatIsEntirelyImpossible(e);
             }
 
-            return new Storage(file, bento, listOfBagNames, mapOfBagIndices, mapOfJoinIndices);
+            return new Depot(file, bento, listOfBagNames, mapOfBagIndices, mapOfJoinIndices);
         }
     }
 
@@ -690,9 +690,9 @@ public class Storage
     {
         private final Strata.Cursor cursor;
 
-        private final Storage.Mutator mutator;
+        private final Depot.Mutator mutator;
 
-        public JoinCursor(Storage.Mutator mutator, Strata.Cursor cursor)
+        public JoinCursor(Depot.Mutator mutator, Strata.Cursor cursor)
         {
             this.mutator = mutator;
             this.cursor = cursor;
@@ -769,7 +769,7 @@ public class Storage
 
     private long identifier;
 
-    public Storage(File file, Bento bento, List listOfBagNames, Map mapOfBagIndicies, Map mapOfJoinIndices)
+    public Depot(File file, Bento bento, List listOfBagNames, Map mapOfBagIndicies, Map mapOfJoinIndices)
     {
         this.identifier = 0;
         this.listOfBagNames = listOfBagNames;

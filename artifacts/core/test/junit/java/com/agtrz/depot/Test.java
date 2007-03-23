@@ -12,8 +12,8 @@ import java.util.Set;
 
 import com.agtrz.depot.Circle;
 import com.agtrz.depot.Person;
-import com.agtrz.depot.Storage;
-import com.agtrz.depot.Storage.RecordReference;
+import com.agtrz.depot.Depot;
+import com.agtrz.depot.Depot.RecordReference;
 
 import junit.framework.Assert;
 
@@ -27,13 +27,13 @@ public class Test
 
         public final Map mapOfIdentifiers;
 
-        public Storage storage;
+        public Depot storage;
 
-        public Storage.Mutator mutator;
+        public Depot.Mutator mutator;
 
         public int objectCount;
 
-        public Environment(File file, Storage storage)
+        public Environment(File file, Depot storage)
         {
             this.file = file;
             this.random = new Random();
@@ -45,7 +45,7 @@ public class Test
         public void reopen()
         {
             this.storage.close();
-            this.storage = new Storage.Opener().open(file);
+            this.storage = new Depot.Opener().open(file);
             this.mutator = storage.mutate();
         }
     }
@@ -144,9 +144,9 @@ public class Test
 
         public void operate(Environment environment)
         {
-            Storage.Bag bag = environment.mutator.getBag(bagName);
+            Depot.Bag bag = environment.mutator.getBag(bagName);
             Object object = newObject.get();
-            Storage.Record record = bag.add(object);
+            Depot.Record record = bag.add(object);
             environment.mapOfIdentifiers.put(new Integer(environment.objectCount++), new ObjectAllocation(bagName, record.getReference().getKey(), object));
         }
     }
@@ -171,11 +171,11 @@ public class Test
 
         public void operate(Environment env)
         {
-            Storage.Join join = env.mutator.getJoin(joinName);
+            Depot.Join join = env.mutator.getJoin(joinName);
             ObjectAllocation left = (ObjectAllocation) env.mapOfIdentifiers.get(new Integer(objectCountOne));
             ObjectAllocation right = (ObjectAllocation) env.mapOfIdentifiers.get(new Integer(objectCountTwo));
-            Storage.Record keptLeft = env.mutator.getBag(left.bagName).get(left.key);
-            Storage.Record keptRight = env.mutator.getBag(right.bagName).get(right.key);
+            Depot.Record keptLeft = env.mutator.getBag(left.bagName).get(left.key);
+            Depot.Record keptRight = env.mutator.getBag(right.bagName).get(right.key);
             join.add(keptLeft, keptRight);
             left.relate(joinName, keptRight.getReference());
         }
@@ -196,8 +196,8 @@ public class Test
         public void operate(Environment environment)
         {
             ObjectAllocation alloc = (ObjectAllocation) environment.mapOfIdentifiers.get(new Integer(objectNumber));
-            Storage.Bag bag = environment.mutator.getBag(alloc.bagName);
-            Storage.Record keptObject = bag.get(alloc.key);
+            Depot.Bag bag = environment.mutator.getBag(alloc.bagName);
+            Depot.Record keptObject = bag.get(alloc.key);
             Assert.assertEquals(alloc.object, keptObject.getObject());
             Iterator relationships = alloc.mapOfRelationships.entrySet().iterator();
             while (relationships.hasNext())
@@ -205,12 +205,12 @@ public class Test
                 Map.Entry entry = (Map.Entry) relationships.next();
                 String name = (String) entry.getKey();
                 Set setOfObjects = (Set) entry.getValue();
-                Storage.Join join = environment.mutator.getJoin(name);
+                Depot.Join join = environment.mutator.getJoin(name);
                 int count = 0;
                 Iterator found = join.find(keptObject);
                 while (found.hasNext())
                 {
-                    Storage.Record[] records = (Storage.Record[]) found.next();
+                    Depot.Record[] records = (Depot.Record[]) found.next();
                     if (!records[0].getObject().equals(keptObject.getObject()))
                     {
                         break;
@@ -238,8 +238,8 @@ public class Test
         public void operate(Environment environment)
         {
             ObjectAllocation alloc = (ObjectAllocation) environment.mapOfIdentifiers.get(new Integer(objectCount));
-            Storage.Bag bag = environment.mutator.getBag(alloc.bagName);
-            Storage.Record keptObject = bag.get(alloc.key);
+            Depot.Bag bag = environment.mutator.getBag(alloc.bagName);
+            Depot.Record keptObject = bag.get(alloc.key);
             Assert.assertNull(keptObject);
             environment.mapOfIdentifiers.remove(new Integer(objectCount));
         }

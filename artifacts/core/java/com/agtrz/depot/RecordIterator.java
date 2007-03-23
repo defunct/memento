@@ -20,7 +20,7 @@ implements Iterator
 
     public Object next()
     {
-        return ((Storage.Record) iterator.next()).getObject();
+        return ((Depot.Record) iterator.next()).getObject();
     }
 
     public void remove()

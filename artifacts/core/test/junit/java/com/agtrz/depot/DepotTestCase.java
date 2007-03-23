@@ -4,11 +4,11 @@ package com.agtrz.depot;
 import java.io.File;
 import java.io.IOException;
 
-import com.agtrz.depot.Storage;
+import com.agtrz.depot.Depot;
 
 import junit.framework.TestCase;
 
-public class StorageTestCase
+public class DepotTestCase
 extends TestCase
 {
     private File newFile()
@@ -27,10 +27,10 @@ extends TestCase
 
     public void testCreateBag()
     {
-        Storage.Creator creator = new Storage.Creator();
+        Depot.Creator creator = new Depot.Creator();
         creator.newBag("people");
         File file = newFile();
-        Storage storage = creator.create(file);
+        Depot storage = creator.create(file);
 
         Test.Environment env = new Test.Environment(file, storage);
         new Test.Add(new Test.PersonServer("Dwight", "Eisenhower"), "people").operate(env);
@@ -39,11 +39,11 @@ extends TestCase
 
     public void testCreateTwoBags()
     {
-        Storage.Creator creator = new Storage.Creator();
+        Depot.Creator creator = new Depot.Creator();
         creator.newBag("people");
         creator.newBag("circles");
         File file = newFile();
-        Storage storage = creator.create(file);
+        Depot storage = creator.create(file);
 
         Test.Environment env = new Test.Environment(file, storage);
         new Test.Add(new Test.PersonServer("Dwight", "Eisenhower"), "people").operate(env);
@@ -55,10 +55,10 @@ extends TestCase
 
     public void testTwoItemsInBag()
     {
-        Storage.Creator creator = new Storage.Creator();
+        Depot.Creator creator = new Depot.Creator();
         creator.newBag("people");
         File file = newFile();
-        Storage storage = creator.create(file);
+        Depot storage = creator.create(file);
 
         Test.Environment env = new Test.Environment(file, storage);
         new Test.Add(new Test.PersonServer("Dwight", "Eisenhower"), "people").operate(env);
@@ -70,10 +70,10 @@ extends TestCase
 
     public void testReopenOneBag()
     {
-        Storage.Creator creator = new Storage.Creator();
+        Depot.Creator creator = new Depot.Creator();
         creator.newBag("people");
         File file = newFile();
-        Storage storage = creator.create(file);
+        Depot storage = creator.create(file);
 
         Test.Environment env = new Test.Environment(file, storage);
         new Test.Add(new Test.PersonServer("Dwight", "Eisenhower"), "people").operate(env);
@@ -86,11 +86,11 @@ extends TestCase
 
     public void testReopenTwoBags()
     {
-        Storage.Creator creator = new Storage.Creator();
+        Depot.Creator creator = new Depot.Creator();
         creator.newBag("people");
         creator.newBag("circles");
         File file = newFile();
-        Storage storage = creator.create(file);
+        Depot storage = creator.create(file);
 
         Test.Environment env = new Test.Environment(file, storage);
         new Test.Add(new Test.PersonServer("Dwight", "Eisenhower"), "people").operate(env);
@@ -107,10 +107,10 @@ extends TestCase
 
     public void testReopenTwoItemsInBag()
     {
-        Storage.Creator creator = new Storage.Creator();
+        Depot.Creator creator = new Depot.Creator();
         creator.newBag("people");
         File file = newFile();
-        Storage storage = creator.create(file);
+        Depot storage = creator.create(file);
 
         Test.Environment env = new Test.Environment(file, storage);
         new Test.Add(new Test.PersonServer("Dwight", "Eisenhower"), "people").operate(env);
@@ -127,10 +127,10 @@ extends TestCase
 
     public void testRollback()
     {
-        Storage.Creator creator = new Storage.Creator();
+        Depot.Creator creator = new Depot.Creator();
         creator.newBag("people");
         File file = newFile();
-        Storage storage = creator.create(file);
+        Depot storage = creator.create(file);
 
         Test.Environment env = new Test.Environment(file, storage);
         new Test.Add(new Test.PersonServer("Dwight", "Eisenhower"), "people").operate(env);
@@ -140,12 +140,12 @@ extends TestCase
 
     public void testRelate()
     {
-        Storage.Creator creator = new Storage.Creator();
+        Depot.Creator creator = new Depot.Creator();
         creator.newBag("people");
         creator.newBag("circles");
         creator.newJoin("membership");
         File file = newFile();
-        Storage storage = creator.create(file);
+        Depot storage = creator.create(file);
 
         Test.Environment env = new Test.Environment(file, storage);
         new Test.Add(new Test.PersonServer("Dwight", "Eisenhower"), "people").operate(env);

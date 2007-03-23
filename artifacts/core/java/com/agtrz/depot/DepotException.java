@@ -3,11 +3,11 @@ package com.agtrz.depot;
 
 import com.agtrz.swag.danger.Danger;
 
-public class StorageException extends Danger
+public class DepotException extends Danger
 {
     private static final long serialVersionUID = 20070208L;
     
-    public StorageException(Throwable cause)
+    public DepotException(Throwable cause)
     {
         super(cause);
     }
