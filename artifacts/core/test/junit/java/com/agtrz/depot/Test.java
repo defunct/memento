@@ -10,12 +10,9 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
-import com.agtrz.depot.Circle;
-import com.agtrz.depot.Person;
-import com.agtrz.depot.Depot;
-import com.agtrz.depot.Depot.RecordReference;
-
 import junit.framework.Assert;
+
+import com.agtrz.depot.Depot.RecordReference;
 
 public class Test
 {
@@ -207,7 +204,7 @@ public class Test
                 Set setOfObjects = (Set) entry.getValue();
                 Depot.Join join = environment.mutator.getJoin(name);
                 int count = 0;
-                Iterator found = join.find(keptObject);
+        Iterator found = join.find(keptObject);
                 while (found.hasNext())
                 {
                     Depot.Record[] records = (Depot.Record[]) found.next();

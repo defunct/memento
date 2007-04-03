@@ -19,9 +19,7 @@ import com.agtrz.bento.Bento;
 import com.agtrz.dynamic.MetaClass;
 import com.agtrz.dynamic.Property;
 import com.agtrz.strata.Strata;
-import com.agtrz.strata.Strata.Cursor;
 import com.agtrz.strata.bento.BentoStorage;
-import com.agtrz.strata.bento.BentoStorage.MutatorServer;
 import com.agtrz.swag.danger.AsinineCheckedExceptionThatIsEntirelyImpossible;
 import com.agtrz.swag.danger.Danger;
 import com.agtrz.swag.io.ByteBufferInputStream;
@@ -119,7 +117,19 @@ public class Depot
         }
     }
 
+    private final static class IndexRecordExtractor
+    implements Strata.FieldExtractor, Serializable
+    {
+        private static final long serialVersionUID = 20070403L;
+
+        public Comparable[] getFields(Object object)
+        {
+            return new Comparable[] { ((IndexRecord) object).key };
+        }
+    }
+
     private final static class IndexRecord
+    implements Comparable
     {
         public final Long key;
 
@@ -129,6 +139,21 @@ public class Depot
         {
             this.key = key;
             this.address = address;
+        }
+
+        public int compareTo(Object object)
+        {
+            return key.compareTo(((IndexRecord) object).key);
+        }
+
+        public boolean equals(Object object)
+        {
+            if (object instanceof IndexRecord)
+            {
+                IndexRecord record = (IndexRecord) object;
+                return key.equals(record.key);
+            }
+            return false;
         }
     }
 
@@ -209,43 +234,6 @@ public class Depot
         }
     }
 
-    private final static class IndexRecordKeyResolver
-    implements Strata.Resolver, Serializable
-    {
-        private static final long serialVersionUID = 20070208L;
-
-        public Object resolve(Object txn, Object object)
-        {
-            return ((IndexRecord) object).key;
-        }
-    }
-
-    private final static class IndexRecordByKey
-    implements Strata.Criteria
-    {
-        private final Long key;
-
-        public IndexRecordByKey(Long key)
-        {
-            this.key = key;
-        }
-
-        public int partialMatch(Object object)
-        {
-            return key.compareTo(((IndexRecord) object).key);
-        }
-
-        public boolean exactMatch(Object object)
-        {
-            return key.equals(((IndexRecord) object).key);
-        }
-
-        public Object getObject()
-        {
-            return null;
-        }
-    }
-
     private final static class JoinWriter
     implements ByteWriter, Serializable
     {
@@ -275,11 +263,11 @@ public class Depot
             }
             else
             {
-                RecordReference[] references = (RecordReference[]) object;
+                JoinRecord joinRecord = (JoinRecord) object;
                 for (int i = 0; i < size; i++)
                 {
-                    bytes.putInt(references[i].getBagKey().intValue());
-                    bytes.putLong(references[i].getKey().longValue());
+                    bytes.putInt(joinRecord.records[i].getBagKey().intValue());
+                    bytes.putLong(joinRecord.records[i].getKey().longValue());
                 }
             }
         }
@@ -304,54 +292,18 @@ public class Depot
             {
                 keys[i] = new RecordReference(new Integer(bytes.getInt()), new Long(bytes.getLong()));
             }
-            return keys[0].getBagKey().intValue() == 0 ? null : keys;
+            return keys[0].getBagKey().intValue() == 0 ? null : new JoinRecord(keys);
         }
     }
 
-    private final static class JoinComparison
-    implements Strata.Comparison, Serializable
+    private final static class JoinExtractor
+    implements Strata.FieldExtractor, Serializable
     {
-        private static final long serialVersionUID = 20070208L;
+        private static final long serialVersionUID = 20070403L;
 
-        private final int size;
-
-        public JoinComparison(int size)
+        public Comparable[] getFields(Object object)
         {
-            this.size = size;
-        }
-
-        public int partialMatch(Object criteria, Object stored)
-        {
-            RecordReference[] left = (RecordReference[]) criteria;
-            RecordReference[] right = (RecordReference[]) stored;
-            for (int i = 0; i < size; i++)
-            {
-                int compare = left[i].compareTo(right[i]);
-                if (compare == 0)
-                {
-                    continue;
-                }
-                return compare;
-            }
-            return 0;
-        }
-
-        public boolean exactMatch(Object criteria, Object stored)
-        {
-            RecordReference[] left = (RecordReference[]) criteria;
-            RecordReference[] right = (RecordReference[]) stored;
-            if (left.length != right.length)
-            {
-                throw new IllegalArgumentException();
-            }
-            for (int i = 0; i < left.length; i++)
-            {
-                if (left[i].equals(right[i]))
-                {
-                    return false;
-                }
-            }
-            return true;
+            return ((JoinRecord) object).records;
         }
     }
 
@@ -531,7 +483,7 @@ public class Depot
             Strata.Creator newStrata = new Strata.Creator();
 
             newStrata.setStorage(newBentoStorage.create());
-            newStrata.setCriteriaServer(new Strata.ComplexCriteriaServer(new IndexRecordKeyResolver(), new Strata.BasicComparison()));
+            newStrata.setFieldExtractor(new IndexRecordExtractor());
 
             return newStrata.create(BentoStorage.txn(mutator));
         }
@@ -540,8 +492,6 @@ public class Depot
     public final static class JoinCreator
     {
         private int size = 2;
-
-        private int indexSize = 1;
 
         public Strata create(Bento.Mutator mutator)
         {
@@ -552,7 +502,7 @@ public class Depot
             Strata.Creator newStrata = new Strata.Creator();
 
             newStrata.setStorage(newBentoStorage.create());
-            newStrata.setCriteriaServer(new Strata.ComplexCriteriaServer(new Strata.BasicResolver(), new JoinComparison(indexSize)));
+            newStrata.setFieldExtractor(new JoinExtractor());
 
             return newStrata.create(BentoStorage.txn(mutator));
         }
@@ -560,11 +510,6 @@ public class Depot
         public void setSize(int size)
         {
             this.size = size;
-        }
-
-        public void setIndexSize(int indexSize)
-        {
-            this.indexSize = indexSize;
         }
     }
 
@@ -641,13 +586,60 @@ public class Depot
 
         public Record get(Long key)
         {
-            Strata.Cursor cursor = query.find(new IndexRecordByKey(key));
-            if (cursor.isEmpty())
+            Strata.Cursor cursor = query.find(new Comparable[] { key });
+            if (!cursor.hasNext())
             {
                 return null;
             }
             IndexRecord record = (IndexRecord) cursor.next();
+            if (!record.key.equals(key))
+            {
+                return null;
+            }
             return (Record) new IndexRecordObjectResolver().resolve(mutator, record);
+        }
+    }
+
+    private final static class JoinRecord
+    {
+        public final RecordReference[] records;
+
+        public JoinRecord(RecordReference[] records)
+        {
+            this.records = records;
+        }
+
+        public boolean equals(Object object)
+        {
+            if (object instanceof JoinRecord)
+            {
+                JoinRecord joinRecord = (JoinRecord) object;
+                RecordReference[] left = (RecordReference[]) records;
+                RecordReference[] right = (RecordReference[]) joinRecord.records;
+                if (left.length != right.length)
+                {
+                    return false;
+                }
+                for (int i = 0; i < left.length; i++)
+                {
+                    if (!left[i].equals(right[i]))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            return false;
+        }
+
+        public int hashCode()
+        {
+            int hashCode = 1;
+            for (int i = 0; i < records.length; i++)
+            {
+                hashCode = hashCode * 37 + records[i].hashCode();
+            }
+            return hashCode;
         }
     }
 
@@ -671,28 +663,28 @@ public class Depot
         public void add(RecordReference[] references)
         {
             // FIXME Only unique.
-            query.insert(references);
+            query.insert(new JoinRecord(references));
         }
 
-        public Strata.Cursor find(Record record)
+        public Iterator find(Record record)
         {
             return find(new RecordReference[] { record.getReference() });
         }
 
-        public Strata.Cursor find(RecordReference[] references)
+        public Iterator find(RecordReference[] references)
         {
-            return new JoinCursor(mutator, query.find(references));
+            return new JoinIterator(mutator, query.find(references));
         }
     }
 
-    private final static class JoinCursor
-    implements Strata.Cursor
+    private final static class JoinIterator
+    implements Iterator
     {
         private final Strata.Cursor cursor;
 
         private final Depot.Mutator mutator;
 
-        public JoinCursor(Depot.Mutator mutator, Strata.Cursor cursor)
+        public JoinIterator(Depot.Mutator mutator, Strata.Cursor cursor)
         {
             this.mutator = mutator;
             this.cursor = cursor;
@@ -703,26 +695,6 @@ public class Depot
             return cursor.hasNext();
         }
 
-        public boolean isEmpty()
-        {
-            return cursor.isEmpty();
-        }
-
-        public boolean isForward()
-        {
-            return cursor.isForward();
-        }
-
-        public Cursor newCursor()
-        {
-            return new JoinCursor(mutator, cursor.newCursor());
-        }
-
-        public Cursor reverse()
-        {
-            return new JoinCursor(mutator, cursor.reverse());
-        }
-
         public void remove()
         {
             throw new UnsupportedOperationException();
@@ -730,11 +702,11 @@ public class Depot
 
         public Object next()
         {
-            RecordReference[] recordReferences = (RecordReference[]) cursor.next();
-            Record[] records = new Record[recordReferences.length];
-            for (int i = 0; i < recordReferences.length; i++)
+            JoinRecord joinRecord = (JoinRecord) cursor.next();
+            Record[] records = new Record[joinRecord.records.length];
+            for (int i = 0; i < joinRecord.records.length; i++)
             {
-                records[i] = mutator.get(recordReferences[i]);
+                records[i] = mutator.get(joinRecord.records[i]);
             }
             return records;
         }
@@ -789,7 +761,7 @@ public class Depot
     }
 
     public class Mutator
-    implements MutatorServer
+    implements BentoStorage.MutatorServer
     {
         private final Bento.Mutator mutator;
 
@@ -833,8 +805,8 @@ public class Depot
             Join join = (Join) mapOfJoins.get(name);
             if (join == null)
             {
-                Strata relationshipIndex = (Strata) mapOfJoinIndices.get(name);
-                join = new Join(this, relationshipIndex.query(this));
+                Strata joinIndex = (Strata) mapOfJoinIndices.get(name);
+                join = new Join(this, joinIndex.query(this));
                 mapOfJoins.put(name, join);
             }
             return join;
