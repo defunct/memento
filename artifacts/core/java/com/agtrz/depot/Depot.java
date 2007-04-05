@@ -32,7 +32,33 @@ public class Depot
 {
     private final static URI MONKEY_URI = URI.create("http://syndibase.agtrz.com/strata");
 
-    public static class RecordReference
+    public static class Record
+    implements Serializable
+    {
+        private static final long serialVersionUID = 20070210L;
+
+        private final RecordKey reference;
+
+        private final Object object;
+
+        public Record(RecordKey reference, Object object)
+        {
+            this.reference = reference;
+            this.object = object;
+        }
+
+        public RecordKey getReference()
+        {
+            return reference;
+        }
+
+        public Object getObject()
+        {
+            return object;
+        }
+    }
+
+    public static class RecordKey
     implements Comparable, Serializable
     {
         private static final long serialVersionUID = 20070208L;
@@ -41,7 +67,7 @@ public class Depot
 
         private final Long key;
 
-        public RecordReference(Integer bagKey, Long key)
+        public RecordKey(Integer bagKey, Long key)
         {
             this.bagKey = bagKey;
             this.key = key;
@@ -59,7 +85,7 @@ public class Depot
 
         public int compareTo(Object object)
         {
-            RecordReference reference = (RecordReference) object;
+            RecordKey reference = (RecordKey) object;
             int compare = bagKey.compareTo(reference.bagKey);
             if (compare == 0)
             {
@@ -78,38 +104,12 @@ public class Depot
 
         public boolean equals(Object object)
         {
-            if (object instanceof RecordReference)
+            if (object instanceof RecordKey)
             {
-                RecordReference reference = (RecordReference) object;
+                RecordKey reference = (RecordKey) object;
                 return bagKey.equals(reference.bagKey) && key.equals(reference.key);
             }
             return false;
-        }
-    }
-
-    public static class Record
-    implements Serializable
-    {
-        private static final long serialVersionUID = 20070210L;
-
-        private final RecordReference reference;
-
-        private final Object object;
-
-        public Record(RecordReference reference, Object object)
-        {
-            this.reference = reference;
-            this.object = object;
-        }
-
-        public RecordReference getReference()
-        {
-            return reference;
-        }
-
-        public Object getObject()
-        {
-            return object;
         }
     }
 
@@ -261,10 +261,10 @@ public class Depot
 
         public Object read(ByteBuffer bytes)
         {
-            RecordReference[] keys = new RecordReference[size];
+            RecordKey[] keys = new RecordKey[size];
             for (int i = 0; i < size; i++)
             {
-                keys[i] = new RecordReference(new Integer(bytes.getInt()), new Long(bytes.getLong()));
+                keys[i] = new RecordKey(new Integer(bytes.getInt()), new Long(bytes.getLong()));
             }
             return keys[0].getBagKey().intValue() == 0 ? null : new JoinRecord(keys);
         }
@@ -561,7 +561,7 @@ public class Depot
             Object object;
             try
             {
-object = new ObjectInputStream(in).readObject();
+                object = new ObjectInputStream(in).readObject();
             }
             catch (IOException e)
             {
@@ -575,7 +575,8 @@ object = new ObjectInputStream(in).readObject();
                 danger.message("class.not.found");
 
                 throw danger;
-            }return object;
+            }
+            return object;
         }
     }
 
@@ -611,7 +612,7 @@ object = new ObjectInputStream(in).readObject();
 
         public Record add(Marshaller marshaller, Object object)
         {
-            Record record = new Record(new RecordReference(key, new Long(++identifier)), object);
+            Record record = new Record(new RecordKey(key, new Long(++identifier)), object);
             Bento.OutputStream allocation = new Bento.OutputStream(mutator.mutator);
             marshaller.marshall(allocation, object);
             Bento.Address address = allocation.allocate(false);
@@ -632,15 +633,15 @@ object = new ObjectInputStream(in).readObject();
                 return null;
             }
             Object object = new IndexRecordObjectResolver().resolve(mutator, new SerializationUnmarshaller(), record);
-            return new Record(new RecordReference(key, (Long) keyOfRecord), object);
+            return new Record(new RecordKey(key, (Long) keyOfRecord), object);
         }
     }
 
     private final static class JoinRecord
     {
-        public final RecordReference[] records;
+        public final RecordKey[] records;
 
-        public JoinRecord(RecordReference[] records)
+        public JoinRecord(RecordKey[] records)
         {
             this.records = records;
         }
@@ -650,8 +651,8 @@ object = new ObjectInputStream(in).readObject();
             if (object instanceof JoinRecord)
             {
                 JoinRecord joinRecord = (JoinRecord) object;
-                RecordReference[] left = (RecordReference[]) records;
-                RecordReference[] right = (RecordReference[]) joinRecord.records;
+                RecordKey[] left = (RecordKey[]) records;
+                RecordKey[] right = (RecordKey[]) joinRecord.records;
                 if (left.length != right.length)
                 {
                     return false;
@@ -693,10 +694,10 @@ object = new ObjectInputStream(in).readObject();
 
         public void add(Record left, Record right)
         {
-            add(new RecordReference[] { left.getReference(), right.getReference() });
+            add(new RecordKey[] { left.getReference(), right.getReference() });
         }
 
-        public void add(RecordReference[] references)
+        public void add(RecordKey[] references)
         {
             // FIXME Only unique.
             query.insert(new JoinRecord(references));
@@ -704,10 +705,10 @@ object = new ObjectInputStream(in).readObject();
 
         public Iterator find(Record record)
         {
-            return find(new RecordReference[] { record.getReference() });
+            return find(new RecordKey[] { record.getReference() });
         }
 
-        public Iterator find(RecordReference[] references)
+        public Iterator find(RecordKey[] references)
         {
             return new JoinIterator(mutator, query.find(references));
         }
@@ -814,7 +815,7 @@ object = new ObjectInputStream(in).readObject();
             this.mapOfJoins = new HashMap();
         }
 
-        public Record get(RecordReference reference)
+        public Record get(RecordKey reference)
         {
             return getBag(reference.getBagKey()).get(reference.getKey());
         }

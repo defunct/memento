@@ -12,7 +12,7 @@ import java.util.Set;
 
 import junit.framework.Assert;
 
-import com.agtrz.depot.Depot.RecordReference;
+import com.agtrz.depot.Depot.RecordKey;
 
 public class Test
 {
@@ -65,7 +65,7 @@ public class Test
             this.mapOfRelationships = new HashMap();
         }
 
-        public void relate(String relationshipName, RecordReference reference)
+        public void relate(String relationshipName, RecordKey reference)
         {
             Set setOfObjects = (Set) mapOfRelationships.get(relationshipName);
             if (setOfObjects == null)
