@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -193,39 +194,17 @@ public class Depot
     }
 
     private final static class IndexRecordObjectResolver
-    implements Strata.Resolver, Serializable
     {
-        private static final long serialVersionUID = 20070208L;
-
-        public Object resolve(Object txn, Object object)
+        public Object resolve(Mutator mutator, Unmarshaller unmarshaller, IndexRecord indexRecord)
         {
-            Depot.Mutator mutator = (Depot.Mutator) txn;
-            IndexRecord indexRecord = (IndexRecord) object;
-            Record record = (Record) mutator.mapOfObjects.get(indexRecord.key);
-            if (record == null)
+            Object object = mutator.mapOfObjects.get(indexRecord.key);
+            if (object == null)
             {
                 Bento.Block block = mutator.getMutator().load(indexRecord.address);
-                try
-                {
-                    ObjectInputStream in = new ObjectInputStream(new ByteBufferInputStream(block.toByteBuffer(), false));
-                    record = (Record) in.readObject();
-                }
-                catch (IOException e)
-                {
-                    throw new AsinineCheckedExceptionThatIsEntirelyImpossible(e);
-                }
-                catch (ClassNotFoundException e)
-                {
-                    Danger danger = new DepotException(e);
-
-                    danger.source(Depot.class);
-                    danger.message("class.not.found");
-
-                    throw danger;
-                }
-                mutator.mapOfObjects.put(indexRecord.key, record);
+                object = unmarshaller.unmarshall(new ByteBufferInputStream(block.toByteBuffer(), false));
+                mutator.mapOfObjects.put(indexRecord.key, object);
             }
-            return record;
+            return object;
         }
     }
 
@@ -539,6 +518,75 @@ public class Depot
         }
     }
 
+    public interface Serializer
+    {
+        public Object add(Object object);
+
+        public void update(Object key, Object object);
+
+        public void delete(Object key);
+    }
+
+    public interface Marshaller
+    {
+        public void marshall(OutputStream out, Object object);
+    }
+
+    public final static class SerialzationMarshaller
+    implements Marshaller
+    {
+        public void marshall(OutputStream out, Object object)
+        {
+            try
+            {
+                new ObjectOutputStream(out).writeObject(object);
+            }
+            catch (IOException e)
+            {
+                throw new AsinineCheckedExceptionThatIsEntirelyImpossible(e);
+            }
+        }
+    }
+
+    public interface Unmarshaller
+    {
+        public Object unmarshall(InputStream in);
+    }
+
+    public final static class SerializationUnmarshaller
+    implements Unmarshaller
+    {
+        public Object unmarshall(InputStream in)
+        {
+            Object object;
+            try
+            {
+object = new ObjectInputStream(in).readObject();
+            }
+            catch (IOException e)
+            {
+                throw new AsinineCheckedExceptionThatIsEntirelyImpossible(e);
+            }
+            catch (ClassNotFoundException e)
+            {
+                Danger danger = new DepotException(e);
+
+                danger.source(Depot.class);
+                danger.message("class.not.found");
+
+                throw danger;
+            }return object;
+        }
+    }
+
+    // public final class JavaSerializer implements Serializer
+    // {
+    // public Object add(Object object)
+    // {
+    // return null;
+    // }
+    // }
+
     public final class Bag
     {
         private final Integer key;
@@ -561,37 +609,30 @@ public class Depot
             return key;
         }
 
-        public Record add(Object object)
+        public Record add(Marshaller marshaller, Object object)
         {
             Record record = new Record(new RecordReference(key, new Long(++identifier)), object);
             Bento.OutputStream allocation = new Bento.OutputStream(mutator.mutator);
-            try
-            {
-                ObjectOutputStream out = new ObjectOutputStream(allocation);
-                out.writeObject(record);
-            }
-            catch (IOException e)
-            {
-                throw new AsinineCheckedExceptionThatIsEntirelyImpossible(e);
-            }
+            marshaller.marshall(allocation, object);
             Bento.Address address = allocation.allocate(false);
             query.insert(new IndexRecord(record.getReference().getKey(), address));
             return record;
         }
 
-        public Record get(Long key)
+        public Record get(Object keyOfRecord)
         {
-            Strata.Cursor cursor = query.find(new Comparable[] { key });
+            Strata.Cursor cursor = query.find(new Comparable[] { (Comparable) keyOfRecord });
             if (!cursor.hasNext())
             {
                 return null;
             }
             IndexRecord record = (IndexRecord) cursor.next();
-            if (!record.key.equals(key))
+            if (!record.key.equals(keyOfRecord))
             {
                 return null;
             }
-            return (Record) new IndexRecordObjectResolver().resolve(mutator, record);
+            Object object = new IndexRecordObjectResolver().resolve(mutator, new SerializationUnmarshaller(), record);
+            return new Record(new RecordReference(key, (Long) keyOfRecord), object);
         }
     }
 

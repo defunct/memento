@@ -51,13 +51,13 @@ public class Test
     {
         public final String bagName;
 
-        public final Long key;
+        public final Object key;
 
         public final Object object;
 
         public final Map mapOfRelationships;
 
-        public ObjectAllocation(String bagName, Long key, Object object)
+        public ObjectAllocation(String bagName, Object key, Object object)
         {
             this.bagName = bagName;
             this.key = key;
@@ -143,7 +143,7 @@ public class Test
         {
             Depot.Bag bag = environment.mutator.getBag(bagName);
             Object object = newObject.get();
-            Depot.Record record = bag.add(object);
+            Depot.Record record = bag.add(new Depot.SerialzationMarshaller(), object);
             environment.mapOfIdentifiers.put(new Integer(environment.objectCount++), new ObjectAllocation(bagName, record.getReference().getKey(), object));
         }
     }
