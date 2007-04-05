@@ -46,11 +46,6 @@ public class Depot
             this.key = key;
         }
 
-        // public RecordReference(int bagKey, long key)
-        // {
-        // this(new Integer(bagKey), new Long(key));
-        // }
-
         public Integer getBagKey()
         {
             return bagKey;
