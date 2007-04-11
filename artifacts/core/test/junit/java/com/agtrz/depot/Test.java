@@ -12,8 +12,6 @@ import java.util.Set;
 
 import junit.framework.Assert;
 
-import com.agtrz.depot.Depot.RecordKey;
-
 public class Test
 {
     public final static class Environment
@@ -26,7 +24,7 @@ public class Test
 
         public Depot storage;
 
-        public Depot.Mutator mutator;
+        public Depot.Snapshot mutator;
 
         public int objectCount;
 
@@ -35,7 +33,7 @@ public class Test
             this.file = file;
             this.random = new Random();
             this.storage = storage;
-            this.mutator = storage.mutate();
+            this.mutator = storage.newSnapshot();
             this.mapOfIdentifiers = new HashMap();
         }
 
@@ -43,7 +41,7 @@ public class Test
         {
             this.storage.close();
             this.storage = new Depot.Opener().open(file);
-            this.mutator = storage.mutate();
+            this.mutator = storage.newSnapshot();
         }
     }
 
@@ -51,13 +49,13 @@ public class Test
     {
         public final String bagName;
 
-        public final Object key;
+        public final Long key;
 
         public final Object object;
 
         public final Map mapOfRelationships;
 
-        public ObjectAllocation(String bagName, Object key, Object object)
+        public ObjectAllocation(String bagName, Long key, Object object)
         {
             this.bagName = bagName;
             this.key = key;
@@ -65,15 +63,15 @@ public class Test
             this.mapOfRelationships = new HashMap();
         }
 
-        public void relate(String relationshipName, RecordKey reference)
+        public void relate(String joinName, Long bag)
         {
-            Set setOfObjects = (Set) mapOfRelationships.get(relationshipName);
+            Set setOfObjects = (Set) mapOfRelationships.get(joinName);
             if (setOfObjects == null)
             {
                 setOfObjects = new HashSet();
-                mapOfRelationships.put(relationshipName, setOfObjects);
+                mapOfRelationships.put(joinName, setOfObjects);
             }
-            setOfObjects.add(reference);
+            setOfObjects.add(bag);
         }
     }
 
@@ -141,10 +139,10 @@ public class Test
 
         public void operate(Environment environment)
         {
-            Depot.Bag bag = environment.mutator.getBag(bagName);
+            Depot.Bin bin = environment.mutator.getBin(bagName);
             Object object = newObject.get();
-            Depot.Record record = bag.add(new Depot.SerialzationMarshaller(), object);
-            environment.mapOfIdentifiers.put(new Integer(environment.objectCount++), new ObjectAllocation(bagName, record.getReference().getKey(), object));
+            Depot.Bag bag = bin.add(new Depot.SerialzationMarshaller(), object);
+            environment.mapOfIdentifiers.put(new Integer(environment.objectCount++), new ObjectAllocation(bagName, bag.getKey(), object));
         }
     }
 
@@ -153,14 +151,17 @@ public class Test
     {
         private static final long serialVersionUID = 20070208L;
 
+        private final String bagName;
+
         private final String joinName;
 
         private final int objectCountOne;
 
         private final int objectCountTwo;
 
-        public Join(String joinName, int objectCountOne, int objectCountTwo)
+        public Join(String bagName, String joinName, int objectCountOne, int objectCountTwo)
         {
+            this.bagName = bagName;
             this.joinName = joinName;
             this.objectCountOne = objectCountOne;
             this.objectCountTwo = objectCountTwo;
@@ -168,13 +169,14 @@ public class Test
 
         public void operate(Environment env)
         {
-            Depot.Join join = env.mutator.getJoin(joinName);
+            Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
+            Depot.Join join = env.mutator.getBin(bagName).getJoin(joinName);
             ObjectAllocation left = (ObjectAllocation) env.mapOfIdentifiers.get(new Integer(objectCountOne));
             ObjectAllocation right = (ObjectAllocation) env.mapOfIdentifiers.get(new Integer(objectCountTwo));
-            Depot.Record keptLeft = env.mutator.getBag(left.bagName).get(left.key);
-            Depot.Record keptRight = env.mutator.getBag(right.bagName).get(right.key);
-            join.add(keptLeft, keptRight);
-            left.relate(joinName, keptRight.getReference());
+            Depot.Bag keptLeft = env.mutator.getBin(left.bagName).get(unmarshaller, left.key);
+            Depot.Bag keptRight = env.mutator.getBin(right.bagName).get(unmarshaller, right.key);
+            join.add(new Depot.Bag[] { keptLeft, keptRight });
+            left.relate(joinName, keptRight.getKey());
         }
     }
 
@@ -192,9 +194,10 @@ public class Test
 
         public void operate(Environment environment)
         {
+            Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
             ObjectAllocation alloc = (ObjectAllocation) environment.mapOfIdentifiers.get(new Integer(objectNumber));
-            Depot.Bag bag = environment.mutator.getBag(alloc.bagName);
-            Depot.Record keptObject = bag.get(alloc.key);
+            Depot.Bin bin = environment.mutator.getBin(alloc.bagName);
+            Depot.Bag keptObject = bin.get(unmarshaller, alloc.key);
             Assert.assertEquals(alloc.object, keptObject.getObject());
             Iterator relationships = alloc.mapOfRelationships.entrySet().iterator();
             while (relationships.hasNext())
@@ -202,17 +205,16 @@ public class Test
                 Map.Entry entry = (Map.Entry) relationships.next();
                 String name = (String) entry.getKey();
                 Set setOfObjects = (Set) entry.getValue();
-                Depot.Join join = environment.mutator.getJoin(name);
                 int count = 0;
-        Iterator found = join.find(keptObject);
+                Iterator found = keptObject.getLinked(name);
                 while (found.hasNext())
                 {
-                    Depot.Record[] records = (Depot.Record[]) found.next();
+                    Depot.Bag[] records = (Depot.Bag[]) found.next();
                     if (!records[0].getObject().equals(keptObject.getObject()))
                     {
                         break;
                     }
-                    Assert.assertTrue(setOfObjects.contains(records[1].getReference()));
+                    Assert.assertTrue(setOfObjects.contains(records[1].getKey()));
                     count++;
                 }
                 Assert.assertEquals(count, setOfObjects.size());
@@ -234,9 +236,10 @@ public class Test
 
         public void operate(Environment environment)
         {
+            Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
             ObjectAllocation alloc = (ObjectAllocation) environment.mapOfIdentifiers.get(new Integer(objectCount));
-            Depot.Bag bag = environment.mutator.getBag(alloc.bagName);
-            Depot.Record keptObject = bag.get(alloc.key);
+            Depot.Bin bag = environment.mutator.getBin(alloc.bagName);
+            Depot.Bag keptObject = bag.get(unmarshaller, alloc.key);
             Assert.assertNull(keptObject);
             environment.mapOfIdentifiers.remove(new Integer(objectCount));
         }

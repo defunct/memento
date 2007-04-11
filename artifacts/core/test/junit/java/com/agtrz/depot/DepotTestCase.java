@@ -28,7 +28,7 @@ extends TestCase
     public void testCreateBag()
     {
         Depot.Creator creator = new Depot.Creator();
-        creator.newBag("people");
+        creator.newBin("people");
         File file = newFile();
         Depot storage = creator.create(file);
 
@@ -40,8 +40,8 @@ extends TestCase
     public void testCreateTwoBags()
     {
         Depot.Creator creator = new Depot.Creator();
-        creator.newBag("people");
-        creator.newBag("circles");
+        creator.newBin("people");
+        creator.newBin("circles");
         File file = newFile();
         Depot storage = creator.create(file);
 
@@ -56,7 +56,7 @@ extends TestCase
     public void testTwoItemsInBag()
     {
         Depot.Creator creator = new Depot.Creator();
-        creator.newBag("people");
+        creator.newBin("people");
         File file = newFile();
         Depot storage = creator.create(file);
 
@@ -71,7 +71,7 @@ extends TestCase
     public void testReopenOneBag()
     {
         Depot.Creator creator = new Depot.Creator();
-        creator.newBag("people");
+        creator.newBin("people");
         File file = newFile();
         Depot storage = creator.create(file);
 
@@ -87,8 +87,8 @@ extends TestCase
     public void testReopenTwoBags()
     {
         Depot.Creator creator = new Depot.Creator();
-        creator.newBag("people");
-        creator.newBag("circles");
+        creator.newBin("people");
+        creator.newBin("circles");
         File file = newFile();
         Depot storage = creator.create(file);
 
@@ -108,7 +108,7 @@ extends TestCase
     public void testReopenTwoItemsInBag()
     {
         Depot.Creator creator = new Depot.Creator();
-        creator.newBag("people");
+        creator.newBin("people");
         File file = newFile();
         Depot storage = creator.create(file);
 
@@ -128,7 +128,7 @@ extends TestCase
     public void testRollback()
     {
         Depot.Creator creator = new Depot.Creator();
-        creator.newBag("people");
+        creator.newBin("people");
         File file = newFile();
         Depot storage = creator.create(file);
 
@@ -140,19 +140,24 @@ extends TestCase
 
     public void testRelate()
     {
-        Depot.Creator creator = new Depot.Creator();
-        creator.newBag("people");
-        creator.newBag("circles");
-        creator.newJoin("membership");
         File file = newFile();
-        Depot storage = creator.create(file);
+        Depot storage = null;
+
+        {
+            Depot.Creator creator = new Depot.Creator();
+            Depot.BinCreator people = creator.newBin("people");
+            Depot.BinCreator circles = creator.newBin("circles");
+            circles.newJoin("membership").add(people);
+            people.newJoin("membership").add(circles);
+            storage = creator.create(file);
+        }
 
         Test.Environment env = new Test.Environment(file, storage);
         new Test.Add(new Test.PersonServer("Dwight", "Eisenhower"), "people").operate(env);
         new Test.Get(0).operate(env);
         new Test.Add(new Test.CircleServer("United States Army"), "circles").operate(env);
-        new Test.Join("membership", 0, 1).operate(env);
-        new Test.Join("membership", 1, 0).operate(env);
+        new Test.Join("people", "membership", 0, 1).operate(env);
+        new Test.Join("circles", "membership", 1, 0).operate(env);
         new Test.Get(0).operate(env);
         new Test.Get(1).operate(env);
         new Test.Commit().operate(env);
