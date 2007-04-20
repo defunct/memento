@@ -8,7 +8,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-import java.lang.ref.ReferenceQueue;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -17,12 +16,16 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
-import EDU.oswego.cs.dl.util.concurrent.Mutex;
+import EDU.oswego.cs.dl.util.concurrent.NullSync;
+import EDU.oswego.cs.dl.util.concurrent.Sync;
 
 import com.agtrz.bento.Bento;
 import com.agtrz.dynamic.MetaClass;
 import com.agtrz.dynamic.Property;
+import com.agtrz.strata.ArrayListStorage;
 import com.agtrz.strata.Strata;
 import com.agtrz.strata.bento.BentoStorage;
 import com.agtrz.swag.danger.AsinineCheckedExceptionThatIsEntirelyImpossible;
@@ -31,8 +34,6 @@ import com.agtrz.swag.io.ByteBufferInputStream;
 import com.agtrz.swag.io.ByteReader;
 import com.agtrz.swag.io.ByteWriter;
 import com.agtrz.swag.io.SizeOf;
-import com.agtrz.swag.util.Queueable;
-import com.agtrz.swag.util.WeakMapValue;
 
 public class Depot
 {
@@ -73,12 +74,12 @@ public class Depot
         {
             return version;
         }
-        
+
         public void link(String name, Bag[] bags)
         {
             bin.getJoin(name).add(this, bags);
         }
-        
+
         public Iterator getLinked(String name)
         {
             Join join = bin.getJoin(name);
@@ -88,9 +89,7 @@ public class Depot
 
     private final static Integer OPERATING = new Integer(0);
 
-    private final static Integer ROLLEDBACK = new Integer(0);
-
-    private final static Integer COMMITTED = new Integer(0);
+    private final static Integer COMMITTED = new Integer(1);
 
     private final static class MutationRecord
     {
@@ -173,73 +172,7 @@ public class Depot
         }
     }
 
-    private final static class Revision
-    {
-        private final Long version;
-
-        private final Bento.Address address;
-
-        public Revision(Long version, Bento.Address address)
-        {
-            this.version = version;
-            this.address = address;
-        }
-
-        public Long getVersion()
-        {
-            return version;
-        }
-
-        public final Bento.Address getAddress()
-        {
-            return address;
-        }
-    }
-
-    private final static class History
-    {
-        private final List listOfRevisions = new ArrayList();
-
-        private final Mutex mutex = new Mutex();
-
-        private final Long objectKey;
-
-        public History(Long objectKey)
-        {
-            this.objectKey = objectKey;
-        }
-
-        public Long getObjectKey()
-        {
-            return objectKey;
-        }
-
-        public Mutex getMutex()
-        {
-            return mutex;
-        }
-
-        public synchronized Revision getLastRevision()
-        {
-            return (Revision) listOfRevisions.get(listOfRevisions.size() - 1);
-        }
-
-        public void add(Revision revision)
-        {
-            listOfRevisions.add(revision);
-        }
-
-        public boolean isEmpty()
-        {
-            return listOfRevisions.size() == 0;
-        }
-
-        public String toString()
-        {
-            return listOfRevisions.toString();
-        }
-    }
-
+    // FIXME Rename BinExtractor.
     private final static class BinRecordExtractor
     implements Strata.FieldExtractor, Serializable
     {
@@ -374,42 +307,6 @@ public class Depot
 
     }
 
-    private final static class HistoryCache
-    {
-        protected final transient ReferenceQueue queue = new ReferenceQueue();
-
-        private final Map mapOfHistories = new HashMap();
-
-        private void collect()
-        {
-            WeakMapValue reference = null;
-            while ((reference = (WeakMapValue) queue.poll()) != null)
-            {
-                ((Queueable) reference).dequeue();
-            }
-        }
-
-        public History get(Long key)
-        {
-            collect();
-
-            History history = null;
-            WeakMapValue reference = (WeakMapValue) mapOfHistories.get(key);
-            if (reference != null)
-            {
-                history = (History) reference.get();
-            }
-
-            if (history == null)
-            {
-                history = new History(key);
-                mapOfHistories.put(key, new WeakMapValue(key, history, mapOfHistories, queue));
-            }
-
-            return history;
-        }
-    }
-
     private final static class BinSchema
     implements Serializable
     {
@@ -448,13 +345,10 @@ public class Depot
 
         public final Strata strata;
 
-        public final HistoryCache histories;
-
         public JoinCommon(Strata strata, Map mapOfFields)
         {
             this.strata = strata;
             this.mapOfFields = mapOfFields;
-            this.histories = new HistoryCache();
         }
     }
 
@@ -486,7 +380,12 @@ public class Depot
             newMutationStrata.setStorage(newMutationStorage.create());
             newMutationStrata.setFieldExtractor(new MutationExtractor());
 
-            Strata mutations = newMutationStrata.create(BentoStorage.txn(mutator));
+            Object txn = BentoStorage.txn(mutator);
+            Strata mutations = newMutationStrata.create(txn);
+
+            Strata.Query query = mutations.query(txn);
+            query.insert(new MutationRecord(new Long(1L), COMMITTED));
+            query.write();
 
             Map mapOfBins = new HashMap();
             Iterator bags = mapOfBinCreators.entrySet().iterator();
@@ -604,7 +503,16 @@ public class Depot
                     JoinCommon joinCommon = new JoinCommon(joinSchema.strata, new LinkedHashMap(joinSchema.mapOfFields));
                     mapOfJoinCommons.put(join.getKey(), joinCommon);
                 }
-                BinCommon binCommon = new BinCommon(binSchema.strata, mapOfJoinCommons);
+
+                long identifer = 1L;
+                Strata.Query query = binSchema.strata.query(BentoStorage.txn(mutator));
+                Strata.Cursor last = query.last();
+                while (last.hasPrevious())
+                {
+                    BinRecord record = (BinRecord) last.previous();
+                    identifer = record.key.longValue() + 1;
+                }
+                BinCommon binCommon = new BinCommon(binSchema.strata, mapOfJoinCommons, identifer);
                 mapOfBinCommons.put(bin.getKey(), binCommon);
             }
 
@@ -717,17 +625,22 @@ public class Depot
 
         public final Map mapOfJoinCommons;
 
-        public final HistoryCache histories;
+        private long identifier;
 
-        public BinCommon(Strata strata, Map mapOfJoinCommons)
+        public BinCommon(Strata strata, Map mapOfJoinCommons, long identifier)
         {
             this.strata = strata;
             this.mapOfJoinCommons = mapOfJoinCommons;
-            this.histories = new HistoryCache();
+            this.identifier = identifier;
+        }
+
+        public synchronized Long nextIdentifier()
+        {
+            return new Long(identifier++);
         }
     }
 
-    public final class Bin
+    public final static class Bin
     {
         private final String name;
 
@@ -739,6 +652,8 @@ public class Depot
 
         private final Map mapOfJoins = new HashMap();
 
+        private final Strata.Query isolation;
+
         public final Map mapOfObjects = new LinkedHashMap();
 
         public Bin(Snapshot snapshot, String name, BinCommon common)
@@ -747,6 +662,18 @@ public class Depot
             this.name = name;
             this.common = common;
             this.query = common.strata.query(snapshot);
+            this.isolation = newIsolation();
+        }
+
+        private static Strata.Query newIsolation()
+        {
+            Strata.Creator creator = new Strata.Creator();
+
+            creator.setCacheFields(true);
+            creator.setFieldExtractor(new BinRecordExtractor());
+            creator.setStorage(new ArrayListStorage());
+
+            return creator.create(null).query(null);
         }
 
         public String getName()
@@ -756,34 +683,61 @@ public class Depot
 
         public Bag add(Marshaller marshaller, Object object)
         {
-            Bag bag = new Bag(this, new Long(++identifier), snapshot.getVersion(), object);
+            Bag bag = new Bag(this, common.nextIdentifier(), snapshot.getVersion(), object);
             Bento.OutputStream allocation = new Bento.OutputStream(snapshot.mutator);
             marshaller.marshall(allocation, object);
             Bento.Address address = allocation.allocate(false);
-            query.insert(new BinRecord(bag.getKey(), bag.getVersion(), address));
+            isolation.insert(new BinRecord(bag.getKey(), bag.getVersion(), address));
             return bag;
+        }
+
+        private BinRecord get(Strata.Cursor cursor, Long key, boolean isolated)
+        {
+            BinRecord candidate = null;
+            for (;;)
+            {
+                if (!cursor.hasNext())
+                {
+                    break;
+                }
+                BinRecord record = (BinRecord) cursor.next();
+                if (!record.key.equals(key))
+                {
+                    break;
+                }
+                if (isolated || snapshot.isVisible(record.version))
+                {
+                    candidate = record;
+                }
+            }
+            return candidate;
+        }
+
+        private static boolean isNull(BinRecord record)
+        {
+            return record.address.equals(Bento.NULL_ADDRESS);
+        }
+
+        private Bag unmarshall(Unmarshaller unmarshaller, BinRecord record)
+        {
+            Bento.Block block = snapshot.getMutator().load(record.address);
+            Object object = unmarshaller.unmarshall(new ByteBufferInputStream(block.toByteBuffer(), false));
+            return new Bag(this, record.key, record.version, object);
         }
 
         public Bag get(Unmarshaller unmarshaller, Long key)
         {
-            Strata.Cursor cursor = query.find(new Comparable[] { key });
-            if (!cursor.hasNext())
+            BinRecord stored = get(query.find(new Comparable[] { key }), key, false);
+            BinRecord isolated = get(isolation.find(new Comparable[] { key }), key, true);
+            if (isolated != null)
             {
-                return null;
+                return isNull(isolated) ? null : unmarshall(unmarshaller, isolated);
             }
-            BinRecord record = (BinRecord) cursor.next();
-            if (!record.key.equals(key))
+            else if (stored != null)
             {
-                return null;
+                return isNull(stored) ? null : unmarshall(unmarshaller, stored);
             }
-            Object object = snapshot.mapOfObjects.get(record.key);
-            if (object == null)
-            {
-                Bento.Block block = snapshot.getMutator().load(record.address);
-                object = unmarshaller.unmarshall(new ByteBufferInputStream(block.toByteBuffer(), false));
-                snapshot.mapOfObjects.put(record.key, object);
-            }
-            return new Bag(this, key, record.version, object);
+            return null;
         }
 
         public Join getJoin(String name)
@@ -795,6 +749,40 @@ public class Depot
                 join = new Join(snapshot, joinCommon);
             }
             return join;
+        }
+
+        private void commit()
+        {
+            Strata.Cursor isolated = isolation.first();
+            if (isolated.hasNext())
+            {
+                BinRecord first = (BinRecord) isolated.next();
+                while (first != null)
+                {
+                    BinRecord next = null;
+                    BinRecord record = first;
+                    for (;;)
+                    {
+                        if (!isolated.hasNext())
+                        {
+                            break;
+                        }
+                        next = (BinRecord) isolated.next();
+                        if (!next.key.equals(first.key))
+                        {
+                            break;
+                        }
+                        record = next;
+                    }
+                    query.insert(record);
+                    first = next;
+                }
+                query.write();
+            }
+        }
+
+        private void rollback()
+        {
         }
     }
 
@@ -949,13 +937,13 @@ public class Depot
             this.query = joinCommon.strata.query(snapshot);
             this.joinCommon = joinCommon;
         }
-        
+
         public void add(Bag bag, Bag[] bags)
         {
             Long[] keys = new Long[bags.length + 1];
 
             keys[0] = bag.getKey();
-            
+
             for (int i = 0; i < bags.length; i++)
             {
                 keys[i + 1] = bags[i].getKey();
@@ -1068,11 +1056,8 @@ public class Depot
 
     private final Strata mutations;
 
-    private long identifier;
-
     public Depot(File file, Bento bento, Strata mutations, Map mapOfBinCommons)
     {
-        this.identifier = 0;
         this.mapOfBinCommons = mapOfBinCommons;
         this.mutations = mutations;
         this.bento = bento;
@@ -1083,17 +1068,34 @@ public class Depot
         bento.close();
     }
 
-    public Snapshot newSnapshot()
+    public Snapshot newSnapshot(Test test)
     {
         Long version = new Long(System.currentTimeMillis());
         MutationRecord record = new MutationRecord(version, OPERATING);
         Bento.Mutator mutator = bento.mutate();
 
         Strata.Query query = mutations.query(BentoStorage.txn(mutator));
+
+        Set setOfCommitted = new TreeSet();
+        Strata.Cursor versions = query.first();
+        while (versions.hasNext())
+        {
+            MutationRecord mutation = (MutationRecord) versions.next();
+            if (mutation.state.equals(COMMITTED))
+            {
+                setOfCommitted.add(mutation.version);
+            }
+        }
+
         query.insert(record);
         query.write();
-        
-        return new Snapshot(mutator, query);
+
+        return new Snapshot(mutator, query, setOfCommitted, test);
+    }
+
+    public Snapshot newSnapshot()
+    {
+        return newSnapshot(new Test());
     }
 
     public class Snapshot
@@ -1101,33 +1103,40 @@ public class Depot
     {
         private final Bento.Mutator mutator;
 
-        private final Map mapOfBags;
-
-        private final Map mapOfObjects = new HashMap();
+        private final Map mapOfBins;
 
         private final Map mapOfJoins;
 
         private final Long version;
-        
+
         private final Strata.Query query;
 
-        public Snapshot(Bento.Mutator mutator, Strata.Query query)
+        private final Test test;
+
+        private final Long oldest;
+
+        private final Set setOfCommitted;
+
+        public Snapshot(Bento.Mutator mutator, Strata.Query query, Set setOfCommitted, Test test)
         {
             this.mutator = mutator;
-            this.mapOfBags = new HashMap();
+            this.mapOfBins = new HashMap();
             this.mapOfJoins = new HashMap();
             this.version = new Long(System.currentTimeMillis());
             this.query = query;
+            this.test = test;
+            this.setOfCommitted = setOfCommitted;
+            this.oldest = (Long) setOfCommitted.iterator().next();
         }
 
         public Bin getBin(String name)
         {
-            Bin bin = (Bin) mapOfBags.get(name);
+            Bin bin = (Bin) mapOfBins.get(name);
             if (bin == null)
             {
                 BinCommon binCommon = (BinCommon) mapOfBinCommons.get(name);
                 bin = new Bin(this, name, binCommon);
-                mapOfBags.put(name, bin);
+                mapOfBins.put(name, bin);
             }
             return bin;
         }
@@ -1137,62 +1146,101 @@ public class Depot
             return version;
         }
 
+        public boolean isVisible(Long version)
+        {
+            if (oldest.compareTo(version) >= 0)
+            {
+                return true;
+            }
+            if (setOfCommitted.contains(version))
+            {
+                return true;
+            }
+            return false;
+        }
+
         public void commit()
         {
-            if (mapOfBags.size() != 0 || mapOfJoins.size() != 0)
+            if (mapOfBins.size() != 0)
             {
-                Iterator bags = mapOfBags.values().iterator();
+                Iterator bags = mapOfBins.values().iterator();
                 while (bags.hasNext())
                 {
-                    Bin bag = (Bin) bags.next();
-                    bag.query.write();
+                    Bin bin = (Bin) bags.next();
+                    bin.commit();
                 }
-                mapOfBags.clear();
-                Iterator joins = mapOfJoins.values().iterator();
-                while (joins.hasNext())
+                mapOfBins.clear();
+
+                test.changesWritten.release();
+                try
                 {
-                    Join join = (Join) joins.next();
-                    join.query.write();
+                    test.registerMutation.acquire();
                 }
-                mapOfJoins.clear();
-                mutator.getJournal().commit();
+                catch (InterruptedException e)
+                {
+                    throw new RuntimeException(e);
+                }
 
                 MutationRecord committed = new MutationRecord(version, COMMITTED);
                 query.insert(committed);
                 query.write();
+
+                mutator.getJournal().commit();
+
+                test.journalComplete.release();
             }
         }
 
         public void rollback()
         {
-            if (mapOfBags.size() != 0 || mapOfJoins.size() != 0)
+            if (mapOfBins.size() != 0 || mapOfJoins.size() != 0)
             {
-                Iterator bags = mapOfBags.values().iterator();
+                Iterator bags = mapOfBins.values().iterator();
                 while (bags.hasNext())
                 {
-                    Bin bag = (Bin) bags.next();
-                    bag.query.revert();
+                    Bin bin = (Bin) bags.next();
+                    bin.rollback();
                 }
-                mapOfBags.clear();
-                Iterator joins = mapOfJoins.values().iterator();
-                while (joins.hasNext())
-                {
-                    Join join = (Join) joins.next();
-                    join.query.revert();
-                }
-                mapOfJoins.clear();
-                mutator.getJournal().rollback();
-                
-                // FIXME Maybe just delete operating?
-                MutationRecord rolledback = new MutationRecord(version, ROLLEDBACK);
-                query.insert(rolledback);
+                mapOfBins.clear();
+
+                MutationRecord rolledback = new MutationRecord(version, COMMITTED);
+                query.remove(rolledback);
                 query.write();
-}
+
+                mutator.getJournal().rollback();
+            }
         }
 
         public Bento.Mutator getMutator()
         {
             return mutator;
+        }
+    }
+
+    public final static class Test
+    {
+        private Sync registerMutation;
+
+        private Sync changesWritten;
+
+        private Sync journalComplete;
+
+        public Test()
+        {
+            this.changesWritten = new NullSync();
+            this.registerMutation = new NullSync();
+            this.journalComplete = new NullSync();
+        }
+
+        public void setJournalLatches(Sync changesWritten, Sync registerMutation)
+        {
+            this.changesWritten = changesWritten;
+            this.registerMutation = registerMutation;
+        }
+
+        public void setJournalComplete(Sync journalComplete)
+        {
+            this.journalComplete = journalComplete;
         }
     }
 }
