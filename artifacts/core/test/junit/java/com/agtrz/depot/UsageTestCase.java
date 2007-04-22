@@ -12,6 +12,8 @@ import junit.framework.TestCase;
 public class UsageTestCase
 extends TestCase
 {
+    private final static String RECIPIENTS = "recipients";
+    
     private File newFile()
     {
         try
@@ -66,6 +68,7 @@ extends TestCase
 
         recipient = snapshot.getBin("recipients").get(unmarshaller, key);
 
+        assertNotNull(recipient);
         assertEquals(alan, recipient.getObject());
 
         snapshot.rollback();
@@ -163,25 +166,144 @@ extends TestCase
         assertNull(recipient);
 
         two.rollback();
-
     }
 
     public void testAddTwoRecords()
     {
-
     }
 
-    public void testUpdateRecord()
+    public void testUpdateRecord() throws InterruptedException
     {
+        File file = newFile();
+        Depot depot = newDepot(file);
 
+        Recipient alan = new Recipient("alan@blogometer.com", "Alan", "Gutierrez");
+
+        Depot.Snapshot one = depot.newSnapshot();
+
+        Depot.Marshaller marshaller = new Depot.SerialzationMarshaller();
+        Long key = one.getBin("recipients").add(marshaller, alan).getKey();
+        one.commit();
+        
+        Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
+        Thread.sleep(1);
+        Depot.Snapshot two = depot.newSnapshot();
+        Depot.Bag person = two.getBin("recipients").get(unmarshaller, key);
+        
+        assertNotNull(person);
+        assertEquals(alan, person.getObject());
+        
+        Recipient kiloblog = new Recipient("alan@kiloblog.com", alan.getFirstName(), alan.getLastName());
+
+        Thread.sleep(1);
+        Depot.Snapshot three = depot.newSnapshot();
+        Depot.Bag updated = three.getBin("recipients").update(marshaller, key, kiloblog);
+        
+        assertNotNull(updated);
+        assertEquals(kiloblog, updated.getObject());
+        
+        Thread.sleep(1);
+        Depot.Snapshot four = depot.newSnapshot();
+        Depot.Bag previous = four.getBin(RECIPIENTS).get(unmarshaller, key);
+        
+        assertNotNull(previous);
+        assertEquals(alan, previous.getObject());
+        
+        three.commit();
+        
+        previous = four.getBin(RECIPIENTS).get(unmarshaller, key);
+        
+        assertNotNull(previous);
+        assertEquals(alan, previous.getObject());
+
+//        four.rollback();
+        
+        Thread.sleep(1);
+        Depot.Snapshot five = depot.newSnapshot();
+        Depot.Bag next = five.getBin(RECIPIENTS).get(unmarshaller, key);
+        depot.newSnapshot();
+        
+        assertNotNull(next);
+        
+        assertEquals(kiloblog, next.getObject());
+
+        five.rollback();
     }
 
     public void testDeleteRecord()
     {
+        File file = newFile();
+        Depot depot = newDepot(file);
 
+        Recipient alan = new Recipient("alan@blogometer.com", "Alan", "Gutierrez");
+
+        Depot.Snapshot one = depot.newSnapshot();
+
+        Depot.Marshaller marshaller = new Depot.SerialzationMarshaller();
+        Long key = one.getBin("recipients").add(marshaller, alan).getKey();
+        one.commit();
+        
+        Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
+        Depot.Snapshot two = depot.newSnapshot();
+        Depot.Bag person = two.getBin("recipients").get(unmarshaller, key);
+        
+        assertNotNull(person);
+        assertEquals(alan, person.getObject());
+        
+        Recipient kiloblog = new Recipient("alan@kiloblog.com", alan.getFirstName(), alan.getLastName());
+        
+        Depot.Snapshot three = depot.newSnapshot();
+        Depot.Bag updated = three.getBin("recipients").update(marshaller, key, kiloblog);
+        
+        assertNotNull(updated);
+        assertEquals(kiloblog, updated.getObject());
+        
+        Depot.Snapshot four = depot.newSnapshot();
+        Depot.Bag previous = four.getBin(RECIPIENTS).get(unmarshaller, key);
+        
+        assertNotNull(previous);
+        assertEquals(alan, previous.getObject());
+        
+        three.commit();
+        
+        previous = four.getBin(RECIPIENTS).get(unmarshaller, key);
+        
+        assertNotNull(previous);
+        assertEquals(alan, previous.getObject());
+
+        four.rollback();
+        
+        Depot.Snapshot five = depot.newSnapshot();
+        Depot.Bag next = five.getBin(RECIPIENTS).get(unmarshaller, key);
+        
+        assertNotNull(next);
+        assertEquals(kiloblog, next.getObject());
+
+        
+        Depot.Snapshot six = depot.newSnapshot();
+        six.getBin(RECIPIENTS).delete(key);
+
+        next = five.getBin(RECIPIENTS).get(unmarshaller, key);
+        
+        assertNotNull(next);
+        assertEquals(kiloblog, next.getObject());
+        
+        six.commit();
+
+        next = five.getBin(RECIPIENTS).get(unmarshaller, key);
+        
+        assertNotNull(next);
+        assertEquals(kiloblog, next.getObject());
+
+        five.rollback();
+        
+        Depot.Snapshot seven = depot.newSnapshot();
+        Depot.Bag gone = seven.getBin(RECIPIENTS).get(unmarshaller, key);
+        
+        assertNull(gone);
     }
 
-    public void testUsage()
+    public void _testUsage()
     {
         File file = newFile();
         Depot depot = null;

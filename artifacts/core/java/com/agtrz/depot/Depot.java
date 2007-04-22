@@ -167,8 +167,14 @@ public class Depot
 
         public Object read(ByteBuffer bytes)
         {
-            MutationRecord record = new MutationRecord(new Long(bytes.getLong()), new Integer(bytes.getInt()));
-            return record.version.longValue() == 0L ? null : record;
+            Long version = new Long(bytes.getLong());
+            Integer state = new Integer(bytes.getInt());
+            if (version.longValue() == 0L)
+            {
+                return null;
+            }
+            MutationRecord record = new MutationRecord(version, state);
+            return record;
         }
     }
 
@@ -691,6 +697,41 @@ public class Depot
             return bag;
         }
 
+        public Bag update(Marshaller marshaller, Long key, Object object)
+        {
+            BinRecord record = get(key);
+            if (record == null)
+            {
+                Danger danger = new Danger();
+
+                danger.source(Depot.class);
+                danger.message("update.bag.does.not.exist");
+
+                throw danger;
+            }
+            Bag bag = new Bag(this, key, snapshot.getVersion(), object);
+            Bento.OutputStream allocation = new Bento.OutputStream(snapshot.mutator);
+            marshaller.marshall(allocation, object);
+            Bento.Address address = allocation.allocate(false);
+            isolation.insert(new BinRecord(bag.getKey(), bag.getVersion(), address));
+            return bag;
+        }
+
+        public void delete(Long key)
+        {
+            BinRecord record = get(key);
+            if (record == null)
+            {
+                Danger danger = new Danger();
+
+                danger.source(Depot.class);
+                danger.message("delete.bag.does.not.exist");
+
+                throw danger;
+            }
+            isolation.insert(new BinRecord(key, snapshot.getVersion(), Bento.NULL_ADDRESS));
+        }
+
         private BinRecord get(Strata.Cursor cursor, Long key, boolean isolated)
         {
             BinRecord candidate = null;
@@ -725,19 +766,25 @@ public class Depot
             return new Bag(this, record.key, record.version, object);
         }
 
-        public Bag get(Unmarshaller unmarshaller, Long key)
+        private BinRecord get(Long key)
         {
             BinRecord stored = get(query.find(new Comparable[] { key }), key, false);
             BinRecord isolated = get(isolation.find(new Comparable[] { key }), key, true);
             if (isolated != null)
             {
-                return isNull(isolated) ? null : unmarshall(unmarshaller, isolated);
+                return isNull(isolated) ? null : isolated;
             }
             else if (stored != null)
             {
-                return isNull(stored) ? null : unmarshall(unmarshaller, stored);
+                return isNull(stored) ? null : stored;
             }
             return null;
+        }
+
+        public Bag get(Unmarshaller unmarshaller, Long key)
+        {
+            BinRecord record = get(key);
+            return record == null ? null : unmarshall(unmarshaller, record);
         }
 
         public Join getJoin(String name)
@@ -1068,7 +1115,7 @@ public class Depot
         bento.close();
     }
 
-    public Snapshot newSnapshot(Test test)
+    public synchronized Snapshot newSnapshot(Test test)
     {
         Long version = new Long(System.currentTimeMillis());
         MutationRecord record = new MutationRecord(version, OPERATING);
@@ -1090,7 +1137,11 @@ public class Depot
         query.insert(record);
         query.write();
 
-        return new Snapshot(mutator, query, setOfCommitted, test);
+        mutator.getJournal().commit();
+
+        mutator = bento.mutate();
+
+        return new Snapshot(mutator, query, setOfCommitted, test, version);
     }
 
     public Snapshot newSnapshot()
@@ -1109,21 +1160,18 @@ public class Depot
 
         private final Long version;
 
-        private final Strata.Query query;
-
         private final Test test;
 
         private final Long oldest;
 
         private final Set setOfCommitted;
 
-        public Snapshot(Bento.Mutator mutator, Strata.Query query, Set setOfCommitted, Test test)
+        public Snapshot(Bento.Mutator mutator, Strata.Query query, Set setOfCommitted, Test test, Long version)
         {
             this.mutator = mutator;
             this.mapOfBins = new HashMap();
             this.mapOfJoins = new HashMap();
-            this.version = new Long(System.currentTimeMillis());
-            this.query = query;
+            this.version = version;
             this.test = test;
             this.setOfCommitted = setOfCommitted;
             this.oldest = (Long) setOfCommitted.iterator().next();
@@ -1181,6 +1229,8 @@ public class Depot
                     throw new RuntimeException(e);
                 }
 
+                Strata.Query query = mutations.query(BentoStorage.txn(mutator));
+
                 MutationRecord committed = new MutationRecord(version, COMMITTED);
                 query.insert(committed);
                 query.write();
@@ -1202,6 +1252,8 @@ public class Depot
                     bin.rollback();
                 }
                 mapOfBins.clear();
+
+                Strata.Query query = mutations.query(BentoStorage.txn(mutator));
 
                 MutationRecord rolledback = new MutationRecord(version, COMMITTED);
                 query.remove(rolledback);
