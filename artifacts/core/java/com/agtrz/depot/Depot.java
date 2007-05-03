@@ -978,12 +978,28 @@ public class Depot
 
         private final Strata.Query query;
 
+        private final Strata.Query isloation;
+
         public Join(Snapshot snapshot, JoinCommon joinCommon)
         {
             this.snapshot = snapshot;
             this.query = joinCommon.strata.query(snapshot);
+            this.isloation = newIsolation();
             this.joinCommon = joinCommon;
         }
+        
+        
+        private static Strata.Query newIsolation()
+        {
+            Strata.Creator creator = new Strata.Creator();
+
+            creator.setCacheFields(true);
+            creator.setFieldExtractor(new JoinExtractor());
+            creator.setStorage(new ArrayListStorage());
+
+            return creator.create(null).query(null);
+        }
+
 
         public void add(Bag bag, Bag[] bags)
         {
@@ -997,7 +1013,6 @@ public class Depot
             }
 
             add(keys, snapshot.getVersion(), false);
-
         }
 
         // FIXME rename link
