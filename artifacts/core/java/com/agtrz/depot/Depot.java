@@ -563,15 +563,6 @@ public class Depot
         }
     }
 
-    public interface Serializer
-    {
-        public Object add(Object object);
-
-        public void update(Object key, Object object);
-
-        public void delete(Object key);
-    }
-
     public interface Marshaller
     {
         public void marshall(OutputStream out, Object object);
@@ -978,13 +969,13 @@ public class Depot
 
         private final Strata.Query query;
 
-        private final Strata.Query isloation;
+        private final Strata.Query isolation;
 
         public Join(Snapshot snapshot, JoinCommon joinCommon)
         {
             this.snapshot = snapshot;
             this.query = joinCommon.strata.query(snapshot);
-            this.isloation = newIsolation();
+            this.isolation = newIsolation();
             this.joinCommon = joinCommon;
         }
         
@@ -1031,8 +1022,7 @@ public class Depot
         public void add(Long[] keys, Long version, boolean deleted)
         {
             // FIXME Only unique.
-            JoinRecord record = new JoinRecord(keys, version, deleted);
-            query.insert(record);
+            isolation.insert(new JoinRecord(keys, version, deleted));
         }
 
         public Iterator find(Bag[] bags)

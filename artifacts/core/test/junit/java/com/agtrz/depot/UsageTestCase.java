@@ -303,7 +303,7 @@ extends TestCase
         assertNull(gone);
     }
 
-    public void _testUsage()
+    public void testUsage()
     {
         File file = newFile();
         Depot depot = null;
@@ -320,13 +320,13 @@ extends TestCase
         }
 
         Recipient alan = new Recipient("alan@blogometer.com", "Alan", "Gutierrez");
-        Message hello = new Message();
-        Bounce received = new Bounce();
+        Message hello = new Message("Hello, World!");
+        Bounce received = new Bounce(false);
 
         Depot.Snapshot snapshot = depot.newSnapshot();
 
         Depot.Marshaller marshaller = new Depot.SerialzationMarshaller();
-        Depot.Bag person = snapshot.getBin("people").add(marshaller, alan);
+        Depot.Bag person = snapshot.getBin("recipients").add(marshaller, alan);
         Depot.Bag message = snapshot.getBin("messages").add(marshaller, hello);
         Depot.Bag bounce = snapshot.getBin("bounces").add(marshaller, received);
 

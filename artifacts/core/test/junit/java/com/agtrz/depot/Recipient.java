@@ -6,7 +6,6 @@ import java.io.Serializable;
 public class Recipient
 implements Serializable
 {
-
     private static final long serialVersionUID = 20070412L;
 
     private final String email;
