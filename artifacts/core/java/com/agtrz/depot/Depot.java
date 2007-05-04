@@ -745,7 +745,7 @@ public class Depot
             return candidate;
         }
 
-        private static boolean isNull(BinRecord record)
+        private static boolean isDeleted(BinRecord record)
         {
             return record.address.equals(Bento.NULL_ADDRESS);
         }
@@ -763,11 +763,11 @@ public class Depot
             BinRecord isolated = get(isolation.find(new Comparable[] { key }), key, true);
             if (isolated != null)
             {
-                return isNull(isolated) ? null : isolated;
+                return isDeleted(isolated) ? null : isolated;
             }
             else if (stored != null)
             {
-                return isNull(stored) ? null : stored;
+                return isDeleted(stored) ? null : stored;
             }
             return null;
         }
@@ -785,6 +785,7 @@ public class Depot
             {
                 JoinCommon joinCommon = (JoinCommon) common.mapOfJoinCommons.get(name);
                 join = new Join(snapshot, joinCommon);
+                mapOfJoins.put(name, join);
             }
             return join;
         }
@@ -826,15 +827,15 @@ public class Depot
 
     private final static class JoinRecord
     {
-        public final Long[] objectKeys;
+        public final Long[] keys;
 
         public final Long version;
 
         public final boolean deleted;
 
-        public JoinRecord(Long[] objectKeys, Long version, boolean deleted)
+        public JoinRecord(Long[] keys, Long version, boolean deleted)
         {
-            this.objectKeys = objectKeys;
+            this.keys = keys;
             this.version = version;
             this.deleted = deleted;
         }
@@ -844,8 +845,8 @@ public class Depot
             if (object instanceof JoinRecord)
             {
                 JoinRecord record = (JoinRecord) object;
-                Long[] left = objectKeys;
-                Long[] right = record.objectKeys;
+                Long[] left = keys;
+                Long[] right = record.keys;
                 if (left.length != right.length)
                 {
                     return false;
@@ -865,9 +866,9 @@ public class Depot
         public int hashCode()
         {
             int hashCode = 1;
-            for (int i = 0; i < objectKeys.length; i++)
+            for (int i = 0; i < keys.length; i++)
             {
-                hashCode = hashCode * 37 + objectKeys[i].hashCode();
+                hashCode = hashCode * 37 + keys[i].hashCode();
             }
             hashCode = hashCode * 37 + version.hashCode();
             hashCode = hashCode * 37 + (deleted ? 1 : 0);
@@ -883,8 +884,8 @@ public class Depot
         public Comparable[] getFields(Object object)
         {
             JoinRecord record = (JoinRecord) object;
-            Comparable[] fields = new Comparable[record.objectKeys.length + 2];
-            Long[] keys = record.objectKeys;
+            Comparable[] fields = new Comparable[record.keys.length + 2];
+            Long[] keys = record.keys;
             for (int i = 0; i < keys.length; i++)
             {
                 fields[i] = keys[i];
@@ -926,7 +927,7 @@ public class Depot
             else
             {
                 JoinRecord record = (JoinRecord) object;
-                Long[] keys = record.objectKeys;
+                Long[] keys = record.keys;
                 for (int i = 0; i < size; i++)
                 {
                     bytes.putLong(keys[i].longValue());
@@ -978,8 +979,7 @@ public class Depot
             this.isolation = newIsolation();
             this.joinCommon = joinCommon;
         }
-        
-        
+
         private static Strata.Query newIsolation()
         {
             Strata.Creator creator = new Strata.Creator();
@@ -990,7 +990,6 @@ public class Depot
 
             return creator.create(null).query(null);
         }
-
 
         public void add(Bag bag, Bag[] bags)
         {
@@ -1039,29 +1038,165 @@ public class Depot
 
         public Iterator find(Long[] keys)
         {
-            return new JoinIterator(snapshot, query.find(keys), joinCommon);
+            return new JoinIterator(snapshot, keys, query.find(keys), isolation.find(keys), joinCommon);
+        }
+    }
+
+    public final static class Tuple
+    {
+        private final Snapshot snapshot;
+
+        private final Map.Entry[] fieldMappings;
+
+        private final JoinRecord record;
+
+        public Tuple(Snapshot snapshot, Map.Entry[] fieldMappings, JoinRecord record)
+        {
+            this.snapshot = snapshot;
+            this.fieldMappings = fieldMappings;
+            this.record = record;
+        }
+
+        public Bag getBag(Unmarshaller unmarshaller, int i)
+        {
+            String bagName = (String) fieldMappings[i].getValue();
+            return snapshot.getBin(bagName).get(unmarshaller, record.keys[i]);
         }
     }
 
     private final static class JoinIterator
     implements Iterator
     {
-        private final Strata.Cursor cursor;
+        private final Strata.Cursor stored;
 
-        private final Depot.Snapshot mutator;
+        private final Strata.Cursor isolated;
+
+        private final Snapshot snapshot;
+
+        private final Long[] keys;
 
         private final Map.Entry[] fieldMappings;
 
-        public JoinIterator(Depot.Snapshot mutator, Strata.Cursor cursor, JoinCommon joinCommon)
+        private JoinRecord nextStored;
+
+        private JoinRecord nextIsolated;
+
+        private JoinRecord next;
+
+        public JoinIterator(Snapshot snapshot, Long[] keys, Strata.Cursor stored, Strata.Cursor isolated, JoinCommon joinCommon)
         {
-            this.mutator = mutator;
-            this.cursor = cursor;
+            this.snapshot = snapshot;
+            this.keys = keys;
+            this.stored = stored;
+            this.isolated = isolated;
+            this.nextStored = next(stored, false);
+            this.nextIsolated = next(isolated, true);
+            this.next = nextRecord();
             this.fieldMappings = (Map.Entry[]) joinCommon.mapOfFields.entrySet().toArray(new Map.Entry[joinCommon.mapOfFields.size()]);
+        }
+
+        private boolean partial(Long[] partial, Long[] full)
+        {
+            for (int i = 0; i < partial.length; i++)
+            {
+                if (!partial[i].equals(full[i]))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private int compare(Long[] left, Long[] right)
+        {
+            for (int i = 0; i < left.length; i++)
+            {
+                int compare = left[i].compareTo(right[i]);
+                if (compare != 0)
+                {
+                    return compare;
+                }
+            }
+            return 0;
+        }
+
+        private JoinRecord next(Strata.Cursor cursor, boolean isolated)
+        {
+            JoinRecord candidate = null;
+            Long[] candidateKeys = null;
+            for (;;)
+            {
+                if (!cursor.hasNext())
+                {
+                    break;
+                }
+                JoinRecord record = (JoinRecord) cursor.next();
+                if (!partial(keys, record.keys))
+                {
+                    break;
+                }
+                if (isolated || snapshot.isVisible(record.version))
+                {
+                    if (candidateKeys == null)
+                    {
+                        candidateKeys = record.keys;
+                    }
+                    else if (!partial(candidateKeys, record.keys))
+                    {
+                        continue;
+                    }
+                    candidate = record;
+                }
+            }
+            return candidate;
+        }
+
+        private JoinRecord nextRecord()
+        {
+            JoinRecord next = null;
+            if (nextIsolated != null || nextStored != null)
+            {
+                if (nextIsolated == null)
+                {
+                    next = nextStored;
+                    nextStored = next(stored, false);
+                }
+                else if (nextStored == null)
+                {
+                    next = nextIsolated;
+                    nextIsolated = next(isolated, true);
+                }
+                else
+                {
+                    int compare = compare(nextIsolated.keys, nextStored.keys);
+                    if (compare < 0)
+                    {
+                        next = nextIsolated;
+                        nextIsolated = next(isolated, true);
+                    }
+                    else if (compare > 0)
+                    {
+                        next = nextStored;
+                        nextStored = next(stored, false);
+                    }
+                    else if (nextIsolated.deleted)
+                    {
+                        next = nextRecord();
+                    }
+                    else
+                    {
+                        next = nextIsolated;
+                        nextIsolated = next(isolated, true);
+                        nextStored = next(stored, true);
+                    }
+                }
+            }
+            return next;
         }
 
         public boolean hasNext()
         {
-            return cursor.hasNext();
+            return next != null;
         }
 
         public void remove()
@@ -1071,15 +1206,9 @@ public class Depot
 
         public Object next()
         {
-            Unmarshaller unmarshaller = new SerializationUnmarshaller();
-            JoinRecord record = (JoinRecord) cursor.next();
-            Bag[] bags = new Bag[record.objectKeys.length];
-            for (int i = 0; i < bags.length; i++)
-            {
-                String bagName = (String) fieldMappings[i].getValue();
-                bags[i] = mutator.getBin(bagName).get(unmarshaller, record.objectKeys[i]);
-            }
-            return bags;
+            Tuple tuple = new Tuple(snapshot, fieldMappings, next);
+            next = nextRecord();
+            return tuple;
         }
     }
 

@@ -3,11 +3,11 @@ package com.agtrz.depot;
 
 import java.io.File;
 import java.io.IOException;
-
-import EDU.oswego.cs.dl.util.concurrent.Latch;
-import EDU.oswego.cs.dl.util.concurrent.Sync;
+import java.util.Iterator;
 
 import junit.framework.TestCase;
+import EDU.oswego.cs.dl.util.concurrent.Latch;
+import EDU.oswego.cs.dl.util.concurrent.Sync;
 
 public class UsageTestCase
 extends TestCase
@@ -331,6 +331,14 @@ extends TestCase
         Depot.Bag bounce = snapshot.getBin("bounces").add(marshaller, received);
 
         person.link("messages", new Depot.Bag[] { message, bounce });
+        
+        Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
+        Iterator linked = person.getLinked("messages");
+        while (linked.hasNext())
+        {
+            Depot.Tuple tuple = (Depot.Tuple) linked.next();
+            assertEquals(alan, tuple.getBag(unmarshaller, 0).getObject());
+        }
     }
 }
 
