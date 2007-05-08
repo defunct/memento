@@ -37,7 +37,7 @@ import com.agtrz.swag.io.SizeOf;
 
 public class Depot
 {
-    private final static URI MONKEY_URI = URI.create("http://syndibase.agtrz.com/strata");
+    private final static URI HEADER_URI = URI.create("http://syndibase.agtrz.com/strata");
 
     public static class Bag
     implements Serializable
@@ -77,7 +77,30 @@ public class Depot
 
         public void link(String name, Bag[] bags)
         {
-            bin.getJoin(name).add(this, bags);
+            Long[] keys = new Long[bags.length + 1];
+
+            keys[0] = getKey();
+
+            for (int i = 0; i < bags.length; i++)
+            {
+                keys[i + 1] = bags[i].getKey();
+            }
+
+            bin.getJoin(name).link(keys);
+        }
+
+        public void unlink(String name, Bag[] bags)
+        {
+            Long[] keys = new Long[bags.length + 1];
+
+            keys[0] = getKey();
+
+            for (int i = 0; i < bags.length; i++)
+            {
+                keys[i + 1] = bags[i].getKey();
+            }
+
+            bin.getJoin(name).unlink(keys);
         }
 
         public Iterator getLinked(String name)
@@ -287,13 +310,6 @@ public class Depot
             return name;
         }
 
-        public IndexCreator newIndex(String name)
-        {
-            IndexCreator newIndex = new IndexCreator();
-            mapOfIndices.put(name, newIndex);
-            return newIndex;
-        }
-
         public JoinCreator newJoin(String name)
         {
             if (mapOfJoinCreators.containsKey(name))
@@ -305,12 +321,10 @@ public class Depot
             return newJoin;
         }
 
-        public void addIndex(String name, Strata.FieldExtractor fields)
+        public void newIndex(String name, Strata.FieldExtractor fields)
         {
-            IndexCreator newIndex = newIndex(name);
-            newIndex.setFields(fields);
+            mapOfIndices.put(name, fields);
         }
-
     }
 
     private final static class BinSchema
@@ -322,10 +336,13 @@ public class Depot
 
         public final Map mapOfJoins;
 
-        public BinSchema(Strata strata, Map mapOfJoins)
+        public final Map mapOfIndices;
+
+        public BinSchema(Strata strata, Map mapOfJoins, Map mapOfIndices)
         {
             this.strata = strata;
             this.mapOfJoins = mapOfJoins;
+            this.mapOfIndices = mapOfIndices;
         }
     }
 
@@ -372,7 +389,7 @@ public class Depot
         public Depot create(File file)
         {
             Bento.Creator newBento = new Bento.Creator();
-            newBento.addStaticPage(MONKEY_URI, Bento.ADDRESS_SIZE);
+            newBento.addStaticPage(HEADER_URI, Bento.ADDRESS_SIZE);
             Bento bento = newBento.create(file);
             Bento.Mutator mutator = bento.mutate(bento.newNullJournal());
 
@@ -435,7 +452,30 @@ public class Depot
 
                     mapOfJoins.put(joinName, new JoinSchema(joinStrata, mapOfFields));
                 }
-                mapOfBins.put(name, new BinSchema(strata, mapOfJoins));
+
+                Map mapOfIndices = new HashMap();
+                Iterator indices = newBin.mapOfIndices.entrySet().iterator();
+                while (indices.hasNext())
+                {
+                    Map.Entry index = (Map.Entry) indices.next();
+                    String nameOfIndex = (String) index.getKey();
+
+                    BentoStorage.Creator newIndexStorage = new BentoStorage.Creator();
+                    newIndexStorage.setWriter(new Index.Writer());
+                    newIndexStorage.setReader(new Index.Reader());
+
+                    Strata.Creator newJoinStrata = new Strata.Creator();
+                    Strata.FieldExtractor fields = (Strata.FieldExtractor) index.getValue();
+
+                    newJoinStrata.setStorage(newIndexStorage.create());
+                    newJoinStrata.setFieldExtractor(new Index.Extractor(fields));
+
+                    Strata indexStrata = newJoinStrata.create(BentoStorage.txn(mutator));
+
+                    mapOfIndices.put(nameOfIndex, indexStrata);
+
+                }
+                mapOfBins.put(name, new BinSchema(strata, mapOfJoins, mapOfIndices));
             }
 
             Bento.OutputStream allocation = new Bento.OutputStream(mutator);
@@ -452,7 +492,7 @@ public class Depot
             }
             Bento.Address addressOfBins = allocation.allocate(false);
 
-            Bento.Block block = mutator.load(bento.getStaticAddress(MONKEY_URI));
+            Bento.Block block = mutator.load(bento.getStaticAddress(HEADER_URI));
 
             ByteBuffer data = block.toByteBuffer();
 
@@ -474,7 +514,7 @@ public class Depot
         {
             Bento bento = new Bento.Opener().open(file);
             Bento.Mutator mutator = bento.mutate();
-            Bento.Block block = mutator.load(bento.getStaticAddress(MONKEY_URI));
+            Bento.Block block = mutator.load(bento.getStaticAddress(HEADER_URI));
             ByteBuffer data = block.toByteBuffer();
             Bento.Address addressOfBags = new Bento.Address(data.getLong(), data.getInt());
             Strata mutations = null;
@@ -545,21 +585,6 @@ public class Depot
         {
             mapOfFields.put(newBin.getName(), newBin.getName());
             return this;
-        }
-    }
-
-    public final static class IndexCreator
-    {
-        private Strata.FieldExtractor fields;
-
-        public void setFields(Strata.FieldExtractor fields)
-        {
-            this.fields = fields;
-        }
-
-        public Strata.FieldExtractor getFields()
-        {
-            return fields;
         }
     }
 
@@ -999,22 +1024,29 @@ public class Depot
             return creator.create(null).query(null);
         }
 
-        public void add(Bag bag, Bag[] bags)
+        public void unlink(Bag[] bags)
         {
-            Long[] keys = new Long[bags.length + 1];
-
-            keys[0] = bag.getKey();
+            Long[] keys = new Long[bags.length];
 
             for (int i = 0; i < bags.length; i++)
             {
-                keys[i + 1] = bags[i].getKey();
+                keys[i] = bags[i].getKey();
             }
 
+            unlink(keys);
+        }
+
+        public void unlink(Long[] keys)
+        {
+            add(keys, snapshot.getVersion(), true);
+        }
+
+        public void link(Long[] keys)
+        {
             add(keys, snapshot.getVersion(), false);
         }
 
-        // FIXME rename link
-        public void add(Bag[] bags)
+        public void link(Bag[] bags)
         {
             Long[] keys = new Long[bags.length];
 
@@ -1028,7 +1060,6 @@ public class Depot
 
         public void add(Long[] keys, Long version, boolean deleted)
         {
-            // FIXME Only unique.
             isolation.insert(new JoinRecord(keys, version, deleted));
         }
 
@@ -1217,16 +1248,16 @@ public class Depot
                         next = nextStored;
                         nextStored = next(stored, false);
                     }
-                    else if (nextIsolated.deleted)
-                    {
-                        next = nextRecord();
-                    }
                     else
                     {
                         next = nextIsolated;
                         nextIsolated = next(isolated, true);
                         nextStored = next(stored, true);
                     }
+                }
+                if (next.deleted)
+                {
+                    next = nextRecord();
                 }
             }
             return next;
@@ -1266,6 +1297,131 @@ public class Depot
         {
             Property property = metaClass.getFunctionDictionary().getProperty(fieldName);
             listOfFields.add(property);
+        }
+
+        public final static class Record
+        {
+            public final Long key;
+
+            public final Long version;
+
+            public final boolean deleted;
+
+            public Record(Long key, Long version, boolean deleted)
+            {
+                this.key = key;
+                this.version = version;
+                this.deleted = deleted;
+            }
+
+            public boolean equals(Object object)
+            {
+                if (object instanceof Record)
+                {
+                    Record record = (Record) object;
+                    return key.equals(record.key) && version.equals(record.version) && deleted == record.deleted;
+                }
+                return false;
+            }
+
+            public int hashCode()
+            {
+                int hashCode = 1;
+                hashCode = hashCode * 37 + key.hashCode();
+                hashCode = hashCode * 37 + version.hashCode();
+                hashCode = hashCode * 37 + (deleted ? 1 : 0);
+                return hashCode;
+            }
+        }
+
+        public final static class Extractor
+        implements Strata.FieldExtractor, Serializable
+        {
+            private static final long serialVersionUID = 20070403L;
+
+            private final Strata.FieldExtractor fields;
+
+            public Extractor(Strata.FieldExtractor fields)
+            {
+                this.fields = fields;
+            }
+
+            public Comparable[] getFields(Object object)
+            {
+                Record record = (Record) object;
+                return new Comparable[] { record.key, record.version, record.deleted ? Boolean.TRUE : Boolean.FALSE };
+            }
+        }
+
+        public final static class Writer
+        implements ByteWriter, Serializable
+        {
+            private static final long serialVersionUID = 20070208L;
+
+            public int getSize(Object object)
+            {
+                return SizeOf.LONG + SizeOf.LONG + SizeOf.SHORT;
+            }
+
+            public void write(ByteBuffer bytes, Object object)
+            {
+                if (object == null)
+                {
+                    bytes.putLong(0L);
+                    bytes.putLong(0L);
+                    bytes.putShort((short) 0);
+                }
+                else
+                {
+                    Record record = (Record) object;
+                    bytes.putLong(record.key.longValue());
+                    bytes.putLong(record.version.longValue());
+                    bytes.putShort(record.deleted ? (short) 1 : (short) 0);
+                }
+            }
+        }
+
+        public final static class Reader
+        implements ByteReader, Serializable
+        {
+            private static final long serialVersionUID = 20070208L;
+
+            public Object read(ByteBuffer bytes)
+            {
+                Record record = new Record(new Long(bytes.getLong()), new Long(bytes.getLong()), bytes.getShort() == 1);
+                return record.key.longValue() == 0L ? null : record;
+            }
+        }
+
+        public final static class Schema
+        implements Serializable
+        {
+            private static final long serialVersionUID = 20070208L;
+
+            public final Strata.FieldExtractor fields;
+
+            public final Strata strata;
+
+            public Schema(Strata strata, Strata.FieldExtractor fields)
+            {
+                this.fields = fields;
+                this.strata = strata;
+            }
+        }
+
+        public final static class Creator
+        {
+            private final Strata.FieldExtractor fields;
+
+            public Creator(Strata.FieldExtractor fields)
+            {
+                this.fields = fields;
+            }
+
+            public Strata.FieldExtractor getFields()
+            {
+                return fields;
+            }
         }
     }
 

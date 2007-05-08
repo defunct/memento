@@ -175,7 +175,7 @@ public class Test
             ObjectAllocation right = (ObjectAllocation) env.mapOfIdentifiers.get(new Integer(objectCountTwo));
             Depot.Bag keptLeft = env.mutator.getBin(left.bagName).get(unmarshaller, left.key);
             Depot.Bag keptRight = env.mutator.getBin(right.bagName).get(unmarshaller, right.key);
-            join.add(new Depot.Bag[] { keptLeft, keptRight });
+            join.link(new Depot.Bag[] { keptLeft, keptRight });
             left.relate(joinName, keptRight.getKey());
         }
     }
