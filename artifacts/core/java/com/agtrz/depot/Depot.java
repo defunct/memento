@@ -818,6 +818,14 @@ public class Depot
                 }
                 query.write();
             }
+
+            Iterator joins = mapOfJoins.values().iterator();
+            while (joins.hasNext())
+            {
+                Join join = (Join) joins.next();
+                join.commit();
+            }
+            mapOfJoins.clear();
         }
 
         private void rollback()
@@ -1040,6 +1048,36 @@ public class Depot
         {
             return new JoinIterator(snapshot, keys, query.find(keys), isolation.find(keys), joinCommon);
         }
+
+        private void commit()
+        {
+            Strata.Cursor isolated = isolation.first();
+            if (isolated.hasNext())
+            {
+                JoinRecord first = (JoinRecord) isolated.next();
+                while (first != null)
+                {
+                    JoinRecord next = null;
+                    JoinRecord record = first;
+                    for (;;)
+                    {
+                        if (!isolated.hasNext())
+                        {
+                            break;
+                        }
+                        next = (JoinRecord) isolated.next();
+                        if (!partial(next.keys, first.keys))
+                        {
+                            break;
+                        }
+                        record = next;
+                    }
+                    query.insert(record);
+                    first = next;
+                }
+                query.write();
+            }
+        }
     }
 
     public final static class Tuple
@@ -1062,6 +1100,31 @@ public class Depot
             String bagName = (String) fieldMappings[i].getValue();
             return snapshot.getBin(bagName).get(unmarshaller, record.keys[i]);
         }
+    }
+
+    private static boolean partial(Long[] partial, Long[] full)
+    {
+        for (int i = 0; i < partial.length; i++)
+        {
+            if (!partial[i].equals(full[i]))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static int compare(Long[] left, Long[] right)
+    {
+        for (int i = 0; i < left.length; i++)
+        {
+            int compare = left[i].compareTo(right[i]);
+            if (compare != 0)
+            {
+                return compare;
+            }
+        }
+        return 0;
     }
 
     private final static class JoinIterator
@@ -1093,31 +1156,6 @@ public class Depot
             this.nextIsolated = next(isolated, true);
             this.next = nextRecord();
             this.fieldMappings = (Map.Entry[]) joinCommon.mapOfFields.entrySet().toArray(new Map.Entry[joinCommon.mapOfFields.size()]);
-        }
-
-        private boolean partial(Long[] partial, Long[] full)
-        {
-            for (int i = 0; i < partial.length; i++)
-            {
-                if (!partial[i].equals(full[i]))
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        private int compare(Long[] left, Long[] right)
-        {
-            for (int i = 0; i < left.length; i++)
-            {
-                int compare = left[i].compareTo(right[i]);
-                if (compare != 0)
-                {
-                    return compare;
-                }
-            }
-            return 0;
         }
 
         private JoinRecord next(Strata.Cursor cursor, boolean isolated)
@@ -1290,8 +1328,6 @@ public class Depot
 
         private final Map mapOfBins;
 
-        private final Map mapOfJoins;
-
         private final Long version;
 
         private final Test test;
@@ -1304,7 +1340,6 @@ public class Depot
         {
             this.mutator = mutator;
             this.mapOfBins = new HashMap();
-            this.mapOfJoins = new HashMap();
             this.version = version;
             this.test = test;
             this.setOfCommitted = setOfCommitted;
@@ -1377,7 +1412,7 @@ public class Depot
 
         public void rollback()
         {
-            if (mapOfBins.size() != 0 || mapOfJoins.size() != 0)
+            if (mapOfBins.size() != 0)
             {
                 Iterator bags = mapOfBins.values().iterator();
                 while (bags.hasNext())

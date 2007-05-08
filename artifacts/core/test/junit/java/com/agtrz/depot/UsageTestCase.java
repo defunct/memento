@@ -339,6 +339,8 @@ extends TestCase
             Depot.Tuple tuple = (Depot.Tuple) linked.next();
             assertEquals(alan, tuple.getBag(unmarshaller, 0).getObject());
         }
+        
+        snapshot.commit();
     }
 }
 
