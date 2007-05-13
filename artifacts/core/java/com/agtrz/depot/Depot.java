@@ -23,6 +23,7 @@ import EDU.oswego.cs.dl.util.concurrent.NullSync;
 import EDU.oswego.cs.dl.util.concurrent.Sync;
 
 import com.agtrz.bento.Bento;
+import com.agtrz.bento.Bento.Mutator;
 import com.agtrz.dynamic.MetaClass;
 import com.agtrz.dynamic.Property;
 import com.agtrz.strata.ArrayListStorage;
@@ -150,7 +151,7 @@ public class Depot
     {
         private static final long serialVersionUID = 20070409L;
 
-        public Comparable[] getFields(Object object)
+        public Comparable[] getFields(Object txn, Object object)
         {
             MutationRecord record = (MutationRecord) object;
             return new Comparable[] { record.version };
@@ -207,7 +208,7 @@ public class Depot
     {
         private static final long serialVersionUID = 20070408L;
 
-        public Comparable[] getFields(Object object)
+        public Comparable[] getFields(Object txn, Object object)
         {
             BinRecord record = (BinRecord) object;
             return new Comparable[] { record.key, record.version };
@@ -321,7 +322,7 @@ public class Depot
             return newJoin;
         }
 
-        public void newIndex(String name, Strata.FieldExtractor fields)
+        public void newIndex(String name, FieldExtractor fields)
         {
             mapOfIndices.put(name, fields);
         }
@@ -465,7 +466,7 @@ public class Depot
                     newIndexStorage.setReader(new Index.Reader());
 
                     Strata.Creator newJoinStrata = new Strata.Creator();
-                    Strata.FieldExtractor fields = (Strata.FieldExtractor) index.getValue();
+                    FieldExtractor fields = (FieldExtractor) index.getValue();
 
                     newJoinStrata.setStorage(newIndexStorage.create());
                     newJoinStrata.setFieldExtractor(new Index.Extractor(fields));
@@ -914,7 +915,7 @@ public class Depot
     {
         private static final long serialVersionUID = 20070403L;
 
-        public Comparable[] getFields(Object object)
+        public Comparable[] getFields(Object txn, Object object)
         {
             JoinRecord record = (JoinRecord) object;
             Comparable[] fields = new Comparable[record.keys.length + 2];
@@ -1281,6 +1282,11 @@ public class Depot
         }
     }
 
+    public interface FieldExtractor
+    {
+        public Comparable[] getFields(Object object);
+    }
+
     public final static class Index
     {
         private final MetaClass metaClass;
@@ -1339,17 +1345,19 @@ public class Depot
         {
             private static final long serialVersionUID = 20070403L;
 
-            private final Strata.FieldExtractor fields;
+            private final FieldExtractor fields;
 
-            public Extractor(Strata.FieldExtractor fields)
+            public Extractor(FieldExtractor fields)
             {
                 this.fields = fields;
             }
 
-            public Comparable[] getFields(Object object)
+            public Comparable[] getFields(Object txn, Object object)
             {
                 Record record = (Record) object;
-                return new Comparable[] { record.key, record.version, record.deleted ? Boolean.TRUE : Boolean.FALSE };
+                Transaction transaction = (Transaction) txn;
+                Bag bag = transaction.bin.get(transaction.unmarshaller, record.key);
+                return fields.getFields(bag.getObject());
             }
         }
 
@@ -1421,6 +1429,28 @@ public class Depot
             public Strata.FieldExtractor getFields()
             {
                 return fields;
+            }
+        }
+
+        public final static class Transaction
+        implements BentoStorage.MutatorServer
+        {
+            public final Bento.Mutator mutator;
+
+            public final Bin bin;
+
+            public final Unmarshaller unmarshaller;
+
+            public Transaction(Bento.Mutator mutator, Bin bin, Unmarshaller unmarshaller)
+            {
+                this.mutator = mutator;
+                this.bin = bin;
+                this.unmarshaller = unmarshaller;
+            }
+
+            public Mutator getMutator()
+            {
+                return mutator;
             }
         }
     }

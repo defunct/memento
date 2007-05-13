@@ -9,8 +9,6 @@ import junit.framework.TestCase;
 import EDU.oswego.cs.dl.util.concurrent.Latch;
 import EDU.oswego.cs.dl.util.concurrent.Sync;
 
-import com.agtrz.strata.Strata;
-
 public class UsageTestCase
 extends TestCase
 {
@@ -376,7 +374,7 @@ extends TestCase
         Depot.Creator creator = new Depot.Creator();
         {
             Depot.BinCreator recipients = creator.newBin("recipients");
-            recipients.newIndex("lastNameFirst", new Strata.FieldExtractor()
+            recipients.newIndex("lastNameFirst", new Depot.FieldExtractor()
             {
                 public Comparable[] getFields(Object object)
                 {
