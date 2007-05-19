@@ -10,11 +10,9 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.net.URI;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -24,8 +22,6 @@ import EDU.oswego.cs.dl.util.concurrent.Sync;
 
 import com.agtrz.bento.Bento;
 import com.agtrz.bento.Bento.Mutator;
-import com.agtrz.dynamic.MetaClass;
-import com.agtrz.dynamic.Property;
 import com.agtrz.strata.ArrayListStorage;
 import com.agtrz.strata.Strata;
 import com.agtrz.strata.bento.BentoStorage;
@@ -1289,22 +1285,6 @@ public class Depot
 
     public final static class Index
     {
-        private final MetaClass metaClass;
-
-        private final List listOfFields;
-
-        public Index(MetaClass metaClass)
-        {
-            this.metaClass = metaClass;
-            this.listOfFields = new ArrayList();
-        }
-
-        public void add(String fieldName)
-        {
-            Property property = metaClass.getFunctionDictionary().getProperty(fieldName);
-            listOfFields.add(property);
-        }
-
         public final static class Record
         {
             public final Long key;

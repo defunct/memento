@@ -8,7 +8,7 @@ import com.agtrz.depot.Depot;
 
 import junit.framework.TestCase;
 
-public class DepotTestCase
+public class DepotTestCaseX
 extends TestCase
 {
     private File newFile()

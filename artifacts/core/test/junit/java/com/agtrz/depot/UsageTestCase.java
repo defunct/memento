@@ -367,7 +367,7 @@ extends TestCase
         assertFalse(linked.hasNext());
     }
 
-    public void testIndex()
+    public void _testIndex()
     {
         File file = newFile();
         Depot depot = null;
