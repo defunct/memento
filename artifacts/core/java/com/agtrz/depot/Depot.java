@@ -921,7 +921,7 @@ public class Depot
                 fields[i] = keys[i];
             }
             fields[keys.length] = record.version;
-            fields[keys.length + 1] = record.deleted ? Boolean.TRUE : Boolean.FALSE;
+            fields[keys.length + 1] = record.deleted ? new Integer (1) : new Integer(0);
             return fields;
         }
     }
