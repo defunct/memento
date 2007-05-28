@@ -405,7 +405,6 @@ public class Depot
 
             Strata.Query query = mutations.query(txn);
             query.insert(new MutationRecord(new Long(1L), COMMITTED));
-            query.write();
 
             Map mapOfBins = new HashMap();
             Iterator bags = mapOfBinCreators.entrySet().iterator();
@@ -550,9 +549,10 @@ public class Depot
                 long identifer = 1L;
                 Strata.Query query = binSchema.strata.query(BentoStorage.txn(mutator));
                 Strata.Cursor last = query.last();
-                while (last.hasPrevious())
+                // TODO You can use hasPrevious when it is implemented.
+                while (last.hasNext())
                 {
-                    BinRecord record = (BinRecord) last.previous();
+                    BinRecord record = (BinRecord) last.next();
                     identifer = record.key.longValue() + 1;
                 }
                 BinCommon binCommon = new BinCommon(binSchema.strata, mapOfJoinCommons, identifer);
@@ -838,7 +838,6 @@ public class Depot
                     query.insert(record);
                     first = next;
                 }
-                query.write();
             }
 
             Iterator joins = mapOfJoins.values().iterator();
@@ -1103,7 +1102,6 @@ public class Depot
                     query.insert(record);
                     first = next;
                 }
-                query.write();
             }
         }
     }
@@ -1473,7 +1471,6 @@ public class Depot
         }
 
         query.insert(record);
-        query.write();
 
         mutator.getJournal().commit();
 
@@ -1568,7 +1565,6 @@ public class Depot
 
                 MutationRecord committed = new MutationRecord(version, COMMITTED);
                 query.insert(committed);
-                query.write();
 
                 mutator.getJournal().commit();
 
@@ -1592,7 +1588,6 @@ public class Depot
 
                 MutationRecord rolledback = new MutationRecord(version, COMMITTED);
                 query.remove(rolledback);
-                query.write();
 
                 mutator.getJournal().rollback();
             }
