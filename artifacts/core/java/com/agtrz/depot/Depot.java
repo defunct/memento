@@ -852,6 +852,11 @@ public class Depot
         private void rollback()
         {
         }
+
+        public Index getIndex(String string)
+        {
+            return null;
+        }
     }
 
     private final static class JoinRecord
@@ -920,7 +925,7 @@ public class Depot
                 fields[i] = keys[i];
             }
             fields[keys.length] = record.version;
-            fields[keys.length + 1] = record.deleted ? new Integer (1) : new Integer(0);
+            fields[keys.length + 1] = record.deleted ? new Integer(1) : new Integer(0);
             return fields;
         }
     }
@@ -1277,12 +1282,17 @@ public class Depot
     }
 
     public interface FieldExtractor
+    extends Serializable
     {
-        public Comparable[] getFields(Object object);
+        public abstract Comparable[] getFields(Object object);
     }
 
     public final static class Index
     {
+        public Index()
+        {
+        }
+
         public final static class Record
         {
             public final Long key;
@@ -1430,6 +1440,10 @@ public class Depot
             {
                 return mutator;
             }
+        }
+
+        public void find(Comparable[] comparables)
+        {
         }
     }
 

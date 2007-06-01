@@ -367,38 +367,44 @@ extends TestCase
         assertFalse(linked.hasNext());
     }
 
-    public void _testIndex()
+    private final static class FieldExtractor
+    implements Depot.FieldExtractor
+    {
+        private static final long serialVersionUID = 20070403L;
+
+        public Comparable[] getFields(Object object)
+        {
+            Recipient recipient = (Recipient) object;
+            return new Comparable[] { recipient.getLastName(), recipient.getFirstName() };
+        }
+    }
+
+    public void testIndex()
     {
         File file = newFile();
         Depot depot = null;
         Depot.Creator creator = new Depot.Creator();
         {
             Depot.BinCreator recipients = creator.newBin("recipients");
-            recipients.newIndex("lastNameFirst", new Depot.FieldExtractor()
-            {
-                public Comparable[] getFields(Object object)
-                {
-                    Recipient recipient = (Recipient) object;
-                    return new Comparable[] { recipient.getLastName(), recipient.getFirstName() };
-                }
-            });
+            recipients.newIndex("lastNameFirst", new FieldExtractor());
             depot = creator.create(file);
         }
 
         depot.newSnapshot().commit();
-        // Recipient alan = new Recipient("alan@blogometer.com", "Alan",
-        // "Gutierrez");
-        // Recipient frank = new Recipient("frank@thinknola.com", "Frank",
-        // "Silvestri");
-        // Recipient bart = new Recipient("b@rox.com", "Bart", "Everson");
-        // Recipient maitri = new Recipient("maitri.vr@gmail.com", "Maitri",
-        // "Venkat-Ramani");
+        Recipient alan = new Recipient("alan@blogometer.com", "Alan", "Gutierrez");
+        Recipient frank = new Recipient("frank@thinknola.com", "Frank", "Silvestri");
+        Recipient bart = new Recipient("b@rox.com", "Bart", "Everson");
+        Recipient maitri = new Recipient("maitri.vr@gmail.com", "Maitri", "Venkat-Ramani");
         //        
         // Message hello = new Message("Hello, World!");
         // Bounce received = new Bounce(false);
         //
-        // Depot.Snapshot snapshot = depot.newSnapshot();
-
+        Depot.Snapshot snapshot = depot.newSnapshot();
+        Depot.Marshaller marshaller = new Depot.SerialzationMarshaller();
+        Depot.Bag person = snapshot.getBin("recipients").add(marshaller, alan);
+        assertEquals(alan, person.getObject());
+        
+        snapshot.getBin("receipients").getIndex("lastNameFirst").find(new Comparable[] { "Silvestri" });
     }
 }
 
