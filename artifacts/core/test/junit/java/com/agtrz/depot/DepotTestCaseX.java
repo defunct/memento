@@ -145,8 +145,8 @@ extends TestCase
 
         {
             Depot.Creator creator = new Depot.Creator();
-            Depot.BinCreator people = creator.newBin("people");
-            Depot.BinCreator circles = creator.newBin("circles");
+            Depot.Bin.Creator people = creator.newBin("people");
+            Depot.Bin.Creator circles = creator.newBin("circles");
             circles.newJoin("membership").add(people);
             people.newJoin("membership").add(circles);
             storage = creator.create(file);

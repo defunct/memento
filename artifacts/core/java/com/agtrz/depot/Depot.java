@@ -28,8 +28,6 @@ import com.agtrz.strata.bento.BentoStorage;
 import com.agtrz.swag.danger.AsinineCheckedExceptionThatIsEntirelyImpossible;
 import com.agtrz.swag.danger.Danger;
 import com.agtrz.swag.io.ByteBufferInputStream;
-import com.agtrz.swag.io.ByteReader;
-import com.agtrz.swag.io.ByteWriter;
 import com.agtrz.swag.io.SizeOf;
 
 public class Depot
@@ -111,195 +109,125 @@ public class Depot
 
     private final static Integer COMMITTED = new Integer(1);
 
-    private final static class MutationRecord
+    public final static class Mutation
     {
-        public final Long version;
-
-        public final Integer state;
-
-        public MutationRecord(Long version, Integer state)
+        private final static class Record
         {
-            this.version = version;
-            this.state = state;
-        }
+            public final Long version;
 
-        public boolean equals(Object object)
-        {
-            if (object instanceof MutationRecord)
+            public final Integer state;
+
+            public Record(Long version, Integer state)
             {
-                MutationRecord record = (MutationRecord) object;
-                return version.equals(record.version) && state.equals(record.state);
+                this.version = version;
+                this.state = state;
             }
-            return false;
-        }
 
-        public int hashCode()
-        {
-            int hashCode = 1;
-            hashCode = hashCode * 37 + version.hashCode();
-            hashCode = hashCode * 37 + state.hashCode();
-            return hashCode;
-        }
-    }
-
-    private final static class MutationExtractor
-    implements Strata.FieldExtractor, Serializable
-    {
-        private static final long serialVersionUID = 20070409L;
-
-        public Comparable[] getFields(Object txn, Object object)
-        {
-            MutationRecord record = (MutationRecord) object;
-            return new Comparable[] { record.version };
-        }
-    }
-
-    private final static class MutationWriter
-    implements ByteWriter, Serializable
-    {
-        private static final long serialVersionUID = 20070409L;
-
-        public int getSize(Object object)
-        {
-            return SizeOf.LONG + SizeOf.INTEGER;
-        }
-
-        public void write(ByteBuffer bytes, Object object)
-        {
-            if (object == null)
+            public boolean equals(Object object)
             {
-                bytes.putLong(0L);
-                bytes.putInt(0);
+                if (object instanceof Record)
+                {
+                    Record record = (Record) object;
+                    return version.equals(record.version) && state.equals(record.state);
+                }
+                return false;
             }
-            else
+
+            public int hashCode()
             {
-                MutationRecord record = (MutationRecord) object;
-                bytes.putLong(record.version.longValue());
-                bytes.putInt(record.state.intValue());
+                int hashCode = 1;
+                hashCode = hashCode * 37 + version.hashCode();
+                hashCode = hashCode * 37 + state.hashCode();
+                return hashCode;
             }
         }
-    }
 
-    private final static class MutationReader
-    implements ByteReader, Serializable
-    {
-        private static final long serialVersionUID = 20070409L;
-
-        public Object read(ByteBuffer bytes)
+        private final static class Extractor
+        implements Strata.FieldExtractor, Serializable
         {
-            Long version = new Long(bytes.getLong());
-            Integer state = new Integer(bytes.getInt());
-            if (version.longValue() == 0L)
+            private static final long serialVersionUID = 20070409L;
+
+            public Comparable[] getFields(Object txn, Object object)
             {
-                return null;
+                Record record = (Record) object;
+                return new Comparable[] { record.version };
             }
-            MutationRecord record = new MutationRecord(version, state);
-            return record;
-        }
-    }
-
-    // FIXME Rename BinExtractor.
-    private final static class BinRecordExtractor
-    implements Strata.FieldExtractor, Serializable
-    {
-        private static final long serialVersionUID = 20070408L;
-
-        public Comparable[] getFields(Object txn, Object object)
-        {
-            BinRecord record = (BinRecord) object;
-            return new Comparable[] { record.key, record.version };
-        }
-    }
-
-    private final static class BinRecord
-    {
-        public final Long key;
-
-        public final Long version;
-
-        public final Bento.Address address;
-
-        public BinRecord(Long key, Long version, Bento.Address address)
-        {
-            this.key = key;
-            this.version = version;
-            this.address = address;
         }
 
-        public boolean equals(Object object)
+        private final static class Writer
+        implements BentoStorage.Writer, Serializable
         {
-            if (object instanceof BinRecord)
+            private static final long serialVersionUID = 20070409L;
+
+            public void write(ByteBuffer bytes, Object object)
             {
-                BinRecord record = (BinRecord) object;
-                return key.equals(record.key) && version.equals(record.version);
+                if (object == null)
+                {
+                    bytes.putLong(0L);
+                    bytes.putInt(0);
+                }
+                else
+                {
+                    Record record = (Record) object;
+                    bytes.putLong(record.version.longValue());
+                    bytes.putInt(record.state.intValue());
+                }
             }
-            return false;
         }
 
-        public int hashCode()
+        private final static class Reader
+        implements BentoStorage.Reader, Serializable
         {
-            int hashCode = 1;
-            hashCode = hashCode * 37 + key.hashCode();
-            hashCode = hashCode * 37 + version.hashCode();
-            return hashCode;
-        }
-    }
+            private static final long serialVersionUID = 20070409L;
 
-    private final static class BinRecordWriter
-    implements ByteWriter, Serializable
-    {
-        private static final long serialVersionUID = 20070208L;
-
-        public int getSize(Object object)
-        {
-            return SizeOf.LONG * 2 + Bento.ADDRESS_SIZE;
-        }
-
-        public void write(ByteBuffer out, Object object)
-        {
-            if (object == null)
+            public Object read(ByteBuffer bytes)
             {
-                out.putLong(0L);
-                out.putLong(0L);
-                out.putLong(0L);
-                out.putInt(0);
-            }
-            else
-            {
-                BinRecord record = (BinRecord) object;
-                out.putLong(record.key.longValue());
-                out.putLong(record.version.longValue());
-                out.putLong(record.address.getPosition());
-                out.putInt(record.address.getBlockSize());
+                Long version = new Long(bytes.getLong());
+                Integer state = new Integer(bytes.getInt());
+                if (version.longValue() == 0L)
+                {
+                    return null;
+                }
+                Record record = new Record(version, state);
+                return record;
             }
         }
     }
 
-    private final static class BinRecordReader
-    implements ByteReader, Serializable
-    {
-        private static final long serialVersionUID = 20070208L;
-
-        public Object read(ByteBuffer in)
-        {
-            BinRecord record = new BinRecord(new Long(in.getLong()), new Long(in.getLong()), new Bento.Address(in.getLong(), in.getInt()));
-            return record.key.longValue() == 0L ? null : record;
-        }
-    }
-
-    public final static class BinCreator
+    public final static class Bin
     {
         private final String name;
 
-        private final Map mapOfIndices;
+        private final Snapshot snapshot;
 
-        private final Map mapOfJoinCreators;
+        private final Common common;
 
-        public BinCreator(String name)
+        private final Strata.Query query;
+
+        private final Map mapOfJoins = new HashMap();
+
+        private final Strata.Query isolation;
+
+        public final Map mapOfObjects = new LinkedHashMap();
+
+        public Bin(Snapshot snapshot, String name, Common common)
         {
+            this.snapshot = snapshot;
             this.name = name;
-            this.mapOfIndices = new HashMap();
-            this.mapOfJoinCreators = new HashMap();
+            this.common = common;
+            this.query = common.strata.query(snapshot);
+            this.isolation = newIsolation();
+        }
+
+        private static Strata.Query newIsolation()
+        {
+            Strata.Creator creator = new Strata.Creator();
+
+            creator.setCacheFields(true);
+            creator.setFieldExtractor(new Extractor());
+            creator.setStorage(new ArrayListStorage());
+
+            return creator.create(null).query(null);
         }
 
         public String getName()
@@ -307,78 +235,322 @@ public class Depot
             return name;
         }
 
-        public JoinCreator newJoin(String name)
+        public Bag add(Marshaller marshaller, Object object)
         {
-            if (mapOfJoinCreators.containsKey(name))
+            Bag bag = new Bag(this, common.nextIdentifier(), snapshot.getVersion(), object);
+            Bento.OutputStream allocation = new Bento.OutputStream(snapshot.mutator);
+            marshaller.marshall(allocation, object);
+            Bento.Address address = allocation.allocate(false);
+            isolation.insert(new Record(bag.getKey(), bag.getVersion(), address));
+            return bag;
+        }
+
+        public Bag update(Marshaller marshaller, Long key, Object object)
+        {
+            Record record = get(key);
+            if (record == null)
             {
-                throw new IllegalStateException();
+                Danger danger = new Danger();
+
+                danger.source(Depot.class);
+                danger.message("update.bag.does.not.exist");
+
+                throw danger;
             }
-            JoinCreator newJoin = new JoinCreator(getName(), getName());
-            mapOfJoinCreators.put(name, newJoin);
-            return newJoin;
+            Bag bag = new Bag(this, key, snapshot.getVersion(), object);
+            Bento.OutputStream allocation = new Bento.OutputStream(snapshot.mutator);
+            marshaller.marshall(allocation, object);
+            Bento.Address address = allocation.allocate(false);
+            isolation.insert(new Record(bag.getKey(), bag.getVersion(), address));
+            return bag;
         }
 
-        public void newIndex(String name, FieldExtractor fields)
+        public void delete(Long key)
         {
-            mapOfIndices.put(name, fields);
+            Record record = get(key);
+            if (record == null)
+            {
+                Danger danger = new Danger();
+
+                danger.source(Depot.class);
+                danger.message("delete.bag.does.not.exist");
+
+                throw danger;
+            }
+            isolation.insert(new Record(key, snapshot.getVersion(), Bento.NULL_ADDRESS));
         }
-    }
 
-    private final static class BinSchema
-    implements Serializable
-    {
-        private static final long serialVersionUID = 20070408L;
-
-        public final Strata strata;
-
-        public final Map mapOfJoins;
-
-        public final Map mapOfIndices;
-
-        public BinSchema(Strata strata, Map mapOfJoins, Map mapOfIndices)
+        private Record get(Strata.Cursor cursor, Long key, boolean isolated)
         {
-            this.strata = strata;
-            this.mapOfJoins = mapOfJoins;
-            this.mapOfIndices = mapOfIndices;
+            Record candidate = null;
+            for (;;)
+            {
+                if (!cursor.hasNext())
+                {
+                    break;
+                }
+                Record record = (Record) cursor.next();
+                if (!record.key.equals(key))
+                {
+                    break;
+                }
+                if (isolated || snapshot.isVisible(record.version))
+                {
+                    candidate = record;
+                }
+            }
+            return candidate;
         }
-    }
 
-    private final static class JoinSchema
-    implements Serializable
-    {
-        private static final long serialVersionUID = 20070208L;
-
-        public final Map mapOfFields;
-
-        public final Strata strata;
-
-        public JoinSchema(Strata strata, Map mapOfFields)
+        private static boolean isDeleted(Record record)
         {
-            this.mapOfFields = mapOfFields;
-            this.strata = strata;
+            return record.address.equals(Bento.NULL_ADDRESS);
         }
-    }
 
-    private final static class JoinCommon
-    {
-        public final Map mapOfFields;
-
-        public final Strata strata;
-
-        public JoinCommon(Strata strata, Map mapOfFields)
+        private Bag unmarshall(Unmarshaller unmarshaller, Record record)
         {
-            this.strata = strata;
-            this.mapOfFields = mapOfFields;
+            Bento.Block block = snapshot.getMutator().load(record.address);
+            Object object = unmarshaller.unmarshall(new ByteBufferInputStream(block.toByteBuffer(), false));
+            return new Bag(this, record.key, record.version, object);
         }
+
+        private Record get(Long key)
+        {
+            Record stored = get(query.find(new Comparable[] { key }), key, false);
+            Record isolated = get(isolation.find(new Comparable[] { key }), key, true);
+            if (isolated != null)
+            {
+                return isDeleted(isolated) ? null : isolated;
+            }
+            else if (stored != null)
+            {
+                return isDeleted(stored) ? null : stored;
+            }
+            return null;
+        }
+
+        public Bag get(Unmarshaller unmarshaller, Long key)
+        {
+            Record record = get(key);
+            return record == null ? null : unmarshall(unmarshaller, record);
+        }
+
+        public Join getJoin(String name)
+        {
+            Join join = (Join) mapOfJoins.get(name);
+            if (join == null)
+            {
+                Join.Common joinCommon = (Join.Common) common.mapOfJoinCommons.get(name);
+                join = new Join(snapshot, joinCommon);
+                mapOfJoins.put(name, join);
+            }
+            return join;
+        }
+
+        private void commit()
+        {
+            Strata.Cursor isolated = isolation.first();
+            if (isolated.hasNext())
+            {
+                Record first = (Record) isolated.next();
+                while (first != null)
+                {
+                    Record next = null;
+                    Record record = first;
+                    for (;;)
+                    {
+                        if (!isolated.hasNext())
+                        {
+                            break;
+                        }
+                        next = (Record) isolated.next();
+                        if (!next.key.equals(first.key))
+                        {
+                            break;
+                        }
+                        record = next;
+                    }
+                    query.insert(record);
+                    first = next;
+                }
+            }
+
+            Iterator joins = mapOfJoins.values().iterator();
+            while (joins.hasNext())
+            {
+                Join join = (Join) joins.next();
+                join.commit();
+            }
+            mapOfJoins.clear();
+        }
+
+        private void rollback()
+        {
+        }
+
+        public Index getIndex(String string)
+        {
+            return null;
+        }
+
+        private final static class Record
+        {
+            public final Long key;
+
+            public final Long version;
+
+            public final Bento.Address address;
+
+            public Record(Long key, Long version, Bento.Address address)
+            {
+                this.key = key;
+                this.version = version;
+                this.address = address;
+            }
+
+            public boolean equals(Object object)
+            {
+                if (object instanceof Record)
+                {
+                    Record record = (Record) object;
+                    return key.equals(record.key) && version.equals(record.version);
+                }
+                return false;
+            }
+
+            public int hashCode()
+            {
+                int hashCode = 1;
+                hashCode = hashCode * 37 + key.hashCode();
+                hashCode = hashCode * 37 + version.hashCode();
+                return hashCode;
+            }
+        }
+
+        private final static class Extractor
+        implements Strata.FieldExtractor, Serializable
+        {
+            private static final long serialVersionUID = 20070408L;
+
+            public Comparable[] getFields(Object txn, Object object)
+            {
+                Record record = (Record) object;
+                return new Comparable[] { record.key, record.version };
+            }
+        }
+
+        private final static class Writer
+        implements BentoStorage.Writer, Serializable
+        {
+            private static final long serialVersionUID = 20070208L;
+
+            public void write(ByteBuffer out, Object object)
+            {
+                Record record = (Record) object;
+                out.putLong(record.key.longValue());
+                out.putLong(record.version.longValue());
+                out.putLong(record.address.getPosition());
+                out.putInt(record.address.getBlockSize());
+            }
+        }
+
+        private final static class Reader
+        implements BentoStorage.Reader, Serializable
+        {
+            private static final long serialVersionUID = 20070208L;
+
+            public Object read(ByteBuffer in)
+            {
+                return new Record(new Long(in.getLong()), new Long(in.getLong()), new Bento.Address(in.getLong(), in.getInt()));
+            }
+        }
+
+        private final static class Schema
+        implements Serializable
+        {
+            private static final long serialVersionUID = 20070408L;
+
+            public final Strata strata;
+
+            public final Map mapOfJoins;
+
+            public final Map mapOfIndices;
+
+            public Schema(Strata strata, Map mapOfJoins, Map mapOfIndices)
+            {
+                this.strata = strata;
+                this.mapOfJoins = mapOfJoins;
+                this.mapOfIndices = mapOfIndices;
+            }
+        }
+
+        public final static class Common
+        {
+            public final Strata strata;
+
+            public final Map mapOfJoinCommons;
+
+            private long identifier;
+
+            public Common(Strata strata, Map mapOfJoinCommons, long identifier)
+            {
+                this.strata = strata;
+                this.mapOfJoinCommons = mapOfJoinCommons;
+                this.identifier = identifier;
+            }
+
+            public synchronized Long nextIdentifier()
+            {
+                return new Long(identifier++);
+            }
+        }
+
+        public final static class Creator
+        {
+            private final String name;
+
+            private final Map mapOfIndices;
+
+            private final Map mapOfJoinCreators;
+
+            public Creator(String name)
+            {
+                this.name = name;
+                this.mapOfIndices = new HashMap();
+                this.mapOfJoinCreators = new HashMap();
+            }
+
+            public String getName()
+            {
+                return name;
+            }
+
+            public Join.Creator newJoin(String name)
+            {
+                if (mapOfJoinCreators.containsKey(name))
+                {
+                    throw new IllegalStateException();
+                }
+                Join.Creator newJoin = new Join.Creator(getName(), getName());
+                mapOfJoinCreators.put(name, newJoin);
+                return newJoin;
+            }
+
+            public void newIndex(String name, FieldExtractor fields)
+            {
+                mapOfIndices.put(name, fields);
+            }
+        }
+
     }
 
     public final static class Creator
     {
         private final Map mapOfBinCreators = new HashMap();
 
-        public BinCreator newBin(String name)
+        public Bin.Creator newBin(String name)
         {
-            BinCreator newBin = new BinCreator(name);
+            Bin.Creator newBin = new Bin.Creator(name);
             mapOfBinCreators.put(name, newBin);
             return newBin;
         }
@@ -392,19 +564,20 @@ public class Depot
 
             BentoStorage.Creator newMutationStorage = new BentoStorage.Creator();
 
-            newMutationStorage.setWriter(new MutationWriter());
-            newMutationStorage.setReader(new MutationReader());
+            newMutationStorage.setWriter(new Mutation.Writer());
+            newMutationStorage.setReader(new Mutation.Reader());
+            newMutationStorage.setSize(SizeOf.LONG + SizeOf.INTEGER);
 
             Strata.Creator newMutationStrata = new Strata.Creator();
 
             newMutationStrata.setStorage(newMutationStorage.create());
-            newMutationStrata.setFieldExtractor(new MutationExtractor());
+            newMutationStrata.setFieldExtractor(new Mutation.Extractor());
 
             Object txn = BentoStorage.txn(mutator);
             Strata mutations = newMutationStrata.create(txn);
 
             Strata.Query query = mutations.query(txn);
-            query.insert(new MutationRecord(new Long(1L), COMMITTED));
+            query.insert(new Mutation.Record(new Long(1L), COMMITTED));
 
             Map mapOfBins = new HashMap();
             Iterator bags = mapOfBinCreators.entrySet().iterator();
@@ -414,17 +587,18 @@ public class Depot
                 String name = (String) entry.getKey();
 
                 BentoStorage.Creator newBinStorage = new BentoStorage.Creator();
-                newBinStorage.setWriter(new BinRecordWriter());
-                newBinStorage.setReader(new BinRecordReader());
+                newBinStorage.setWriter(new Bin.Writer());
+                newBinStorage.setReader(new Bin.Reader());
+                newBinStorage.setSize(SizeOf.LONG * 2 + Bento.ADDRESS_SIZE);
 
                 Strata.Creator newBinStrata = new Strata.Creator();
 
                 newBinStrata.setStorage(newBinStorage.create());
-                newBinStrata.setFieldExtractor(new BinRecordExtractor());
+                newBinStrata.setFieldExtractor(new Bin.Extractor());
 
                 Strata strata = newBinStrata.create(BentoStorage.txn(mutator));
 
-                BinCreator newBin = (BinCreator) entry.getValue();
+                Bin.Creator newBin = (Bin.Creator) entry.getValue();
 
                 Map mapOfJoins = new HashMap();
                 Iterator joins = newBin.mapOfJoinCreators.entrySet().iterator();
@@ -432,21 +606,22 @@ public class Depot
                 {
                     Map.Entry join = (Map.Entry) joins.next();
                     String joinName = (String) join.getKey();
-                    JoinCreator newJoin = (JoinCreator) join.getValue();
+                    Join.Creator newJoin = (Join.Creator) join.getValue();
                     Map mapOfFields = new LinkedHashMap(newJoin.mapOfFields);
 
                     BentoStorage.Creator newJoinStorage = new BentoStorage.Creator();
-                    newJoinStorage.setWriter(new JoinWriter(mapOfFields.size()));
-                    newJoinStorage.setReader(new JoinReader(mapOfFields.size()));
+                    newJoinStorage.setWriter(new Join.Writer(mapOfFields.size()));
+                    newJoinStorage.setReader(new Join.Reader(mapOfFields.size()));
+                    newJoinStorage.setSize(SizeOf.LONG * mapOfFields.size() + SizeOf.LONG + SizeOf.SHORT);
 
                     Strata.Creator newJoinStrata = new Strata.Creator();
 
                     newJoinStrata.setStorage(newJoinStorage.create());
-                    newJoinStrata.setFieldExtractor(new JoinExtractor());
+                    newJoinStrata.setFieldExtractor(new Join.Extractor());
 
                     Strata joinStrata = newJoinStrata.create(BentoStorage.txn(mutator));
 
-                    mapOfJoins.put(joinName, new JoinSchema(joinStrata, mapOfFields));
+                    mapOfJoins.put(joinName, new Join.Schema(joinStrata, mapOfFields));
                 }
 
                 Map mapOfIndices = new HashMap();
@@ -459,6 +634,7 @@ public class Depot
                     BentoStorage.Creator newIndexStorage = new BentoStorage.Creator();
                     newIndexStorage.setWriter(new Index.Writer());
                     newIndexStorage.setReader(new Index.Reader());
+                    newIndexStorage.setSize(SizeOf.LONG + SizeOf.LONG + SizeOf.SHORT);
 
                     Strata.Creator newJoinStrata = new Strata.Creator();
                     FieldExtractor fields = (FieldExtractor) index.getValue();
@@ -471,7 +647,7 @@ public class Depot
                     mapOfIndices.put(nameOfIndex, indexStrata);
 
                 }
-                mapOfBins.put(name, new BinSchema(strata, mapOfJoins, mapOfIndices));
+                mapOfBins.put(name, new Bin.Schema(strata, mapOfJoins, mapOfIndices));
             }
 
             Bento.OutputStream allocation = new Bento.OutputStream(mutator);
@@ -535,14 +711,14 @@ public class Depot
             while (bins.hasNext())
             {
                 Map.Entry bin = (Map.Entry) bins.next();
-                BinSchema binSchema = (BinSchema) bin.getValue();
+                Bin.Schema binSchema = (Bin.Schema) bin.getValue();
                 Map mapOfJoinCommons = new HashMap();
                 Iterator joins = binSchema.mapOfJoins.entrySet().iterator();
                 while (joins.hasNext())
                 {
                     Map.Entry join = (Map.Entry) joins.next();
-                    JoinSchema joinSchema = (JoinSchema) join.getValue();
-                    JoinCommon joinCommon = new JoinCommon(joinSchema.strata, new LinkedHashMap(joinSchema.mapOfFields));
+                    Join.Schema joinSchema = (Join.Schema) join.getValue();
+                    Join.Common joinCommon = new Join.Common(joinSchema.strata, new LinkedHashMap(joinSchema.mapOfFields));
                     mapOfJoinCommons.put(join.getKey(), joinCommon);
                 }
 
@@ -552,36 +728,14 @@ public class Depot
                 // TODO You can use hasPrevious when it is implemented.
                 while (last.hasNext())
                 {
-                    BinRecord record = (BinRecord) last.next();
+                    Bin.Record record = (Bin.Record) last.next();
                     identifer = record.key.longValue() + 1;
                 }
-                BinCommon binCommon = new BinCommon(binSchema.strata, mapOfJoinCommons, identifer);
+                Bin.Common binCommon = new Bin.Common(binSchema.strata, mapOfJoinCommons, identifer);
                 mapOfBinCommons.put(bin.getKey(), binCommon);
             }
 
             return new Depot(file, bento, mutations, mapOfBinCommons);
-        }
-    }
-
-    public final static class JoinCreator
-    {
-        private final HashMap mapOfFields = new LinkedHashMap();
-
-        public JoinCreator(String fieldName, String binName)
-        {
-            mapOfFields.put(fieldName, binName);
-        }
-
-        public JoinCreator add(String fieldName, BinCreator newBin)
-        {
-            mapOfFields.put(fieldName, newBin.getName());
-            return this;
-        }
-
-        public JoinCreator add(BinCreator newBin)
-        {
-            mapOfFields.put(newBin.getName(), newBin.getName());
-            return this;
         }
     }
 
@@ -638,380 +792,22 @@ public class Depot
         }
     }
 
-    public final static class BinCommon
-    {
-        public final Strata strata;
-
-        public final Map mapOfJoinCommons;
-
-        private long identifier;
-
-        public BinCommon(Strata strata, Map mapOfJoinCommons, long identifier)
-        {
-            this.strata = strata;
-            this.mapOfJoinCommons = mapOfJoinCommons;
-            this.identifier = identifier;
-        }
-
-        public synchronized Long nextIdentifier()
-        {
-            return new Long(identifier++);
-        }
-    }
-
-    public final static class Bin
-    {
-        private final String name;
-
-        private final Snapshot snapshot;
-
-        private final BinCommon common;
-
-        private final Strata.Query query;
-
-        private final Map mapOfJoins = new HashMap();
-
-        private final Strata.Query isolation;
-
-        public final Map mapOfObjects = new LinkedHashMap();
-
-        public Bin(Snapshot snapshot, String name, BinCommon common)
-        {
-            this.snapshot = snapshot;
-            this.name = name;
-            this.common = common;
-            this.query = common.strata.query(snapshot);
-            this.isolation = newIsolation();
-        }
-
-        private static Strata.Query newIsolation()
-        {
-            Strata.Creator creator = new Strata.Creator();
-
-            creator.setCacheFields(true);
-            creator.setFieldExtractor(new BinRecordExtractor());
-            creator.setStorage(new ArrayListStorage());
-
-            return creator.create(null).query(null);
-        }
-
-        public String getName()
-        {
-            return name;
-        }
-
-        public Bag add(Marshaller marshaller, Object object)
-        {
-            Bag bag = new Bag(this, common.nextIdentifier(), snapshot.getVersion(), object);
-            Bento.OutputStream allocation = new Bento.OutputStream(snapshot.mutator);
-            marshaller.marshall(allocation, object);
-            Bento.Address address = allocation.allocate(false);
-            isolation.insert(new BinRecord(bag.getKey(), bag.getVersion(), address));
-            return bag;
-        }
-
-        public Bag update(Marshaller marshaller, Long key, Object object)
-        {
-            BinRecord record = get(key);
-            if (record == null)
-            {
-                Danger danger = new Danger();
-
-                danger.source(Depot.class);
-                danger.message("update.bag.does.not.exist");
-
-                throw danger;
-            }
-            Bag bag = new Bag(this, key, snapshot.getVersion(), object);
-            Bento.OutputStream allocation = new Bento.OutputStream(snapshot.mutator);
-            marshaller.marshall(allocation, object);
-            Bento.Address address = allocation.allocate(false);
-            isolation.insert(new BinRecord(bag.getKey(), bag.getVersion(), address));
-            return bag;
-        }
-
-        public void delete(Long key)
-        {
-            BinRecord record = get(key);
-            if (record == null)
-            {
-                Danger danger = new Danger();
-
-                danger.source(Depot.class);
-                danger.message("delete.bag.does.not.exist");
-
-                throw danger;
-            }
-            isolation.insert(new BinRecord(key, snapshot.getVersion(), Bento.NULL_ADDRESS));
-        }
-
-        private BinRecord get(Strata.Cursor cursor, Long key, boolean isolated)
-        {
-            BinRecord candidate = null;
-            for (;;)
-            {
-                if (!cursor.hasNext())
-                {
-                    break;
-                }
-                BinRecord record = (BinRecord) cursor.next();
-                if (!record.key.equals(key))
-                {
-                    break;
-                }
-                if (isolated || snapshot.isVisible(record.version))
-                {
-                    candidate = record;
-                }
-            }
-            return candidate;
-        }
-
-        private static boolean isDeleted(BinRecord record)
-        {
-            return record.address.equals(Bento.NULL_ADDRESS);
-        }
-
-        private Bag unmarshall(Unmarshaller unmarshaller, BinRecord record)
-        {
-            Bento.Block block = snapshot.getMutator().load(record.address);
-            Object object = unmarshaller.unmarshall(new ByteBufferInputStream(block.toByteBuffer(), false));
-            return new Bag(this, record.key, record.version, object);
-        }
-
-        private BinRecord get(Long key)
-        {
-            BinRecord stored = get(query.find(new Comparable[] { key }), key, false);
-            BinRecord isolated = get(isolation.find(new Comparable[] { key }), key, true);
-            if (isolated != null)
-            {
-                return isDeleted(isolated) ? null : isolated;
-            }
-            else if (stored != null)
-            {
-                return isDeleted(stored) ? null : stored;
-            }
-            return null;
-        }
-
-        public Bag get(Unmarshaller unmarshaller, Long key)
-        {
-            BinRecord record = get(key);
-            return record == null ? null : unmarshall(unmarshaller, record);
-        }
-
-        public Join getJoin(String name)
-        {
-            Join join = (Join) mapOfJoins.get(name);
-            if (join == null)
-            {
-                JoinCommon joinCommon = (JoinCommon) common.mapOfJoinCommons.get(name);
-                join = new Join(snapshot, joinCommon);
-                mapOfJoins.put(name, join);
-            }
-            return join;
-        }
-
-        private void commit()
-        {
-            Strata.Cursor isolated = isolation.first();
-            if (isolated.hasNext())
-            {
-                BinRecord first = (BinRecord) isolated.next();
-                while (first != null)
-                {
-                    BinRecord next = null;
-                    BinRecord record = first;
-                    for (;;)
-                    {
-                        if (!isolated.hasNext())
-                        {
-                            break;
-                        }
-                        next = (BinRecord) isolated.next();
-                        if (!next.key.equals(first.key))
-                        {
-                            break;
-                        }
-                        record = next;
-                    }
-                    query.insert(record);
-                    first = next;
-                }
-            }
-
-            Iterator joins = mapOfJoins.values().iterator();
-            while (joins.hasNext())
-            {
-                Join join = (Join) joins.next();
-                join.commit();
-            }
-            mapOfJoins.clear();
-        }
-
-        private void rollback()
-        {
-        }
-
-        public Index getIndex(String string)
-        {
-            return null;
-        }
-    }
-
-    private final static class JoinRecord
-    {
-        public final Long[] keys;
-
-        public final Long version;
-
-        public final boolean deleted;
-
-        public JoinRecord(Long[] keys, Long version, boolean deleted)
-        {
-            this.keys = keys;
-            this.version = version;
-            this.deleted = deleted;
-        }
-
-        public boolean equals(Object object)
-        {
-            if (object instanceof JoinRecord)
-            {
-                JoinRecord record = (JoinRecord) object;
-                Long[] left = keys;
-                Long[] right = record.keys;
-                if (left.length != right.length)
-                {
-                    return false;
-                }
-                for (int i = 0; i < left.length; i++)
-                {
-                    if (!left[i].equals(right[i]))
-                    {
-                        return false;
-                    }
-                }
-                return version.equals(record.version) && deleted == record.deleted;
-            }
-            return false;
-        }
-
-        public int hashCode()
-        {
-            int hashCode = 1;
-            for (int i = 0; i < keys.length; i++)
-            {
-                hashCode = hashCode * 37 + keys[i].hashCode();
-            }
-            hashCode = hashCode * 37 + version.hashCode();
-            hashCode = hashCode * 37 + (deleted ? 1 : 0);
-            return hashCode;
-        }
-    }
-
-    private final static class JoinExtractor
-    implements Strata.FieldExtractor, Serializable
-    {
-        private static final long serialVersionUID = 20070403L;
-
-        public Comparable[] getFields(Object txn, Object object)
-        {
-            JoinRecord record = (JoinRecord) object;
-            Comparable[] fields = new Comparable[record.keys.length + 2];
-            Long[] keys = record.keys;
-            for (int i = 0; i < keys.length; i++)
-            {
-                fields[i] = keys[i];
-            }
-            fields[keys.length] = record.version;
-            fields[keys.length + 1] = record.deleted ? new Integer(1) : new Integer(0);
-            return fields;
-        }
-    }
-
-    private final static class JoinWriter
-    implements ByteWriter, Serializable
-    {
-        private static final long serialVersionUID = 20070208L;
-
-        private final int size;
-
-        public JoinWriter(int size)
-        {
-            this.size = size;
-        }
-
-        public int getSize(Object object)
-        {
-            return SizeOf.LONG * size + SizeOf.LONG + SizeOf.SHORT;
-        }
-
-        public void write(ByteBuffer bytes, Object object)
-        {
-            if (object == null)
-            {
-                for (int i = 0; i < size; i++)
-                {
-                    bytes.putLong(0L);
-                }
-                bytes.putLong(0L);
-                bytes.putShort((short) 0);
-            }
-            else
-            {
-                JoinRecord record = (JoinRecord) object;
-                Long[] keys = record.keys;
-                for (int i = 0; i < size; i++)
-                {
-                    bytes.putLong(keys[i].longValue());
-                }
-                bytes.putLong(record.version.longValue());
-                bytes.putShort(record.deleted ? (short) 1 : (short) 0);
-            }
-        }
-    }
-
-    private final static class JoinReader
-    implements ByteReader, Serializable
-    {
-        private static final long serialVersionUID = 20070208L;
-
-        private final int size;
-
-        public JoinReader(int size)
-        {
-            this.size = size;
-        }
-
-        public Object read(ByteBuffer bytes)
-        {
-            Long[] keys = new Long[size];
-            for (int i = 0; i < size; i++)
-            {
-                keys[i] = new Long(bytes.getLong());
-            }
-            JoinRecord record = new JoinRecord(keys, new Long(bytes.getLong()), bytes.getShort() == 1);
-            return record.version.longValue() == 0L ? null : record;
-        }
-    }
-
     public final static class Join
     {
         private final Snapshot snapshot;
 
-        private final JoinCommon joinCommon;
+        private final Common common;
 
         private final Strata.Query query;
 
         private final Strata.Query isolation;
 
-        public Join(Snapshot snapshot, JoinCommon joinCommon)
+        public Join(Snapshot snapshot, Common common)
         {
             this.snapshot = snapshot;
-            this.query = joinCommon.strata.query(snapshot);
+            this.query = common.strata.query(snapshot);
             this.isolation = newIsolation();
-            this.joinCommon = joinCommon;
+            this.common = common;
         }
 
         private static Strata.Query newIsolation()
@@ -1019,7 +815,7 @@ public class Depot
             Strata.Creator creator = new Strata.Creator();
 
             creator.setCacheFields(true);
-            creator.setFieldExtractor(new JoinExtractor());
+            creator.setFieldExtractor(new Extractor());
             creator.setStorage(new ArrayListStorage());
 
             return creator.create(null).query(null);
@@ -1061,10 +857,10 @@ public class Depot
 
         public void add(Long[] keys, Long version, boolean deleted)
         {
-            isolation.insert(new JoinRecord(keys, version, deleted));
+            isolation.insert(new Record(keys, version, deleted));
         }
 
-        public Iterator find(Bag[] bags)
+        public java.util.Iterator find(Bag[] bags)
         {
             Long[] keys = new Long[bags.length];
 
@@ -1076,9 +872,9 @@ public class Depot
             return find(keys);
         }
 
-        public Iterator find(Long[] keys)
+        public java.util.Iterator find(Long[] keys)
         {
-            return new JoinIterator(snapshot, keys, query.find(keys), isolation.find(keys), joinCommon);
+            return new Iterator(snapshot, keys, query.find(keys), isolation.find(keys), common);
         }
 
         private void commit()
@@ -1086,18 +882,18 @@ public class Depot
             Strata.Cursor isolated = isolation.first();
             if (isolated.hasNext())
             {
-                JoinRecord first = (JoinRecord) isolated.next();
+                Record first = (Record) isolated.next();
                 while (first != null)
                 {
-                    JoinRecord next = null;
-                    JoinRecord record = first;
+                    Record next = null;
+                    Record record = first;
                     for (;;)
                     {
                         if (!isolated.hasNext())
                         {
                             break;
                         }
-                        next = (JoinRecord) isolated.next();
+                        next = (Record) isolated.next();
                         if (!partial(next.keys, first.keys))
                         {
                             break;
@@ -1109,6 +905,300 @@ public class Depot
                 }
             }
         }
+
+        private final static class Record
+        {
+            public final Long[] keys;
+
+            public final Long version;
+
+            public final boolean deleted;
+
+            public Record(Long[] keys, Long version, boolean deleted)
+            {
+                this.keys = keys;
+                this.version = version;
+                this.deleted = deleted;
+            }
+
+            public boolean equals(Object object)
+            {
+                if (object instanceof Record)
+                {
+                    Record record = (Record) object;
+                    Long[] left = keys;
+                    Long[] right = record.keys;
+                    if (left.length != right.length)
+                    {
+                        return false;
+                    }
+                    for (int i = 0; i < left.length; i++)
+                    {
+                        if (!left[i].equals(right[i]))
+                        {
+                            return false;
+                        }
+                    }
+                    return version.equals(record.version) && deleted == record.deleted;
+                }
+                return false;
+            }
+
+            public int hashCode()
+            {
+                int hashCode = 1;
+                for (int i = 0; i < keys.length; i++)
+                {
+                    hashCode = hashCode * 37 + keys[i].hashCode();
+                }
+                hashCode = hashCode * 37 + version.hashCode();
+                hashCode = hashCode * 37 + (deleted ? 1 : 0);
+                return hashCode;
+            }
+        }
+
+        private final static class Extractor
+        implements Strata.FieldExtractor, Serializable
+        {
+            private static final long serialVersionUID = 20070403L;
+
+            public Comparable[] getFields(Object txn, Object object)
+            {
+                Record record = (Record) object;
+                Comparable[] fields = new Comparable[record.keys.length + 2];
+                Long[] keys = record.keys;
+                for (int i = 0; i < keys.length; i++)
+                {
+                    fields[i] = keys[i];
+                }
+                fields[keys.length] = record.version;
+                fields[keys.length + 1] = record.deleted ? new Integer(1) : new Integer(0);
+                return fields;
+            }
+        }
+
+        private final static class Writer
+        implements BentoStorage.Writer, Serializable
+        {
+            private static final long serialVersionUID = 20070208L;
+
+            private final int size;
+
+            public Writer(int size)
+            {
+                this.size = size;
+            }
+
+            public void write(ByteBuffer bytes, Object object)
+            {
+                Record record = (Record) object;
+                Long[] keys = record.keys;
+                for (int i = 0; i < size; i++)
+                {
+                    bytes.putLong(keys[i].longValue());
+                }
+                bytes.putLong(record.version.longValue());
+                bytes.putShort(record.deleted ? (short) 1 : (short) 0);
+            }
+        }
+
+        private final static class Reader
+        implements BentoStorage.Reader, Serializable
+        {
+            private static final long serialVersionUID = 20070208L;
+
+            private final int size;
+
+            public Reader(int size)
+            {
+                this.size = size;
+            }
+
+            public Object read(ByteBuffer bytes)
+            {
+                Long[] keys = new Long[size];
+                for (int i = 0; i < size; i++)
+                {
+                    keys[i] = new Long(bytes.getLong());
+                }
+                return new Record(keys, new Long(bytes.getLong()), bytes.getShort() == 1);
+            }
+        }
+
+        private final static class Schema
+        implements Serializable
+        {
+            private static final long serialVersionUID = 20070208L;
+
+            public final Map mapOfFields;
+
+            public final Strata strata;
+
+            public Schema(Strata strata, Map mapOfFields)
+            {
+                this.mapOfFields = mapOfFields;
+                this.strata = strata;
+            }
+        }
+
+        private final static class Common
+        {
+            public final Map mapOfFields;
+
+            public final Strata strata;
+
+            public Common(Strata strata, Map mapOfFields)
+            {
+                this.strata = strata;
+                this.mapOfFields = mapOfFields;
+            }
+        }
+
+        public final static class Creator
+        {
+            private final HashMap mapOfFields = new LinkedHashMap();
+
+            public Creator(String fieldName, String binName)
+            {
+                mapOfFields.put(fieldName, binName);
+            }
+
+            public Creator add(String fieldName, Bin.Creator newBin)
+            {
+                mapOfFields.put(fieldName, newBin.getName());
+                return this;
+            }
+
+            public Creator add(Bin.Creator newBin)
+            {
+                mapOfFields.put(newBin.getName(), newBin.getName());
+                return this;
+            }
+        }
+
+        private final static class Iterator
+        implements java.util.Iterator
+        {
+            private final Strata.Cursor stored;
+
+            private final Strata.Cursor isolated;
+
+            private final Snapshot snapshot;
+
+            private final Long[] keys;
+
+            private final Map.Entry[] fieldMappings;
+
+            private Join.Record nextStored;
+
+            private Join.Record nextIsolated;
+
+            private Join.Record next;
+
+            public Iterator(Snapshot snapshot, Long[] keys, Strata.Cursor stored, Strata.Cursor isolated, Common common)
+            {
+                this.snapshot = snapshot;
+                this.keys = keys;
+                this.stored = stored;
+                this.isolated = isolated;
+                this.nextStored = next(stored, false);
+                this.nextIsolated = next(isolated, true);
+                this.next = nextRecord();
+                this.fieldMappings = (Map.Entry[]) common.mapOfFields.entrySet().toArray(new Map.Entry[common.mapOfFields.size()]);
+            }
+
+            private Join.Record next(Strata.Cursor cursor, boolean isolated)
+            {
+                Join.Record candidate = null;
+                Long[] candidateKeys = null;
+                for (;;)
+                {
+                    if (!cursor.hasNext())
+                    {
+                        break;
+                    }
+                    Join.Record record = (Join.Record) cursor.next();
+                    if (!partial(keys, record.keys))
+                    {
+                        break;
+                    }
+                    if (isolated || snapshot.isVisible(record.version))
+                    {
+                        if (candidateKeys == null)
+                        {
+                            candidateKeys = record.keys;
+                        }
+                        else if (!partial(candidateKeys, record.keys))
+                        {
+                            continue;
+                        }
+                        candidate = record;
+                    }
+                }
+                return candidate;
+            }
+
+            private Join.Record nextRecord()
+            {
+                Join.Record next = null;
+                if (nextIsolated != null || nextStored != null)
+                {
+                    if (nextIsolated == null)
+                    {
+                        next = nextStored;
+                        nextStored = next(stored, false);
+                    }
+                    else if (nextStored == null)
+                    {
+                        next = nextIsolated;
+                        nextIsolated = next(isolated, true);
+                    }
+                    else
+                    {
+                        int compare = compare(nextIsolated.keys, nextStored.keys);
+                        if (compare < 0)
+                        {
+                            next = nextIsolated;
+                            nextIsolated = next(isolated, true);
+                        }
+                        else if (compare > 0)
+                        {
+                            next = nextStored;
+                            nextStored = next(stored, false);
+                        }
+                        else
+                        {
+                            next = nextIsolated;
+                            nextIsolated = next(isolated, true);
+                            nextStored = next(stored, true);
+                        }
+                    }
+                    if (next.deleted)
+                    {
+                        next = nextRecord();
+                    }
+                }
+                return next;
+            }
+
+            public boolean hasNext()
+            {
+                return next != null;
+            }
+
+            public void remove()
+            {
+                throw new UnsupportedOperationException();
+            }
+
+            public Object next()
+            {
+                Tuple tuple = new Tuple(snapshot, fieldMappings, next);
+                next = nextRecord();
+                return tuple;
+            }
+        }
+
     }
 
     public final static class Tuple
@@ -1117,9 +1207,9 @@ public class Depot
 
         private final Map.Entry[] fieldMappings;
 
-        private final JoinRecord record;
+        private final Join.Record record;
 
-        public Tuple(Snapshot snapshot, Map.Entry[] fieldMappings, JoinRecord record)
+        public Tuple(Snapshot snapshot, Map.Entry[] fieldMappings, Join.Record record)
         {
             this.snapshot = snapshot;
             this.fieldMappings = fieldMappings;
@@ -1156,129 +1246,6 @@ public class Depot
             }
         }
         return 0;
-    }
-
-    private final static class JoinIterator
-    implements Iterator
-    {
-        private final Strata.Cursor stored;
-
-        private final Strata.Cursor isolated;
-
-        private final Snapshot snapshot;
-
-        private final Long[] keys;
-
-        private final Map.Entry[] fieldMappings;
-
-        private JoinRecord nextStored;
-
-        private JoinRecord nextIsolated;
-
-        private JoinRecord next;
-
-        public JoinIterator(Snapshot snapshot, Long[] keys, Strata.Cursor stored, Strata.Cursor isolated, JoinCommon joinCommon)
-        {
-            this.snapshot = snapshot;
-            this.keys = keys;
-            this.stored = stored;
-            this.isolated = isolated;
-            this.nextStored = next(stored, false);
-            this.nextIsolated = next(isolated, true);
-            this.next = nextRecord();
-            this.fieldMappings = (Map.Entry[]) joinCommon.mapOfFields.entrySet().toArray(new Map.Entry[joinCommon.mapOfFields.size()]);
-        }
-
-        private JoinRecord next(Strata.Cursor cursor, boolean isolated)
-        {
-            JoinRecord candidate = null;
-            Long[] candidateKeys = null;
-            for (;;)
-            {
-                if (!cursor.hasNext())
-                {
-                    break;
-                }
-                JoinRecord record = (JoinRecord) cursor.next();
-                if (!partial(keys, record.keys))
-                {
-                    break;
-                }
-                if (isolated || snapshot.isVisible(record.version))
-                {
-                    if (candidateKeys == null)
-                    {
-                        candidateKeys = record.keys;
-                    }
-                    else if (!partial(candidateKeys, record.keys))
-                    {
-                        continue;
-                    }
-                    candidate = record;
-                }
-            }
-            return candidate;
-        }
-
-        private JoinRecord nextRecord()
-        {
-            JoinRecord next = null;
-            if (nextIsolated != null || nextStored != null)
-            {
-                if (nextIsolated == null)
-                {
-                    next = nextStored;
-                    nextStored = next(stored, false);
-                }
-                else if (nextStored == null)
-                {
-                    next = nextIsolated;
-                    nextIsolated = next(isolated, true);
-                }
-                else
-                {
-                    int compare = compare(nextIsolated.keys, nextStored.keys);
-                    if (compare < 0)
-                    {
-                        next = nextIsolated;
-                        nextIsolated = next(isolated, true);
-                    }
-                    else if (compare > 0)
-                    {
-                        next = nextStored;
-                        nextStored = next(stored, false);
-                    }
-                    else
-                    {
-                        next = nextIsolated;
-                        nextIsolated = next(isolated, true);
-                        nextStored = next(stored, true);
-                    }
-                }
-                if (next.deleted)
-                {
-                    next = nextRecord();
-                }
-            }
-            return next;
-        }
-
-        public boolean hasNext()
-        {
-            return next != null;
-        }
-
-        public void remove()
-        {
-            throw new UnsupportedOperationException();
-        }
-
-        public Object next()
-        {
-            Tuple tuple = new Tuple(snapshot, fieldMappings, next);
-            next = nextRecord();
-            return tuple;
-        }
     }
 
     public interface FieldExtractor
@@ -1350,42 +1317,27 @@ public class Depot
         }
 
         public final static class Writer
-        implements ByteWriter, Serializable
+        implements BentoStorage.Writer, Serializable
         {
             private static final long serialVersionUID = 20070208L;
 
-            public int getSize(Object object)
-            {
-                return SizeOf.LONG + SizeOf.LONG + SizeOf.SHORT;
-            }
-
             public void write(ByteBuffer bytes, Object object)
             {
-                if (object == null)
-                {
-                    bytes.putLong(0L);
-                    bytes.putLong(0L);
-                    bytes.putShort((short) 0);
-                }
-                else
-                {
-                    Record record = (Record) object;
-                    bytes.putLong(record.key.longValue());
-                    bytes.putLong(record.version.longValue());
-                    bytes.putShort(record.deleted ? (short) 1 : (short) 0);
-                }
+                Record record = (Record) object;
+                bytes.putLong(record.key.longValue());
+                bytes.putLong(record.version.longValue());
+                bytes.putShort(record.deleted ? (short) 1 : (short) 0);
             }
         }
 
         public final static class Reader
-        implements ByteReader, Serializable
+        implements BentoStorage.Reader, Serializable
         {
             private static final long serialVersionUID = 20070208L;
 
             public Object read(ByteBuffer bytes)
             {
-                Record record = new Record(new Long(bytes.getLong()), new Long(bytes.getLong()), bytes.getShort() == 1);
-                return record.key.longValue() == 0L ? null : record;
+                return new Record(new Long(bytes.getLong()), new Long(bytes.getLong()), bytes.getShort() == 1);
             }
         }
 
@@ -1468,7 +1420,7 @@ public class Depot
     public synchronized Snapshot newSnapshot(Test test)
     {
         Long version = new Long(System.currentTimeMillis());
-        MutationRecord record = new MutationRecord(version, OPERATING);
+        Mutation.Record record = new Mutation.Record(version, OPERATING);
         Bento.Mutator mutator = bento.mutate();
 
         Strata.Query query = mutations.query(BentoStorage.txn(mutator));
@@ -1477,7 +1429,7 @@ public class Depot
         Strata.Cursor versions = query.first();
         while (versions.hasNext())
         {
-            MutationRecord mutation = (MutationRecord) versions.next();
+            Mutation.Record mutation = (Mutation.Record) versions.next();
             if (mutation.state.equals(COMMITTED))
             {
                 setOfCommitted.add(mutation.version);
@@ -1528,7 +1480,7 @@ public class Depot
             Bin bin = (Bin) mapOfBins.get(name);
             if (bin == null)
             {
-                BinCommon binCommon = (BinCommon) mapOfBinCommons.get(name);
+                Bin.Common binCommon = (Bin.Common) mapOfBinCommons.get(name);
                 bin = new Bin(this, name, binCommon);
                 mapOfBins.put(name, bin);
             }
@@ -1577,7 +1529,7 @@ public class Depot
 
                 Strata.Query query = mutations.query(BentoStorage.txn(mutator));
 
-                MutationRecord committed = new MutationRecord(version, COMMITTED);
+                Mutation.Record committed = new Mutation.Record(version, COMMITTED);
                 query.insert(committed);
 
                 mutator.getJournal().commit();
@@ -1600,7 +1552,7 @@ public class Depot
 
                 Strata.Query query = mutations.query(BentoStorage.txn(mutator));
 
-                MutationRecord rolledback = new MutationRecord(version, COMMITTED);
+                Mutation.Record rolledback = new Mutation.Record(version, COMMITTED);
                 query.remove(rolledback);
 
                 mutator.getJournal().rollback();

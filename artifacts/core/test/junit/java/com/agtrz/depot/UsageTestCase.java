@@ -31,9 +31,9 @@ extends TestCase
     private Depot newDepot(File file)
     {
         Depot.Creator creator = new Depot.Creator();
-        Depot.BinCreator recipients = creator.newBin("recipients");
-        Depot.BinCreator messages = creator.newBin("messages");
-        Depot.BinCreator bounces = creator.newBin("bounces");
+        Depot.Bin.Creator recipients = creator.newBin("recipients");
+        Depot.Bin.Creator messages = creator.newBin("messages");
+        Depot.Bin.Creator bounces = creator.newBin("bounces");
 
         recipients.newJoin("messages").add(messages).add(bounces);
         messages.newJoin("recipients").add(recipients).add(bounces);
@@ -308,9 +308,9 @@ extends TestCase
         Depot depot = null;
         Depot.Creator creator = new Depot.Creator();
         {
-            Depot.BinCreator recipients = creator.newBin("recipients");
-            Depot.BinCreator messages = creator.newBin("messages");
-            Depot.BinCreator bounces = creator.newBin("bounces");
+            Depot.Bin.Creator recipients = creator.newBin("recipients");
+            Depot.Bin.Creator messages = creator.newBin("messages");
+            Depot.Bin.Creator bounces = creator.newBin("bounces");
 
             recipients.newJoin("messages").add(messages).add(bounces);
             messages.newJoin("recipients").add(recipients).add(bounces);
@@ -385,16 +385,16 @@ extends TestCase
         Depot depot = null;
         Depot.Creator creator = new Depot.Creator();
         {
-            Depot.BinCreator recipients = creator.newBin("recipients");
+            Depot.Bin.Creator recipients = creator.newBin("recipients");
             recipients.newIndex("lastNameFirst", new FieldExtractor());
             depot = creator.create(file);
         }
 
         depot.newSnapshot().commit();
         Recipient alan = new Recipient("alan@blogometer.com", "Alan", "Gutierrez");
-        Recipient frank = new Recipient("frank@thinknola.com", "Frank", "Silvestri");
-        Recipient bart = new Recipient("b@rox.com", "Bart", "Everson");
-        Recipient maitri = new Recipient("maitri.vr@gmail.com", "Maitri", "Venkat-Ramani");
+//        Recipient frank = new Recipient("frank@thinknola.com", "Frank", "Silvestri");
+//        Recipient bart = new Recipient("b@rox.com", "Bart", "Everson");
+//        Recipient maitri = new Recipient("maitri.vr@gmail.com", "Maitri", "Venkat-Ramani");
         //        
         // Message hello = new Message("Hello, World!");
         // Bounce received = new Bounce(false);
