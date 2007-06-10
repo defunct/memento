@@ -684,7 +684,7 @@ public class Depot
     {
         public Depot open(File file)
         {
-            Bento bento = new Bento.Opener().open(file);
+            Bento bento = new Bento.Opener(file).open();
             Bento.Mutator mutator = bento.mutate();
             Bento.Block block = mutator.load(bento.getStaticAddress(HEADER_URI));
             ByteBuffer data = block.toByteBuffer();
