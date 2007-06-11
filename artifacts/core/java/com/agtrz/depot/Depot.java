@@ -34,6 +34,86 @@ public class Depot
 {
     private final static URI HEADER_URI = URI.create("http://syndibase.agtrz.com/strata");
 
+    private final static Integer OPERATING = new Integer(1);
+
+    private final static Integer COMMITTED = new Integer(2);
+
+    private final Bento bento;
+
+    private final Strata snapshots;
+
+    private final Map mapOfBinCommons;
+
+    public Depot(File file, Bento bento, Strata mutations, Map mapOfBinCommons)
+    {
+        this.mapOfBinCommons = mapOfBinCommons;
+        this.snapshots = mutations;
+        this.bento = bento;
+    }
+
+    private static boolean partial(Long[] partial, Long[] full)
+    {
+        for (int i = 0; i < partial.length; i++)
+        {
+            if (!partial[i].equals(full[i]))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static int compare(Long[] left, Long[] right)
+    {
+        for (int i = 0; i < left.length; i++)
+        {
+            int compare = left[i].compareTo(right[i]);
+            if (compare != 0)
+            {
+                return compare;
+            }
+        }
+        return 0;
+    }
+    public void close()
+    {
+        bento.close();
+    }
+
+    public synchronized Snapshot newSnapshot(Test test)
+    {
+        Long version = new Long(System.currentTimeMillis());
+        Snapshot.Record record = new Snapshot.Record(version, OPERATING);
+        Bento.Mutator mutator = bento.mutate();
+
+        Strata.Query query = snapshots.query(BentoStorage.txn(mutator));
+
+        Set setOfCommitted = new TreeSet();
+        Strata.Cursor versions = query.first();
+        while (versions.hasNext())
+        {
+            Snapshot.Record mutation = (Snapshot.Record) versions.next();
+            if (mutation.state.equals(COMMITTED))
+            {
+                setOfCommitted.add(mutation.version);
+            }
+        }
+
+        query.insert(record);
+
+        mutator.getJournal().commit();
+
+        mutator = bento.mutate();
+
+        return new Snapshot(snapshots, mapOfBinCommons, mutator, setOfCommitted, test, version);
+    }
+
+    public Snapshot newSnapshot()
+    {
+        return newSnapshot(new Test());
+    }
+
+
     public static class Bag
     implements Serializable
     {
@@ -102,95 +182,6 @@ public class Depot
         {
             Join join = bin.getJoin(name);
             return join.find(new Bag[] { this });
-        }
-    }
-
-    private final static Integer OPERATING = new Integer(0);
-
-    private final static Integer COMMITTED = new Integer(1);
-
-    public final static class Mutation
-    {
-        private final static class Record
-        {
-            public final Long version;
-
-            public final Integer state;
-
-            public Record(Long version, Integer state)
-            {
-                this.version = version;
-                this.state = state;
-            }
-
-            public boolean equals(Object object)
-            {
-                if (object instanceof Record)
-                {
-                    Record record = (Record) object;
-                    return version.equals(record.version) && state.equals(record.state);
-                }
-                return false;
-            }
-
-            public int hashCode()
-            {
-                int hashCode = 1;
-                hashCode = hashCode * 37 + version.hashCode();
-                hashCode = hashCode * 37 + state.hashCode();
-                return hashCode;
-            }
-        }
-
-        private final static class Extractor
-        implements Strata.FieldExtractor, Serializable
-        {
-            private static final long serialVersionUID = 20070409L;
-
-            public Comparable[] getFields(Object txn, Object object)
-            {
-                Record record = (Record) object;
-                return new Comparable[] { record.version };
-            }
-        }
-
-        private final static class Writer
-        implements BentoStorage.Writer, Serializable
-        {
-            private static final long serialVersionUID = 20070409L;
-
-            public void write(ByteBuffer bytes, Object object)
-            {
-                if (object == null)
-                {
-                    bytes.putLong(0L);
-                    bytes.putInt(0);
-                }
-                else
-                {
-                    Record record = (Record) object;
-                    bytes.putLong(record.version.longValue());
-                    bytes.putInt(record.state.intValue());
-                }
-            }
-        }
-
-        private final static class Reader
-        implements BentoStorage.Reader, Serializable
-        {
-            private static final long serialVersionUID = 20070409L;
-
-            public Object read(ByteBuffer bytes)
-            {
-                Long version = new Long(bytes.getLong());
-                Integer state = new Integer(bytes.getInt());
-                if (version.longValue() == 0L)
-                {
-                    return null;
-                }
-                Record record = new Record(version, state);
-                return record;
-            }
         }
     }
 
@@ -564,20 +555,20 @@ public class Depot
 
             BentoStorage.Creator newMutationStorage = new BentoStorage.Creator();
 
-            newMutationStorage.setWriter(new Mutation.Writer());
-            newMutationStorage.setReader(new Mutation.Reader());
+            newMutationStorage.setWriter(new Snapshot.Writer());
+            newMutationStorage.setReader(new Snapshot.Reader());
             newMutationStorage.setSize(SizeOf.LONG + SizeOf.INTEGER);
 
             Strata.Creator newMutationStrata = new Strata.Creator();
 
             newMutationStrata.setStorage(newMutationStorage.create());
-            newMutationStrata.setFieldExtractor(new Mutation.Extractor());
+            newMutationStrata.setFieldExtractor(new Snapshot.Extractor());
 
             Object txn = BentoStorage.txn(mutator);
             Strata mutations = newMutationStrata.create(txn);
 
             Strata.Query query = mutations.query(txn);
-            query.insert(new Mutation.Record(new Long(1L), COMMITTED));
+            query.insert(new Snapshot.Record(new Long(1L), COMMITTED));
 
             Map mapOfBins = new HashMap();
             Iterator bags = mapOfBinCreators.entrySet().iterator();
@@ -684,7 +675,9 @@ public class Depot
     {
         public Depot open(File file)
         {
-            Bento bento = new Bento.Opener(file).open();
+            // TODO Implement deletion of temporary blocks.
+            Bento.Opener opener = new Bento.Opener(file);
+            Bento bento = opener.open();
             Bento.Mutator mutator = bento.mutate();
             Bento.Block block = mutator.load(bento.getStaticAddress(HEADER_URI));
             ByteBuffer data = block.toByteBuffer();
@@ -1223,31 +1216,6 @@ public class Depot
         }
     }
 
-    private static boolean partial(Long[] partial, Long[] full)
-    {
-        for (int i = 0; i < partial.length; i++)
-        {
-            if (!partial[i].equals(full[i]))
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static int compare(Long[] left, Long[] right)
-    {
-        for (int i = 0; i < left.length; i++)
-        {
-            int compare = left[i].compareTo(right[i]);
-            if (compare != 0)
-            {
-                return compare;
-            }
-        }
-        return 0;
-    }
-
     public interface FieldExtractor
     extends Serializable
     {
@@ -1399,60 +1367,15 @@ public class Depot
         }
     }
 
-    private final Map mapOfBinCommons;
-
-    private final Bento bento;
-
-    private final Strata mutations;
-
-    public Depot(File file, Bento bento, Strata mutations, Map mapOfBinCommons)
-    {
-        this.mapOfBinCommons = mapOfBinCommons;
-        this.mutations = mutations;
-        this.bento = bento;
-    }
-
-    public void close()
-    {
-        bento.close();
-    }
-
-    public synchronized Snapshot newSnapshot(Test test)
-    {
-        Long version = new Long(System.currentTimeMillis());
-        Mutation.Record record = new Mutation.Record(version, OPERATING);
-        Bento.Mutator mutator = bento.mutate();
-
-        Strata.Query query = mutations.query(BentoStorage.txn(mutator));
-
-        Set setOfCommitted = new TreeSet();
-        Strata.Cursor versions = query.first();
-        while (versions.hasNext())
-        {
-            Mutation.Record mutation = (Mutation.Record) versions.next();
-            if (mutation.state.equals(COMMITTED))
-            {
-                setOfCommitted.add(mutation.version);
-            }
-        }
-
-        query.insert(record);
-
-        mutator.getJournal().commit();
-
-        mutator = bento.mutate();
-
-        return new Snapshot(mutator, query, setOfCommitted, test, version);
-    }
-
-    public Snapshot newSnapshot()
-    {
-        return newSnapshot(new Test());
-    }
-
-    public class Snapshot
+    public final static class Snapshot
     implements BentoStorage.MutatorServer
     {
+        private final Strata snapshots;
+
+        private final Map mapOfBinCommons;
+
+        private final Set setOfCommitted;
+
         private final Bento.Mutator mutator;
 
         private final Map mapOfBins;
@@ -1463,10 +1386,10 @@ public class Depot
 
         private final Long oldest;
 
-        private final Set setOfCommitted;
-
-        public Snapshot(Bento.Mutator mutator, Strata.Query query, Set setOfCommitted, Test test, Long version)
+        public Snapshot(Strata snapshots, Map mapOfBinCommons, Bento.Mutator mutator, Set setOfCommitted, Test test, Long version)
         {
+            this.snapshots = snapshots;
+            this.mapOfBinCommons = mapOfBinCommons;
             this.mutator = mutator;
             this.mapOfBins = new HashMap();
             this.version = version;
@@ -1527,9 +1450,9 @@ public class Depot
                     throw new RuntimeException(e);
                 }
 
-                Strata.Query query = mutations.query(BentoStorage.txn(mutator));
+                Strata.Query query = snapshots.query(BentoStorage.txn(mutator));
 
-                Mutation.Record committed = new Mutation.Record(version, COMMITTED);
+                Record committed = new Record(version, COMMITTED);
                 query.insert(committed);
 
                 mutator.getJournal().commit();
@@ -1550,9 +1473,9 @@ public class Depot
                 }
                 mapOfBins.clear();
 
-                Strata.Query query = mutations.query(BentoStorage.txn(mutator));
+                Strata.Query query = snapshots.query(BentoStorage.txn(mutator));
 
-                Mutation.Record rolledback = new Mutation.Record(version, COMMITTED);
+                Record rolledback = new Record(version, COMMITTED);
                 query.remove(rolledback);
 
                 mutator.getJournal().rollback();
@@ -1562,6 +1485,88 @@ public class Depot
         public Bento.Mutator getMutator()
         {
             return mutator;
+        }
+
+        private final static class Record
+        {
+            public final Long version;
+
+            public final Integer state;
+
+            public Record(Long version, Integer state)
+            {
+                this.version = version;
+                this.state = state;
+            }
+
+            public boolean equals(Object object)
+            {
+                if (object instanceof Record)
+                {
+                    Record record = (Record) object;
+                    return version.equals(record.version) && state.equals(record.state);
+                }
+                return false;
+            }
+
+            public int hashCode()
+            {
+                int hashCode = 1;
+                hashCode = hashCode * 37 + version.hashCode();
+                hashCode = hashCode * 37 + state.hashCode();
+                return hashCode;
+            }
+        }
+
+        private final static class Extractor
+        implements Strata.FieldExtractor, Serializable
+        {
+            private static final long serialVersionUID = 20070409L;
+
+            public Comparable[] getFields(Object txn, Object object)
+            {
+                Record record = (Record) object;
+                return new Comparable[] { record.version };
+            }
+        }
+
+        private final static class Writer
+        implements BentoStorage.Writer, Serializable
+        {
+            private static final long serialVersionUID = 20070409L;
+
+            public void write(ByteBuffer bytes, Object object)
+            {
+                if (object == null)
+                {
+                    bytes.putLong(0L);
+                    bytes.putInt(0);
+                }
+                else
+                {
+                    Record record = (Record) object;
+                    bytes.putLong(record.version.longValue());
+                    bytes.putInt(record.state.intValue());
+                }
+            }
+        }
+
+        private final static class Reader
+        implements BentoStorage.Reader, Serializable
+        {
+            private static final long serialVersionUID = 20070409L;
+
+            public Object read(ByteBuffer bytes)
+            {
+                Long version = new Long(bytes.getLong());
+                Integer state = new Integer(bytes.getInt());
+                if (version.longValue() == 0L)
+                {
+                    return null;
+                }
+                Record record = new Record(version, state);
+                return record;
+            }
         }
     }
 
