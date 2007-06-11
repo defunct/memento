@@ -10,12 +10,16 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.zip.Adler32;
+import java.util.zip.Checksum;
 
 import EDU.oswego.cs.dl.util.concurrent.NullSync;
 import EDU.oswego.cs.dl.util.concurrent.Sync;
@@ -51,7 +55,7 @@ public class Depot
         this.bento = bento;
     }
 
-    private static boolean partial(Long[] partial, Long[] full)
+    private static boolean partial(Comparable[] partial, Comparable[] full)
     {
         for (int i = 0; i < partial.length; i++)
         {
@@ -63,7 +67,7 @@ public class Depot
         return true;
     }
 
-    private static int compare(Long[] left, Long[] right)
+    private static int compare(Comparable[] left, Comparable[] right)
     {
         for (int i = 0; i < left.length; i++)
         {
@@ -75,6 +79,7 @@ public class Depot
         }
         return 0;
     }
+
     public void close()
     {
         bento.close();
@@ -113,6 +118,35 @@ public class Depot
         return newSnapshot(new Test());
     }
 
+    public final static class Exception
+    extends RuntimeException
+    {
+        private static final long serialVersionUID = 20070210L;
+
+        public final int code;
+
+        public final List listOfParameters;
+
+        public Exception(String message, Throwable cause, int code)
+        {
+            super(message, cause);
+            this.code = code;
+            this.listOfParameters = new ArrayList();
+        }
+
+        public Exception(String message, int code)
+        {
+            super(message);
+            this.code = code;
+            this.listOfParameters = new ArrayList();
+        }
+
+        public Exception add(Object parameter)
+        {
+            listOfParameters.add(parameter);
+            return this;
+        }
+    }
 
     public static class Bag
     implements Serializable
@@ -195,18 +229,24 @@ public class Depot
 
         private final Strata.Query query;
 
-        private final Map mapOfJoins = new HashMap();
+        private final Map mapOfJoins;
+
+        private final Map mapOfIndices;
 
         private final Strata.Query isolation;
 
         public final Map mapOfObjects = new LinkedHashMap();
+
+        int allocations;
 
         public Bin(Snapshot snapshot, String name, Common common)
         {
             this.snapshot = snapshot;
             this.name = name;
             this.common = common;
-            this.query = common.strata.query(snapshot);
+            this.mapOfJoins = new HashMap();
+            this.mapOfIndices = newIndexMap(snapshot, common);
+            this.query = common.schema.strata.query(snapshot);
             this.isolation = newIsolation();
         }
 
@@ -221,24 +261,46 @@ public class Depot
             return creator.create(null).query(null);
         }
 
+        private static Map newIndexMap(Snapshot snapshot, Common common)
+        {
+            Map mapOfIndices = new HashMap();
+            Iterator entries = common.schema.mapOfIndexSchemas.entrySet().iterator();
+            while (entries.hasNext())
+            {
+                Map.Entry entry = (Map.Entry) entries.next();
+                Index.Schema schema = (Index.Schema) entry.getValue();
+                mapOfIndices.put(entry.getKey(), new Index(schema));
+            }
+            return mapOfIndices;
+        }
+
         public String getName()
         {
             return name;
         }
 
-        public Bag add(Marshaller marshaller, Object object)
+        public Bag add(Marshaller marshaller, Unmarshaller unmarshaller, Object object)
         {
             Bag bag = new Bag(this, common.nextIdentifier(), snapshot.getVersion(), object);
             Bento.OutputStream allocation = new Bento.OutputStream(snapshot.mutator);
             marshaller.marshall(allocation, object);
             Bento.Address address = allocation.allocate(false);
             isolation.insert(new Record(bag.getKey(), bag.getVersion(), address));
+            allocations++;
+
+            Iterator indices = mapOfIndices.values().iterator();
+            while (indices.hasNext())
+            {
+                Index index = (Index) indices.next();
+                index.add(this, snapshot.getMutator(), unmarshaller, bag);
+            }
+
             return bag;
         }
 
-        public Bag update(Marshaller marshaller, Long key, Object object)
+        public Bag update(Marshaller marshaller, Unmarshaller unmarshaller, Long key, Object object)
         {
-            Record record = get(key);
+            Record record = get(new Comparable[] { key });
             if (record == null)
             {
                 Danger danger = new Danger();
@@ -248,17 +310,21 @@ public class Depot
 
                 throw danger;
             }
+
+            isolation.remove(new Comparable[] { key }, Strata.ANY);
+
             Bag bag = new Bag(this, key, snapshot.getVersion(), object);
             Bento.OutputStream allocation = new Bento.OutputStream(snapshot.mutator);
             marshaller.marshall(allocation, object);
             Bento.Address address = allocation.allocate(false);
             isolation.insert(new Record(bag.getKey(), bag.getVersion(), address));
+            allocations++;
             return bag;
         }
 
         public void delete(Long key)
         {
-            Record record = get(key);
+            Record record = get(new Comparable[] { key });
             if (record == null)
             {
                 Danger danger = new Danger();
@@ -271,7 +337,7 @@ public class Depot
             isolation.insert(new Record(key, snapshot.getVersion(), Bento.NULL_ADDRESS));
         }
 
-        private Record get(Strata.Cursor cursor, Long key, boolean isolated)
+        private Record get(Strata.Cursor cursor, Comparable[] key, boolean isolated)
         {
             Record candidate = null;
             for (;;)
@@ -281,7 +347,7 @@ public class Depot
                     break;
                 }
                 Record record = (Record) cursor.next();
-                if (!record.key.equals(key))
+                if (!partial(key, new Comparable[] { record.key, record.version }))
                 {
                     break;
                 }
@@ -305,10 +371,10 @@ public class Depot
             return new Bag(this, record.key, record.version, object);
         }
 
-        private Record get(Long key)
+        private Record get(Comparable[] key)
         {
-            Record stored = get(query.find(new Comparable[] { key }), key, false);
-            Record isolated = get(isolation.find(new Comparable[] { key }), key, true);
+            Record stored = get(query.find(key), key, false);
+            Record isolated = get(isolation.find(key), key, true);
             if (isolated != null)
             {
                 return isDeleted(isolated) ? null : isolated;
@@ -322,7 +388,13 @@ public class Depot
 
         public Bag get(Unmarshaller unmarshaller, Long key)
         {
-            Record record = get(key);
+            Record record = get(new Comparable[] { key });
+            return record == null ? null : unmarshall(unmarshaller, record);
+        }
+
+        Bag get(Unmarshaller unmarshaller, Long key, Long version)
+        {
+            Record record = get(new Comparable[] { key, version });
             return record == null ? null : unmarshall(unmarshaller, record);
         }
 
@@ -331,15 +403,16 @@ public class Depot
             Join join = (Join) mapOfJoins.get(name);
             if (join == null)
             {
-                Join.Common joinCommon = (Join.Common) common.mapOfJoinCommons.get(name);
-                join = new Join(snapshot, joinCommon);
+                Join.Schema joinSchema = (Join.Schema) common.schema.mapOfJoinSchemas.get(name);
+                join = new Join(snapshot, joinSchema);
                 mapOfJoins.put(name, join);
             }
             return join;
         }
 
-        private void commit()
+        List getRecords()
         {
+            List listOfRecords = new ArrayList();
             Strata.Cursor isolated = isolation.first();
             if (isolated.hasNext())
             {
@@ -361,10 +434,22 @@ public class Depot
                         }
                         record = next;
                     }
-                    query.insert(record);
+                    listOfRecords.add(record);
                     first = next;
                 }
             }
+            return listOfRecords;
+        }
+
+        void commit()
+        {
+            Iterator records = getRecords().iterator();
+            while (records.hasNext())
+            {
+                Record record = (Record) records.next();
+                query.insert(record);
+            }
+            query.flush();
 
             Iterator joins = mapOfJoins.values().iterator();
             while (joins.hasNext())
@@ -372,16 +457,20 @@ public class Depot
                 Join join = (Join) joins.next();
                 join.commit();
             }
-            mapOfJoins.clear();
         }
 
-        private void rollback()
+        public Iterator find(String string, Unmarshaller unmarshaller, Comparable[] fields)
         {
-        }
+            Index index = (Index) mapOfIndices.get(string);
+            if (index == null)
+            {
+                // FIXME Just a code. You could create something in swag that
+                // builds a message from a format, but using the code so that
+                // it is not required.
+                throw new Exception("no.such.index", 503).add(string);
+            }
 
-        public Index getIndex(String string)
-        {
-            return null;
+            return index.find(snapshot, this, unmarshaller, fields);
         }
 
         private final static class Record
@@ -426,6 +515,7 @@ public class Depot
             public Comparable[] getFields(Object txn, Object object)
             {
                 Record record = (Record) object;
+                // FIXME Duboius.
                 return new Comparable[] { record.key, record.version };
             }
         }
@@ -463,30 +553,27 @@ public class Depot
 
             public final Strata strata;
 
-            public final Map mapOfJoins;
+            public final Map mapOfJoinSchemas;
 
-            public final Map mapOfIndices;
+            public final Map mapOfIndexSchemas;
 
-            public Schema(Strata strata, Map mapOfJoins, Map mapOfIndices)
+            public Schema(Strata strata, Map mapOfJoinSchemas, Map mapOfIndexSchemas)
             {
                 this.strata = strata;
-                this.mapOfJoins = mapOfJoins;
-                this.mapOfIndices = mapOfIndices;
+                this.mapOfJoinSchemas = mapOfJoinSchemas;
+                this.mapOfIndexSchemas = mapOfIndexSchemas;
             }
         }
 
         public final static class Common
         {
-            public final Strata strata;
-
-            public final Map mapOfJoinCommons;
+            public final Schema schema;
 
             private long identifier;
 
-            public Common(Strata strata, Map mapOfJoinCommons, long identifier)
+            public Common(Schema schema, long identifier)
             {
-                this.strata = strata;
-                this.mapOfJoinCommons = mapOfJoinCommons;
+                this.schema = schema;
                 this.identifier = identifier;
             }
 
@@ -631,13 +718,13 @@ public class Depot
                     FieldExtractor fields = (FieldExtractor) index.getValue();
 
                     newJoinStrata.setStorage(newIndexStorage.create());
-                    newJoinStrata.setFieldExtractor(new Index.Extractor(fields));
+                    newJoinStrata.setFieldExtractor(new Index.Extractor());
 
                     Strata indexStrata = newJoinStrata.create(BentoStorage.txn(mutator));
 
-                    mapOfIndices.put(nameOfIndex, indexStrata);
-
+                    mapOfIndices.put(nameOfIndex, new Index.Schema(indexStrata, fields));
                 }
+
                 mapOfBins.put(name, new Bin.Schema(strata, mapOfJoins, mapOfIndices));
             }
 
@@ -703,17 +790,8 @@ public class Depot
             Iterator bins = mapOfBinSchemas.entrySet().iterator();
             while (bins.hasNext())
             {
-                Map.Entry bin = (Map.Entry) bins.next();
-                Bin.Schema binSchema = (Bin.Schema) bin.getValue();
-                Map mapOfJoinCommons = new HashMap();
-                Iterator joins = binSchema.mapOfJoins.entrySet().iterator();
-                while (joins.hasNext())
-                {
-                    Map.Entry join = (Map.Entry) joins.next();
-                    Join.Schema joinSchema = (Join.Schema) join.getValue();
-                    Join.Common joinCommon = new Join.Common(joinSchema.strata, new LinkedHashMap(joinSchema.mapOfFields));
-                    mapOfJoinCommons.put(join.getKey(), joinCommon);
-                }
+                Map.Entry entry = (Map.Entry) bins.next();
+                Bin.Schema binSchema = (Bin.Schema) entry.getValue();
 
                 long identifer = 1L;
                 Strata.Query query = binSchema.strata.query(BentoStorage.txn(mutator));
@@ -724,8 +802,8 @@ public class Depot
                     Bin.Record record = (Bin.Record) last.next();
                     identifer = record.key.longValue() + 1;
                 }
-                Bin.Common binCommon = new Bin.Common(binSchema.strata, mapOfJoinCommons, identifer);
-                mapOfBinCommons.put(bin.getKey(), binCommon);
+
+                mapOfBinCommons.put(entry.getKey(), new Bin.Common(binSchema, identifer));
             }
 
             return new Depot(file, bento, mutations, mapOfBinCommons);
@@ -737,7 +815,7 @@ public class Depot
         public void marshall(OutputStream out, Object object);
     }
 
-    public final static class SerialzationMarshaller
+    public final static class SerializationMarshaller
     implements Marshaller
     {
         public void marshall(OutputStream out, Object object)
@@ -789,18 +867,18 @@ public class Depot
     {
         private final Snapshot snapshot;
 
-        private final Common common;
+        private final Schema schema;
 
         private final Strata.Query query;
 
         private final Strata.Query isolation;
 
-        public Join(Snapshot snapshot, Common common)
+        public Join(Snapshot snapshot, Schema schema)
         {
             this.snapshot = snapshot;
-            this.query = common.strata.query(snapshot);
+            this.query = schema.strata.query(snapshot);
             this.isolation = newIsolation();
-            this.common = common;
+            this.schema = schema;
         }
 
         private static Strata.Query newIsolation()
@@ -867,7 +945,7 @@ public class Depot
 
         public java.util.Iterator find(Long[] keys)
         {
-            return new Iterator(snapshot, keys, query.find(keys), isolation.find(keys), common);
+            return new Iterator(snapshot, keys, query.find(keys), isolation.find(keys), schema);
         }
 
         private void commit()
@@ -897,6 +975,7 @@ public class Depot
                     first = next;
                 }
             }
+            query.flush();
         }
 
         private final static class Record
@@ -1034,19 +1113,6 @@ public class Depot
             }
         }
 
-        private final static class Common
-        {
-            public final Map mapOfFields;
-
-            public final Strata strata;
-
-            public Common(Strata strata, Map mapOfFields)
-            {
-                this.strata = strata;
-                this.mapOfFields = mapOfFields;
-            }
-        }
-
         public final static class Creator
         {
             private final HashMap mapOfFields = new LinkedHashMap();
@@ -1088,7 +1154,7 @@ public class Depot
 
             private Join.Record next;
 
-            public Iterator(Snapshot snapshot, Long[] keys, Strata.Cursor stored, Strata.Cursor isolated, Common common)
+            public Iterator(Snapshot snapshot, Long[] keys, Strata.Cursor stored, Strata.Cursor isolated, Schema schema)
             {
                 this.snapshot = snapshot;
                 this.keys = keys;
@@ -1097,12 +1163,12 @@ public class Depot
                 this.nextStored = next(stored, false);
                 this.nextIsolated = next(isolated, true);
                 this.next = nextRecord();
-                this.fieldMappings = (Map.Entry[]) common.mapOfFields.entrySet().toArray(new Map.Entry[common.mapOfFields.size()]);
+                this.fieldMappings = (Map.Entry[]) schema.mapOfFields.entrySet().toArray(new Map.Entry[schema.mapOfFields.size()]);
             }
 
-            private Join.Record next(Strata.Cursor cursor, boolean isolated)
+            private Record next(Strata.Cursor cursor, boolean isolated)
             {
-                Join.Record candidate = null;
+                Record candidate = null;
                 Long[] candidateKeys = null;
                 for (;;)
                 {
@@ -1110,7 +1176,7 @@ public class Depot
                     {
                         break;
                     }
-                    Join.Record record = (Join.Record) cursor.next();
+                    Record record = (Record) cursor.next();
                     if (!partial(keys, record.keys))
                     {
                         break;
@@ -1131,9 +1197,9 @@ public class Depot
                 return candidate;
             }
 
-            private Join.Record nextRecord()
+            private Record nextRecord()
             {
-                Join.Record next = null;
+                Record next = null;
                 if (nextIsolated != null || nextStored != null)
                 {
                     if (nextIsolated == null)
@@ -1222,10 +1288,35 @@ public class Depot
         public abstract Comparable[] getFields(Object object);
     }
 
-    public final static class Index
+    private final static class Index
     {
-        public Index()
+        private final Schema schema;
+
+        private final Strata isolation;
+
+        public Index(Schema schema)
         {
+            this.schema = schema;
+            this.isolation = newIsolation();
+        }
+
+        private static Strata newIsolation()
+        {
+            Strata.Creator creator = new Strata.Creator();
+
+            creator.setCacheFields(true);
+            creator.setFieldExtractor(new Extractor());
+            creator.setStorage(new ArrayListStorage());
+
+            return creator.create(null);
+        }
+
+        public void add(Bin bin, Mutator mutator, Unmarshaller unmarshaller, Bag bag)
+        {
+            Transaction txn = new Transaction(mutator, bin, unmarshaller, schema.fields);
+            Strata.Query query = isolation.query(txn);
+            Record record = new Record(bag.getKey(), bag.getVersion());
+            query.insert(record);
         }
 
         public final static class Record
@@ -1234,13 +1325,10 @@ public class Depot
 
             public final Long version;
 
-            public final boolean deleted;
-
-            public Record(Long key, Long version, boolean deleted)
+            public Record(Long key, Long version)
             {
                 this.key = key;
                 this.version = version;
-                this.deleted = deleted;
             }
 
             public boolean equals(Object object)
@@ -1248,7 +1336,7 @@ public class Depot
                 if (object instanceof Record)
                 {
                     Record record = (Record) object;
-                    return key.equals(record.key) && version.equals(record.version) && deleted == record.deleted;
+                    return key.equals(record.key) && version.equals(record.version);
                 }
                 return false;
             }
@@ -1258,7 +1346,6 @@ public class Depot
                 int hashCode = 1;
                 hashCode = hashCode * 37 + key.hashCode();
                 hashCode = hashCode * 37 + version.hashCode();
-                hashCode = hashCode * 37 + (deleted ? 1 : 0);
                 return hashCode;
             }
         }
@@ -1268,19 +1355,11 @@ public class Depot
         {
             private static final long serialVersionUID = 20070403L;
 
-            private final FieldExtractor fields;
-
-            public Extractor(FieldExtractor fields)
-            {
-                this.fields = fields;
-            }
-
             public Comparable[] getFields(Object txn, Object object)
             {
                 Record record = (Record) object;
                 Transaction transaction = (Transaction) txn;
-                Bag bag = transaction.bin.get(transaction.unmarshaller, record.key);
-                return fields.getFields(bag.getObject());
+                return transaction.getFields(record);
             }
         }
 
@@ -1294,7 +1373,6 @@ public class Depot
                 Record record = (Record) object;
                 bytes.putLong(record.key.longValue());
                 bytes.putLong(record.version.longValue());
-                bytes.putShort(record.deleted ? (short) 1 : (short) 0);
             }
         }
 
@@ -1305,20 +1383,21 @@ public class Depot
 
             public Object read(ByteBuffer bytes)
             {
-                return new Record(new Long(bytes.getLong()), new Long(bytes.getLong()), bytes.getShort() == 1);
+                return new Record(new Long(bytes.getLong()), new Long(bytes.getLong()));
             }
         }
 
         public final static class Schema
         implements Serializable
         {
-            private static final long serialVersionUID = 20070208L;
+            private static final long serialVersionUID = 20070610L;
 
-            public final Strata.FieldExtractor fields;
+            // FIXME Rename extractor.
+            public final FieldExtractor fields;
 
             public final Strata strata;
 
-            public Schema(Strata strata, Strata.FieldExtractor fields)
+            public Schema(Strata strata, FieldExtractor fields)
             {
                 this.fields = fields;
                 this.strata = strata;
@@ -1349,21 +1428,168 @@ public class Depot
 
             public final Unmarshaller unmarshaller;
 
-            public Transaction(Bento.Mutator mutator, Bin bin, Unmarshaller unmarshaller)
+            public final FieldExtractor extractor;
+
+            public Transaction(Bento.Mutator mutator, Bin bin, Unmarshaller unmarshaller, FieldExtractor extractor)
             {
                 this.mutator = mutator;
                 this.bin = bin;
                 this.unmarshaller = unmarshaller;
+                this.extractor = extractor;
             }
 
             public Mutator getMutator()
             {
                 return mutator;
             }
+
+            public Comparable[] getFields(Record record)
+            {
+                bin.get(unmarshaller, record.key, record.version);
+                return extractor.getFields(bin.get(unmarshaller, record.key, record.version).getObject());
+            }
+
+            public Bag getBag(Record record)
+            {
+                return bin.get(unmarshaller, record.key);
+            }
+
+            public boolean isDeleted(Record record)
+            {
+                return !record.version.equals(bin.get(unmarshaller, record.key).getVersion());
+            }
         }
 
-        public void find(Comparable[] comparables)
+        public Iterator find(Snapshot snapshot, Bin bin, Unmarshaller unmarshaller, Comparable[] fields)
         {
+            Transaction txn = new Transaction(snapshot.getMutator(), bin, unmarshaller, schema.fields);
+            return new Cursor(snapshot, schema.strata.query(snapshot).find(fields), isolation.query(null).find(fields), txn, fields);
+        }
+
+        public final static class Cursor
+        implements Iterator
+        {
+            private final Snapshot snapshot;
+
+            private final Comparable[] fields;
+
+            private final Transaction txn;
+
+            private final Strata.Cursor isolated;
+
+            private final Strata.Cursor stored;
+
+            private Record nextStored;
+
+            private Record nextIsolated;
+
+            private Bag next;
+
+            public Cursor(Snapshot snapshot, Strata.Cursor stored, Strata.Cursor isolated, Transaction txn, Comparable[] fields)
+            {
+                this.snapshot = snapshot;
+                this.txn = txn;
+                this.fields = fields;
+                this.isolated = isolated;
+                this.stored = stored;
+                this.nextStored = next(stored, false);
+                this.nextIsolated = next(isolated, true);
+                this.next = nextBag();
+            }
+
+            private Record next(Strata.Cursor cursor, boolean isolated)
+            {
+                Record candidate = null;
+                Comparable[] candidateKeys = null;
+                for (;;)
+                {
+                    if (!cursor.hasNext())
+                    {
+                        break;
+                    }
+                    Record record = (Record) cursor.next();
+                    Comparable[] recordFields = txn.getFields(record);
+                    if (!partial(fields, recordFields))
+                    {
+                        break;
+                    }
+                    if (isolated || snapshot.isVisible(record.version))
+                    {
+                        if (candidateKeys == null)
+                        {
+                            candidateKeys = recordFields;
+                        }
+                        else if (!partial(candidateKeys, recordFields))
+                        {
+                            continue;
+                        }
+                        candidate = record;
+                    }
+                }
+                return candidate;
+            }
+
+            private Bag nextBag()
+            {
+                Bag bag = null;
+                if (nextIsolated != null || nextStored != null)
+                {
+                    Record next = null;
+                    if (nextIsolated == null)
+                    {
+                        next = nextStored;
+                        nextStored = next(stored, false);
+                    }
+                    else if (nextStored == null)
+                    {
+                        next = nextIsolated;
+                        nextIsolated = next(isolated, true);
+                    }
+                    else
+                    {
+                        int compare = compare(txn.getFields(nextIsolated), txn.getFields(nextStored));
+                        if (compare < 0)
+                        {
+                            next = nextIsolated;
+                            nextIsolated = next(isolated, true);
+                        }
+                        else if (compare > 0)
+                        {
+                            next = nextStored;
+                            nextStored = next(stored, false);
+                        }
+                        else
+                        {
+                            next = nextIsolated;
+                            nextIsolated = next(isolated, true);
+                            nextStored = next(stored, true);
+                        }
+                    }
+                    bag = txn.getBag(next);
+                    if (!bag.getVersion().equals(next.version))
+                    {
+                        bag = nextBag();
+                    }
+                }
+                return bag;
+            }
+
+            public boolean hasNext()
+            {
+                return next != null;
+            }
+
+            public void remove()
+            {
+                throw new UnsupportedOperationException();
+            }
+
+            public Object next()
+            {
+                Bag bag = next;
+                next = nextBag();
+                return bag;
+            }
         }
     }
 
@@ -1386,6 +1612,10 @@ public class Depot
 
         private final Long oldest;
 
+        private boolean spent;
+
+        private int binNameSize;
+
         public Snapshot(Strata snapshots, Map mapOfBinCommons, Bento.Mutator mutator, Set setOfCommitted, Test test, Long version)
         {
             this.snapshots = snapshots;
@@ -1406,6 +1636,7 @@ public class Depot
                 Bin.Common binCommon = (Bin.Common) mapOfBinCommons.get(name);
                 bin = new Bin(this, name, binCommon);
                 mapOfBins.put(name, bin);
+                binNameSize += SizeOf.SHORT + (SizeOf.CHAR * name.length());
             }
             return bin;
         }
@@ -1428,58 +1659,127 @@ public class Depot
             return false;
         }
 
+        private long checksum(ByteBuffer out)
+        {
+            Checksum checksum = new Adler32();
+
+            while (out.remaining() != 0)
+            {
+                checksum.update(out.get());
+            }
+
+            return checksum.getValue();
+        }
+
         public void commit()
         {
-            if (mapOfBins.size() != 0)
+            if (spent)
             {
-                Iterator bags = mapOfBins.values().iterator();
-                while (bags.hasNext())
-                {
-                    Bin bin = (Bin) bags.next();
-                    bin.commit();
-                }
-                mapOfBins.clear();
-
-                test.changesWritten.release();
-                try
-                {
-                    test.registerMutation.acquire();
-                }
-                catch (InterruptedException e)
-                {
-                    throw new RuntimeException(e);
-                }
-
-                Strata.Query query = snapshots.query(BentoStorage.txn(mutator));
-
-                Record committed = new Record(version, COMMITTED);
-                query.insert(committed);
-
-                mutator.getJournal().commit();
-
-                test.journalComplete.release();
+                throw new Exception("commit.spent.snapshot", 501);
             }
+
+            spent = true;
+
+            Bin[] bins = (Bin[]) mapOfBins.values().toArray(new Bin[mapOfBins.size()]);
+
+            int size = SizeOf.LONG + SizeOf.LONG + SizeOf.INTEGER + SizeOf.INTEGER;
+            size += binNameSize;
+
+            int allocations = 0;
+
+            for (int i = 0; i < bins.length; i++)
+            {
+                size += (SizeOf.LONG + Bento.ADDRESS_SIZE + SizeOf.SHORT) * bins[i].allocations;
+                allocations += bins[i].allocations;
+            }
+
+            Bento.Block temporary = mutator.temporary(size);
+            ByteBuffer out = temporary.toByteBuffer();
+
+            out.position(SizeOf.LONG);
+
+            out.putLong(version.longValue());
+            out.putInt(mapOfBins.size());
+            out.putInt(allocations);
+
+            for (int i = 0; i < bins.length; i++)
+            {
+                String name = bins[i].getName();
+                out.putShort((short) name.length());
+                for (int j = 0; j < name.length(); j++)
+                {
+                    out.putChar(name.charAt(j));
+                }
+            }
+
+            for (short i = 0; i < bins.length; i++)
+            {
+                Iterator records = bins[i].getRecords().iterator();
+                while (records.hasNext())
+                {
+                    Bin.Record record = (Bin.Record) records.next();
+                    if (!Bento.NULL_ADDRESS.equals(record.address))
+                    {
+                        out.putLong(record.key.longValue());
+                        out.putLong(record.address.getPosition());
+                        out.putLong(record.address.getBlockSize());
+                        out.putShort(i);
+                    }
+                }
+            }
+
+            out.flip();
+            out.position(SizeOf.LONG);
+
+            long checksum = checksum(out);
+
+            out.position(0);
+            out.putLong(checksum);
+
+            temporary.write();
+
+            mutator.getJournal().commit();
+
+            for (int i = 0; i < bins.length; i++)
+            {
+                bins[i].commit();
+            }
+
+            test.changesWritten.release();
+            try
+            {
+                test.registerMutation.acquire();
+            }
+            catch (InterruptedException e)
+            {
+                throw new RuntimeException(e);
+            }
+
+            mutator.free(mutator.load(temporary.getAddress()));
+
+            Strata.Query query = snapshots.query(BentoStorage.txn(mutator));
+
+            Record committed = new Record(version, COMMITTED);
+            query.insert(committed);
+
+            query.remove(new Comparable[] { version }, Strata.ANY);
+
+            test.journalComplete.release();
         }
 
         public void rollback()
         {
-            if (mapOfBins.size() != 0)
+            if (spent)
             {
-                Iterator bags = mapOfBins.values().iterator();
-                while (bags.hasNext())
-                {
-                    Bin bin = (Bin) bags.next();
-                    bin.rollback();
-                }
-                mapOfBins.clear();
-
-                Strata.Query query = snapshots.query(BentoStorage.txn(mutator));
-
-                Record rolledback = new Record(version, COMMITTED);
-                query.remove(rolledback);
-
-                mutator.getJournal().rollback();
+                throw new Exception("rollback.spent.snapshot", 502);
             }
+
+            spent = true;
+
+            mutator.getJournal().rollback();
+
+            Strata.Query query = snapshots.query(BentoStorage.txn(mutator));
+            query.remove(new Comparable[] { version }, Strata.ANY);
         }
 
         public Bento.Mutator getMutator()
