@@ -25,12 +25,10 @@ import EDU.oswego.cs.dl.util.concurrent.NullSync;
 import EDU.oswego.cs.dl.util.concurrent.Sync;
 
 import com.agtrz.bento.Bento;
-import com.agtrz.bento.Bento.Mutator;
 import com.agtrz.strata.ArrayListStorage;
 import com.agtrz.strata.Strata;
 import com.agtrz.strata.bento.BentoStorage;
 import com.agtrz.swag.danger.AsinineCheckedExceptionThatIsEntirelyImpossible;
-import com.agtrz.swag.danger.Danger;
 import com.agtrz.swag.io.ByteBufferInputStream;
 import com.agtrz.swag.io.SizeOf;
 
@@ -282,7 +280,7 @@ public class Depot
         public Bag add(Marshaller marshaller, Unmarshaller unmarshaller, Object object)
         {
             Bag bag = new Bag(this, common.nextIdentifier(), snapshot.getVersion(), object);
-            Bento.OutputStream allocation = new Bento.OutputStream(snapshot.mutator);
+            Bento.OutputStream allocation = new Bento.OutputStream(snapshot.getMutator());
             marshaller.marshall(allocation, object);
             Bento.Address address = allocation.allocate(false);
             isolation.insert(new Record(bag.getKey(), bag.getVersion(), address));
@@ -298,21 +296,40 @@ public class Depot
             return bag;
         }
 
+        private static boolean isDeleted(Record record)
+        {
+            return record.address.equals(Bento.NULL_ADDRESS);
+        }
+
+        private Record update(Comparable[] key)
+        {
+            Record record = (Record) isolation.remove(key, Strata.ANY);
+            if (record != null)
+            {
+                Bento.Mutator mutator = snapshot.getMutator();
+                mutator.free(mutator.load(record.address));
+            }
+            else
+            {
+                record = get(query.find(key), key, false);
+            }
+            if (record != null)
+            {
+                record = isDeleted(record) ? null : record;
+            }
+            return record;
+        }
+
         public Bag update(Marshaller marshaller, Unmarshaller unmarshaller, Long key, Object object)
         {
-            Record record = get(new Comparable[] { key });
+            Record record = update(new Comparable[] { key });
+
             if (record == null)
             {
-                Danger danger = new Danger();
-
-                danger.source(Depot.class);
-                danger.message("update.bag.does.not.exist");
-
-                throw danger;
+                throw new Exception("update.bag.does.not.exist", 401);
             }
 
-            isolation.remove(new Comparable[] { key }, Strata.ANY);
-
+            // Conrad Abadie.
             Bag bag = new Bag(this, key, snapshot.getVersion(), object);
             Bento.OutputStream allocation = new Bento.OutputStream(snapshot.mutator);
             marshaller.marshall(allocation, object);
@@ -324,16 +341,13 @@ public class Depot
 
         public void delete(Long key)
         {
-            Record record = get(new Comparable[] { key });
+            Record record = update(new Comparable[] { key });
+
             if (record == null)
             {
-                Danger danger = new Danger();
-
-                danger.source(Depot.class);
-                danger.message("delete.bag.does.not.exist");
-
-                throw danger;
+                throw new Exception("delete.bag.does.not.exist", 402);
             }
+
             isolation.insert(new Record(key, snapshot.getVersion(), Bento.NULL_ADDRESS));
         }
 
@@ -357,11 +371,6 @@ public class Depot
                 }
             }
             return candidate;
-        }
-
-        private static boolean isDeleted(Record record)
-        {
-            return record.address.equals(Bento.NULL_ADDRESS);
         }
 
         private Bag unmarshall(Unmarshaller unmarshaller, Record record)
@@ -852,12 +861,7 @@ public class Depot
             }
             catch (ClassNotFoundException e)
             {
-                Danger danger = new DepotException(e);
-
-                danger.source(Depot.class);
-                danger.message("class.not.found");
-
-                throw danger;
+                throw new Exception("class.not.found", 403);
             }
             return object;
         }
@@ -1311,7 +1315,7 @@ public class Depot
             return creator.create(null);
         }
 
-        public void add(Bin bin, Mutator mutator, Unmarshaller unmarshaller, Bag bag)
+        public void add(Bin bin, Bento.Mutator mutator, Unmarshaller unmarshaller, Bag bag)
         {
             Transaction txn = new Transaction(mutator, bin, unmarshaller, schema.fields);
             Strata.Query query = isolation.query(txn);
@@ -1438,7 +1442,7 @@ public class Depot
                 this.extractor = extractor;
             }
 
-            public Mutator getMutator()
+            public Bento.Mutator getMutator()
             {
                 return mutator;
             }
