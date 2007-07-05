@@ -101,6 +101,7 @@ public class Depot
                 setOfCommitted.add(mutation.version);
             }
         }
+        versions.release();
 
         query.insert(record);
 
@@ -225,11 +226,11 @@ public class Depot
 
         private final Common common;
 
-        private final Strata.Query query;
-
         private final Map mapOfJoins;
 
         private final Map mapOfIndices;
+
+        private final Strata.Query query;
 
         private final Strata.Query isolation;
 
@@ -348,6 +349,8 @@ public class Depot
                 throw new Exception("delete.bag.does.not.exist", 402);
             }
 
+            // FIXME This is not necessary if the record was inserted in this
+            // query.
             isolation.insert(new Record(key, snapshot.getVersion(), Bento.NULL_ADDRESS));
         }
 
@@ -370,6 +373,7 @@ public class Depot
                     candidate = record;
                 }
             }
+            cursor.release();
             return candidate;
         }
 
@@ -447,6 +451,7 @@ public class Depot
                     first = next;
                 }
             }
+            isolated.release();
             return listOfRecords;
         }
 
@@ -979,6 +984,7 @@ public class Depot
                     first = next;
                 }
             }
+            isolated.release();
             query.flush();
         }
 
@@ -1317,7 +1323,7 @@ public class Depot
 
         public void add(Bin bin, Bento.Mutator mutator, Unmarshaller unmarshaller, Bag bag)
         {
-            Transaction txn = new Transaction(mutator, bin, unmarshaller, schema.fields);
+            Transaction txn = new Transaction(mutator, bin, unmarshaller, schema.extractor);
             Strata.Query query = isolation.query(txn);
             Record record = new Record(bag.getKey(), bag.getVersion());
             query.insert(record);
@@ -1396,14 +1402,13 @@ public class Depot
         {
             private static final long serialVersionUID = 20070610L;
 
-            // FIXME Rename extractor.
-            public final FieldExtractor fields;
+            public final FieldExtractor extractor;
 
             public final Strata strata;
 
             public Schema(Strata strata, FieldExtractor fields)
             {
-                this.fields = fields;
+                this.extractor = fields;
                 this.strata = strata;
             }
         }
@@ -1466,7 +1471,7 @@ public class Depot
 
         public Iterator find(Snapshot snapshot, Bin bin, Unmarshaller unmarshaller, Comparable[] fields)
         {
-            Transaction txn = new Transaction(snapshot.getMutator(), bin, unmarshaller, schema.fields);
+            Transaction txn = new Transaction(snapshot.getMutator(), bin, unmarshaller, schema.extractor);
             return new Cursor(snapshot, schema.strata.query(snapshot).find(fields), isolation.query(null).find(fields), txn, fields);
         }
 
