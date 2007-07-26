@@ -5,11 +5,11 @@ import com.agtrz.swag.danger.Danger;
 
 public class DepotException extends Danger
 {
-    private static final long serialVersionUID = 20070208L;
+    private static final long serialVersionUID = 20070723L;
     
-    public DepotException(Throwable cause)
+    public DepotException(String message, Throwable cause)
     {
-        super(cause);
+        super(message, cause);
     }
 }
 
