@@ -256,7 +256,7 @@ public class Test
 
         public void operate(Environment env)
         {
-            env.mutator.commit();
+            env.mutator.commit(new Depot.SerializationUnmarshaller());
         }
     }
 

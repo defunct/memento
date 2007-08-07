@@ -62,7 +62,7 @@ extends TestCase
         assertNotNull(recipient);
         assertEquals(alan, recipient.getObject());
 
-        snapshot.commit();
+        snapshot.commit(unmarshaller);
 
         snapshot = depot.newSnapshot();
 
@@ -85,7 +85,7 @@ extends TestCase
         Depot.Snapshot one = depot.newSnapshot();
 
         Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
-        Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
+        final Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
         Depot.Bag recipient = one.getBin("recipients").add(marshaller, unmarshaller, alan);
 
         Long keyOfAlan = recipient.getKey();
@@ -99,7 +99,7 @@ extends TestCase
 
         assertNull(recipient);
 
-        one.commit();
+        one.commit(unmarshaller);
 
         recipient = two.getBin("recipients").get(unmarshaller, keyOfAlan);
         assertNull(recipient);
@@ -134,7 +134,7 @@ extends TestCase
         {
             public void run()
             {
-                three.commit();
+                three.commit(unmarshaller);
             }
         }).start();
 
@@ -183,7 +183,7 @@ extends TestCase
         Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
         Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
         Long key = one.getBin("recipients").add(marshaller, unmarshaller, alan).getKey();
-        one.commit();
+        one.commit(unmarshaller);
 
         Thread.sleep(1);
         Depot.Snapshot two = depot.newSnapshot();
@@ -208,7 +208,7 @@ extends TestCase
         assertNotNull(previous);
         assertEquals(alan, previous.getObject());
 
-        three.commit();
+        three.commit(unmarshaller);
 
         previous = four.getBin(RECIPIENTS).get(unmarshaller, key);
 
@@ -242,7 +242,7 @@ extends TestCase
         Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
 
         Long key = one.getBin("recipients").add(marshaller, unmarshaller, alan).getKey();
-        one.commit();
+        one.commit(unmarshaller);
 
         Depot.Snapshot two = depot.newSnapshot();
         Depot.Bag person = two.getBin("recipients").get(unmarshaller, key);
@@ -264,7 +264,7 @@ extends TestCase
         assertNotNull(previous);
         assertEquals(alan, previous.getObject());
 
-        three.commit();
+        three.commit(unmarshaller);
 
         previous = four.getBin(RECIPIENTS).get(unmarshaller, key);
 
@@ -287,7 +287,7 @@ extends TestCase
         assertNotNull(next);
         assertEquals(kiloblog, next.getObject());
 
-        six.commit();
+        six.commit(unmarshaller);
 
         next = five.getBin(RECIPIENTS).get(unmarshaller, key);
 
@@ -342,7 +342,7 @@ extends TestCase
             assertEquals(alan, tuple.getBag(unmarshaller, 0).getObject());
         }
 
-        snapshot.commit();
+        snapshot.commit(unmarshaller);
 
         snapshot = depot.newSnapshot();
 
@@ -359,7 +359,7 @@ extends TestCase
         linked = person.getLinked("messages");
         assertFalse(linked.hasNext());
 
-        snapshot.commit();
+        snapshot.commit(unmarshaller);
 
         snapshot = depot.newSnapshot();
 
@@ -391,8 +391,11 @@ extends TestCase
             depot = creator.create(file);
         }
 
-        depot.newSnapshot().commit();
+        Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
+
+        depot.newSnapshot().commit(unmarshaller);
         Recipient alan = new Recipient("alan@blogometer.com", "Alan", "Gutierrez");
+        Recipient angelo = new Recipient("frank@thinknola.com", "Angelo", "Silvestri");
         Recipient frank = new Recipient("frank@thinknola.com", "Frank", "Silvestri");
         // Recipient bart = new Recipient("b@rox.com", "Bart", "Everson");
         // Recipient maitri = new Recipient("maitri.vr@gmail.com", "Maitri",
@@ -404,16 +407,39 @@ extends TestCase
         Depot.Snapshot snapshot = depot.newSnapshot();
 
         Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
-        Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
 
         Depot.Bag person = snapshot.getBin("recipients").add(marshaller, unmarshaller, alan);
         assertEquals(alan, person.getObject());
 
-        snapshot.getBin("recipients").add(marshaller, unmarshaller, frank);
+        person = snapshot.getBin("recipients").add(marshaller, unmarshaller, angelo);
         Iterator iterator = snapshot.getBin("recipients").find("lastNameFirst", unmarshaller, new Comparable[] { "Silvestri" });
-        
+
         assertTrue(iterator.hasNext());
         Depot.Bag bag = (Depot.Bag) iterator.next();
+        assertEquals(angelo, bag.getObject());
+        assertFalse(iterator.hasNext());
+
+        snapshot.commit(unmarshaller);
+
+        snapshot = depot.newSnapshot();
+
+        iterator = snapshot.getBin("recipients").find("lastNameFirst", unmarshaller, new Comparable[] { "Silvestri" });
+
+        assertTrue(iterator.hasNext());
+        bag = (Depot.Bag) iterator.next();
+        assertEquals(angelo, bag.getObject());
+        assertFalse(iterator.hasNext());
+
+        snapshot.getBin("recipients").update(marshaller, unmarshaller, person.getKey(), frank);
+
+        snapshot.commit(unmarshaller);
+
+        snapshot = depot.newSnapshot();
+
+        iterator = snapshot.getBin("recipients").find("lastNameFirst", unmarshaller, new Comparable[] { "Silvestri" });
+
+        assertTrue(iterator.hasNext());
+        bag = (Depot.Bag) iterator.next();
         assertEquals(frank, bag.getObject());
         assertFalse(iterator.hasNext());
     }

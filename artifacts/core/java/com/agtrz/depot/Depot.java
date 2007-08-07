@@ -337,6 +337,14 @@ public class Depot
             Bento.Address address = allocation.allocate(false);
             isolation.insert(new Record(bag.getKey(), bag.getVersion(), address));
             allocations++;
+
+            Iterator indices = mapOfIndices.values().iterator();
+            while (indices.hasNext())
+            {
+                Index index = (Index) indices.next();
+                index.update(this, snapshot.getMutator(), unmarshaller, key, record.version, snapshot.getVersion());
+            }
+
             return bag;
         }
 
@@ -455,7 +463,7 @@ public class Depot
             return listOfRecords;
         }
 
-        void commit()
+        void commit(Unmarshaller unmarshaller)
         {
             Iterator records = getRecords().iterator();
             while (records.hasNext())
@@ -471,6 +479,13 @@ public class Depot
                 Join join = (Join) joins.next();
                 join.commit();
             }
+
+            Iterator indices = mapOfIndices.values().iterator();
+            while (indices.hasNext())
+            {
+                Index index = (Index) indices.next();
+                index.commit(snapshot, this, unmarshaller);
+            }
         }
 
         public Iterator find(String string, Unmarshaller unmarshaller, Comparable[] fields)
@@ -478,7 +493,7 @@ public class Depot
             Index index = (Index) mapOfIndices.get(string);
             if (index == null)
             {
-                // FIXME Just a code. You could create something in swag that
+                // TODO Just a code. You could create something in swag that
                 // builds a message from a format, but using the code so that
                 // it is not required.
                 throw new Exception("no.such.index", 503).add(string);
@@ -529,7 +544,9 @@ public class Depot
             public Comparable[] getFields(Object txn, Object object)
             {
                 Record record = (Record) object;
-                // FIXME Duboius.
+                // TODO Does the version need to be part of the key? It helps
+                // to find the right version from an index, but might not be
+                // necessary.
                 return new Comparable[] { record.key, record.version };
             }
         }
@@ -1327,6 +1344,28 @@ public class Depot
             Strata.Query query = isolation.query(txn);
             Record record = new Record(bag.getKey(), bag.getVersion());
             query.insert(record);
+            query.flush();
+        }
+
+        public void update(Bin bin, Bento.Mutator mutator, Unmarshaller unmarshaller, Long key, Long previous, Long next)
+        {
+            Transaction txn = new Transaction(mutator, bin, unmarshaller, schema.extractor);
+            Strata.Query query = isolation.query(txn);
+            Strata.Cursor found = query.find(txn.getFields(key, previous));
+            while (found.hasNext())
+            {
+                Record record = (Record) found.next();
+                if (record.key.equals(key) && record.version.equals(previous))
+                {
+                    found.release();
+                    query.remove(record);
+                    query.flush();
+                    break;
+                }
+            }
+            found.release();
+            query.insert(new Record(key, next));
+            query.flush();
         }
 
         public final static class Record
@@ -1369,7 +1408,7 @@ public class Depot
             {
                 Record record = (Record) object;
                 Transaction transaction = (Transaction) txn;
-                return transaction.getFields(record);
+                return transaction.getFields(record.key, record.version);
             }
         }
 
@@ -1452,10 +1491,9 @@ public class Depot
                 return mutator;
             }
 
-            public Comparable[] getFields(Record record)
+            public Comparable[] getFields(Long key, Long version)
             {
-                bin.get(unmarshaller, record.key, record.version);
-                return extractor.getFields(bin.get(unmarshaller, record.key, record.version).getObject());
+                return extractor.getFields(bin.get(unmarshaller, key, version).getObject());
             }
 
             public Bag getBag(Record record)
@@ -1472,7 +1510,22 @@ public class Depot
         public Iterator find(Snapshot snapshot, Bin bin, Unmarshaller unmarshaller, Comparable[] fields)
         {
             Transaction txn = new Transaction(snapshot.getMutator(), bin, unmarshaller, schema.extractor);
-            return new Cursor(snapshot, schema.strata.query(snapshot).find(fields), isolation.query(null).find(fields), txn, fields);
+            return new Cursor(snapshot, schema.strata.query(txn).find(fields), isolation.query(txn).find(fields), txn, fields);
+        }
+
+        private void commit(Snapshot snapshot, Bin bin, Unmarshaller unmarshaller)
+        {
+            Transaction txn = new Transaction(snapshot.getMutator(), bin, unmarshaller, schema.extractor);
+            Strata.Query queryOfIsolated = isolation.query(txn);
+            Strata.Query queryOfStored = schema.strata.query(txn);
+            Strata.Cursor isolated = queryOfIsolated.first();
+            while (isolated.hasNext())
+            {
+                Record record = (Record) isolated.next();
+                queryOfStored.insert(record);
+            }
+            isolated.release();
+            queryOfStored.flush();
         }
 
         public final static class Cursor
@@ -1508,34 +1561,21 @@ public class Depot
 
             private Record next(Strata.Cursor cursor, boolean isolated)
             {
-                Record candidate = null;
-                Comparable[] candidateKeys = null;
-                for (;;)
+                while (cursor.hasNext())
                 {
-                    if (!cursor.hasNext())
-                    {
-                        break;
-                    }
                     Record record = (Record) cursor.next();
-                    Comparable[] recordFields = txn.getFields(record);
-                    if (!partial(fields, recordFields))
+                    Bag bag = txn.bin.get(txn.unmarshaller, record.key);
+                    if (bag == null || !bag.getVersion().equals(record.version))
                     {
-                        break;
+                        continue;
                     }
-                    if (isolated || snapshot.isVisible(record.version))
+                    if (!partial(fields, txn.extractor.getFields(bag.getObject())))
                     {
-                        if (candidateKeys == null)
-                        {
-                            candidateKeys = recordFields;
-                        }
-                        else if (!partial(candidateKeys, recordFields))
-                        {
-                            continue;
-                        }
-                        candidate = record;
+                        return null;
                     }
+                    return record;
                 }
-                return candidate;
+                return null;
             }
 
             private Bag nextBag()
@@ -1556,7 +1596,7 @@ public class Depot
                     }
                     else
                     {
-                        int compare = compare(txn.getFields(nextIsolated), txn.getFields(nextStored));
+                        int compare = compare(txn.getFields(nextIsolated.key, nextIsolated.version), txn.getFields(nextStored.key, nextStored.version));
                         if (compare < 0)
                         {
                             next = nextIsolated;
@@ -1598,6 +1638,12 @@ public class Depot
                 Bag bag = next;
                 next = nextBag();
                 return bag;
+            }
+
+            public void release()
+            {
+                isolated.release();
+                stored.release();
             }
         }
     }
@@ -1680,7 +1726,7 @@ public class Depot
             return checksum.getValue();
         }
 
-        public void commit()
+        public void commit(Unmarshaller unmarshaller)
         {
             if (spent)
             {
@@ -1751,7 +1797,7 @@ public class Depot
 
             for (int i = 0; i < bins.length; i++)
             {
-                bins[i].commit();
+                bins[i].commit(unmarshaller);
             }
 
             test.changesWritten.release();
