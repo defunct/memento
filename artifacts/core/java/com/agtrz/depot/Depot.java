@@ -833,6 +833,7 @@ public class Depot
                     Bin.Record record = (Bin.Record) last.next();
                     identifer = record.key.longValue() + 1;
                 }
+                last.release();
 
                 mapOfBinCommons.put(entry.getKey(), new Bin.Common(binSchema, identifer));
             }
@@ -1510,7 +1511,7 @@ public class Depot
         public Iterator find(Snapshot snapshot, Bin bin, Unmarshaller unmarshaller, Comparable[] fields)
         {
             Transaction txn = new Transaction(snapshot.getMutator(), bin, unmarshaller, schema.extractor);
-            return new Cursor(snapshot, schema.strata.query(txn).find(fields), isolation.query(txn).find(fields), txn, fields);
+            return new Cursor(schema.strata.query(txn).find(fields), isolation.query(txn).find(fields), txn, fields);
         }
 
         private void commit(Snapshot snapshot, Bin bin, Unmarshaller unmarshaller)
@@ -1531,8 +1532,6 @@ public class Depot
         public final static class Cursor
         implements Iterator
         {
-            private final Snapshot snapshot;
-
             private final Comparable[] fields;
 
             private final Transaction txn;
@@ -1547,9 +1546,8 @@ public class Depot
 
             private Bag next;
 
-            public Cursor(Snapshot snapshot, Strata.Cursor stored, Strata.Cursor isolated, Transaction txn, Comparable[] fields)
+            public Cursor(Strata.Cursor stored, Strata.Cursor isolated, Transaction txn, Comparable[] fields)
             {
-                this.snapshot = snapshot;
                 this.txn = txn;
                 this.fields = fields;
                 this.isolated = isolated;
@@ -1575,6 +1573,7 @@ public class Depot
                     }
                     return record;
                 }
+                cursor.release();
                 return null;
             }
 

@@ -43,6 +43,7 @@ extends TestCase
 
     public void testAddSingleRecord()
     {
+        System.out.println("Test add single record.");
         File file = newFile();
         Depot depot = newDepot(file);
 
@@ -76,6 +77,7 @@ extends TestCase
 
     public void testAddIsolation() throws InterruptedException
     {
+        System.out.println("Test add isolation record.");
         File file = newFile();
         Depot depot = newDepot(file);
 
@@ -92,24 +94,22 @@ extends TestCase
 
         assertEquals(alan, recipient.getObject());
 
-        Thread.sleep(1);
-
         Depot.Snapshot two = depot.newSnapshot();
         recipient = two.getBin("recipients").get(unmarshaller, keyOfAlan);
 
         assertNull(recipient);
 
         one.commit(unmarshaller);
+        
+        System.out.println("One is done!");
 
         recipient = two.getBin("recipients").get(unmarshaller, keyOfAlan);
         assertNull(recipient);
 
-        Thread.sleep(1);
-
         Depot.Test test = new Depot.Test();
         Sync changesWritten = new Latch();
         Sync registerMutation = new Latch();
-        Latch committed = new Latch();
+        Sync committed = new Latch();
         test.setJournalLatches(changesWritten, registerMutation);
         test.setJournalComplete(committed);
         final Depot.Snapshot three = depot.newSnapshot(test);
@@ -119,7 +119,6 @@ extends TestCase
 
         assertEquals(bart, recipient.getObject());
 
-        Thread.sleep(1);
         two = depot.newSnapshot();
 
         recipient = two.getBin("recipients").get(unmarshaller, keyOfAlan);
@@ -134,6 +133,7 @@ extends TestCase
         {
             public void run()
             {
+                System.out.println("Thread Running!");
                 three.commit(unmarshaller);
             }
         }).start();
@@ -173,6 +173,7 @@ extends TestCase
 
     public void testUpdateRecord() throws InterruptedException
     {
+        System.out.println("Test add update record.");
         File file = newFile();
         Depot depot = newDepot(file);
 
@@ -304,6 +305,8 @@ extends TestCase
 
     public void testLink()
     {
+        System.out.println("Test link.");
+
         File file = newFile();
         Depot depot = null;
         Depot.Creator creator = new Depot.Creator();
@@ -382,6 +385,7 @@ extends TestCase
 
     public void testIndex()
     {
+        System.out.println("Test index.");
         File file = newFile();
         Depot depot = null;
         Depot.Creator creator = new Depot.Creator();
