@@ -78,6 +78,7 @@ public class Depot
         return 0;
     }
 
+    // FIXME Wait for all processes to end.
     public void close()
     {
         bento.close();
