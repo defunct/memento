@@ -147,6 +147,32 @@ public class Depot
             return this;
         }
     }
+    public final static int CONCURRENT_MODIFICATION_ERROR = 301;
+    
+    public final static int UNIQUE_CONSTRAINT_VIOLATION_ERROR = 302;
+
+    public final static class Error
+    extends RuntimeException
+    {
+        private static final long serialVersionUID = 20070210L;
+
+        private final Map mapOfProperties;
+        
+        public final int code;
+
+        public Error(String message, int code)
+        {
+            super(message);
+            this.code = code;
+            this.mapOfProperties = new HashMap();
+        }
+        
+        public Error put(String name, Object value)
+        {
+            mapOfProperties.put(name, value);
+            return this;
+        }
+    }
 
     public static class Bag
     implements Serializable
@@ -292,7 +318,7 @@ public class Depot
             while (indices.hasNext())
             {
                 Index index = (Index) indices.next();
-                index.add(this, snapshot.getMutator(), unmarshaller, bag);
+                index.add(snapshot, this, unmarshaller, bag);
             }
 
             return bag;
@@ -303,9 +329,9 @@ public class Depot
             return record.address.equals(Bento.NULL_ADDRESS);
         }
 
-        private Record update(Comparable[] key)
+        private Record update(Long key)
         {
-            Record record = (Record) isolation.remove(key, Strata.ANY);
+            Record record = (Record) isolation.remove(new Comparable[] { key }, Strata.ANY);
             if (record != null)
             {
                 Bento.Mutator mutator = snapshot.getMutator();
@@ -313,7 +339,7 @@ public class Depot
             }
             else
             {
-                record = get(query.find(key), key, false);
+                record = get(query.find(new Comparable[] { key }), key, false);
             }
             if (record != null)
             {
@@ -324,7 +350,7 @@ public class Depot
 
         public Bag update(Marshaller marshaller, Unmarshaller unmarshaller, Long key, Object object)
         {
-            Record record = update(new Comparable[] { key });
+            Record record = update(key);
 
             if (record == null)
             {
@@ -351,7 +377,7 @@ public class Depot
 
         public void delete(Long key)
         {
-            Record record = update(new Comparable[] { key });
+            Record record = update(key);
 
             if (record == null)
             {
@@ -363,7 +389,26 @@ public class Depot
             isolation.insert(new Record(key, snapshot.getVersion(), Bento.NULL_ADDRESS));
         }
 
-        private Record get(Strata.Cursor cursor, Comparable[] key, boolean isolated)
+        private Record getVersion(Strata.Cursor cursor, Long key, Long version)
+        {
+            Record candidate = null;
+            while (candidate == null && cursor.hasNext())
+            {
+                Record record = (Record) cursor.next();
+                if (!key.equals(record.key))
+                {
+                    break;
+                }
+                if (version.equals(record.version))
+                {
+                    candidate = record;
+                }
+            }
+            cursor.release();
+            return candidate;
+        }
+
+        private Record get(Strata.Cursor cursor, Long key, boolean isolated)
         {
             Record candidate = null;
             for (;;)
@@ -373,7 +418,7 @@ public class Depot
                     break;
                 }
                 Record record = (Record) cursor.next();
-                if (!partial(key, new Comparable[] { record.key, record.version }))
+                if (!key.equals(record.key))
                 {
                     break;
                 }
@@ -393,10 +438,25 @@ public class Depot
             return new Bag(this, record.key, record.version, object);
         }
 
-        private Record get(Comparable[] key)
+        private Record get(Long key)
         {
-            Record stored = get(query.find(key), key, false);
-            Record isolated = get(isolation.find(key), key, true);
+            Record stored = get(query.find(new Comparable[] { key }), key, false);
+            Record isolated = get(isolation.find(new Comparable[] { key }), key, true);
+            if (isolated != null)
+            {
+                return isDeleted(isolated) ? null : isolated;
+            }
+            else if (stored != null)
+            {
+                return isDeleted(stored) ? null : stored;
+            }
+            return null;
+        }
+
+        private Record get(Long key, Long version)
+        {
+            Record stored = getVersion(query.find(new Comparable[] { key }), key, version);
+            Record isolated = getVersion(isolation.find(new Comparable[] { key }), key, version);
             if (isolated != null)
             {
                 return isDeleted(isolated) ? null : isolated;
@@ -410,13 +470,13 @@ public class Depot
 
         public Bag get(Unmarshaller unmarshaller, Long key)
         {
-            Record record = get(new Comparable[] { key });
+            Record record = get(key);
             return record == null ? null : unmarshall(unmarshaller, record);
         }
 
         Bag get(Unmarshaller unmarshaller, Long key, Long version)
         {
-            Record record = get(new Comparable[] { key, version });
+            Record record = get(key, version);
             return record == null ? null : unmarshall(unmarshaller, record);
         }
 
@@ -473,6 +533,39 @@ public class Depot
                 query.insert(record);
             }
             query.flush();
+
+            boolean copacetic = true;
+            records = getRecords().iterator();
+            while (copacetic && records.hasNext())
+            {
+                Record record = (Record) records.next();
+                Strata.Cursor cursor = query.find(new Comparable[] { record.key });
+                boolean seen = false;
+                while (copacetic && cursor.hasNext())
+                {
+                    Record candidate = (Record) cursor.next();
+                    if (!candidate.key.equals(record.key))
+                    {
+                        break;
+                    }
+                    else if (candidate.version.equals(record.version))
+                    {
+                        seen = true;
+                    }
+                    else if (seen)
+                    {
+                        copacetic = false;
+                    }
+                }
+                cursor.release();
+            }
+
+            if (!copacetic)
+            {
+                throw new Error("concurrent.modifictation", 1200);
+            }
+
+            // FIXME Here is where you put the logic to test.
 
             Iterator joins = mapOfJoins.values().iterator();
             while (joins.hasNext())
@@ -548,7 +641,7 @@ public class Depot
                 // TODO Does the version need to be part of the key? It helps
                 // to find the right version from an index, but might not be
                 // necessary.
-                return new Comparable[] { record.key, record.version };
+                return new Comparable[] { record.key /* , record.version */};
             }
         }
 
@@ -1322,6 +1415,8 @@ public class Depot
         private final Schema schema;
 
         private final Strata isolation;
+        
+        public boolean unique;
 
         public Index(Schema schema)
         {
@@ -1340,9 +1435,17 @@ public class Depot
             return creator.create(null);
         }
 
-        public void add(Bin bin, Bento.Mutator mutator, Unmarshaller unmarshaller, Bag bag)
+        public void add(Snapshot snapshot, Bin bin, Unmarshaller unmarshaller, Bag bag)
         {
-            Transaction txn = new Transaction(mutator, bin, unmarshaller, schema.extractor);
+            Transaction txn = new Transaction(snapshot.getMutator(), bin, unmarshaller, schema.extractor);
+            if (unique)
+            {
+                Iterator found = find(snapshot, bin, unmarshaller, schema.extractor.getFields(bag.getObject()));
+                if (found.hasNext())
+                {
+                    throw new Error("unique.index.constraint.violation", UNIQUE_CONSTRAINT_VIOLATION_ERROR).put("bin", bin.getName());
+                }
+            }
             Strata.Query query = isolation.query(txn);
             Record record = new Record(bag.getKey(), bag.getVersion());
             query.insert(record);
@@ -1748,7 +1851,7 @@ public class Depot
                 allocations += bins[i].allocations;
             }
 
-            Bento.Block temporary = mutator.temporary(size);
+            Bento.Block temporary = mutator.load(mutator.temporary(size));
             ByteBuffer out = temporary.toByteBuffer();
 
             out.position(SizeOf.LONG);
