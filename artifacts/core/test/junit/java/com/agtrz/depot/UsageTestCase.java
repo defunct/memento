@@ -43,7 +43,6 @@ extends TestCase
 
     public void testAddSingleRecord()
     {
-        System.out.println("Test add single record.");
         File file = newFile();
         Depot depot = newDepot(file);
 
@@ -52,7 +51,7 @@ extends TestCase
 
         Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
         Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
-        Depot.Bag recipient = snapshot.getBin("recipients").add(marshaller, unmarshaller, alan);
+        Depot.Bag recipient = snapshot.getBin("recipients").add(marshaller, alan);
 
         Long key = recipient.getKey();
 
@@ -63,7 +62,7 @@ extends TestCase
         assertNotNull(recipient);
         assertEquals(alan, recipient.getObject());
 
-        snapshot.commit(unmarshaller);
+        snapshot.commit();
 
         snapshot = depot.newSnapshot();
 
@@ -88,7 +87,7 @@ extends TestCase
 
         Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
         final Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
-        Depot.Bag recipient = one.getBin("recipients").add(marshaller, unmarshaller, alan);
+        Depot.Bag recipient = one.getBin("recipients").add(marshaller, alan);
 
         Long keyOfAlan = recipient.getKey();
 
@@ -99,8 +98,8 @@ extends TestCase
 
         assertNull(recipient);
 
-        one.commit(unmarshaller);
-        
+        one.commit();
+
         System.out.println("One is done!");
 
         recipient = two.getBin("recipients").get(unmarshaller, keyOfAlan);
@@ -113,7 +112,7 @@ extends TestCase
         test.setJournalLatches(changesWritten, registerMutation);
         test.setJournalComplete(committed);
         final Depot.Snapshot three = depot.newSnapshot(test);
-        recipient = three.getBin("recipients").add(marshaller, unmarshaller, bart);
+        recipient = three.getBin("recipients").add(marshaller, bart);
 
         Long keyOfBart = recipient.getKey();
 
@@ -134,7 +133,7 @@ extends TestCase
             public void run()
             {
                 System.out.println("Thread Running!");
-                three.commit(unmarshaller);
+                three.commit();
             }
         }).start();
 
@@ -173,7 +172,6 @@ extends TestCase
 
     public void testUpdateRecord() throws InterruptedException
     {
-        System.out.println("Test add update record.");
         File file = newFile();
         Depot depot = newDepot(file);
 
@@ -183,8 +181,8 @@ extends TestCase
 
         Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
         Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
-        Long key = one.getBin("recipients").add(marshaller, unmarshaller, alan).getKey();
-        one.commit(unmarshaller);
+        Long key = one.getBin("recipients").add(marshaller, alan).getKey();
+        one.commit();
 
         Thread.sleep(1);
         Depot.Snapshot two = depot.newSnapshot();
@@ -197,7 +195,7 @@ extends TestCase
 
         Thread.sleep(1);
         Depot.Snapshot three = depot.newSnapshot();
-        Depot.Bag updated = three.getBin("recipients").update(marshaller, unmarshaller, key, kiloblog);
+        Depot.Bag updated = three.getBin("recipients").update(marshaller, key, kiloblog);
 
         assertNotNull(updated);
         assertEquals(kiloblog, updated.getObject());
@@ -209,7 +207,7 @@ extends TestCase
         assertNotNull(previous);
         assertEquals(alan, previous.getObject());
 
-        three.commit(unmarshaller);
+        three.commit();
 
         previous = four.getBin(RECIPIENTS).get(unmarshaller, key);
 
@@ -242,8 +240,8 @@ extends TestCase
         Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
         Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
 
-        Long key = one.getBin("recipients").add(marshaller, unmarshaller, alan).getKey();
-        one.commit(unmarshaller);
+        Long key = one.getBin("recipients").add(marshaller, alan).getKey();
+        one.commit();
 
         Depot.Snapshot two = depot.newSnapshot();
         Depot.Bag person = two.getBin("recipients").get(unmarshaller, key);
@@ -254,7 +252,7 @@ extends TestCase
         Recipient kiloblog = new Recipient("alan@kiloblog.com", alan.getFirstName(), alan.getLastName());
 
         Depot.Snapshot three = depot.newSnapshot();
-        Depot.Bag updated = three.getBin("recipients").update(marshaller, unmarshaller, key, kiloblog);
+        Depot.Bag updated = three.getBin("recipients").update(marshaller, key, kiloblog);
 
         assertNotNull(updated);
         assertEquals(kiloblog, updated.getObject());
@@ -265,7 +263,7 @@ extends TestCase
         assertNotNull(previous);
         assertEquals(alan, previous.getObject());
 
-        three.commit(unmarshaller);
+        three.commit();
 
         previous = four.getBin(RECIPIENTS).get(unmarshaller, key);
 
@@ -288,7 +286,7 @@ extends TestCase
         assertNotNull(next);
         assertEquals(kiloblog, next.getObject());
 
-        six.commit(unmarshaller);
+        six.commit();
 
         next = five.getBin(RECIPIENTS).get(unmarshaller, key);
 
@@ -305,8 +303,6 @@ extends TestCase
 
     public void testLink()
     {
-        System.out.println("Test link.");
-
         File file = newFile();
         Depot depot = null;
         Depot.Creator creator = new Depot.Creator();
@@ -330,28 +326,30 @@ extends TestCase
         Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
         Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
 
-        Depot.Bag person = snapshot.getBin("recipients").add(marshaller, unmarshaller, alan);
-        Depot.Bag message = snapshot.getBin("messages").add(marshaller, unmarshaller, hello);
-        Depot.Bag bounce = snapshot.getBin("bounces").add(marshaller, unmarshaller, received);
+        Depot.Bag person = snapshot.getBin("recipients").add(marshaller, alan);
+        Depot.Bag message = snapshot.getBin("messages").add(marshaller, hello);
+        Depot.Bag bounce = snapshot.getBin("bounces").add(marshaller, received);
 
         person.link("messages", new Depot.Bag[] { message, bounce });
 
         Long keyOfPerson = person.getKey();
 
         Iterator linked = person.getLinked("messages");
+        assertTrue(linked.hasNext());
         while (linked.hasNext())
         {
             Depot.Tuple tuple = (Depot.Tuple) linked.next();
             assertEquals(alan, tuple.getBag(unmarshaller, 0).getObject());
         }
 
-        snapshot.commit(unmarshaller);
+        snapshot.commit();
 
         snapshot = depot.newSnapshot();
 
         person = snapshot.getBin("recipients").get(unmarshaller, keyOfPerson);
         linked = person.getLinked("messages");
         Depot.Tuple tuple = null;
+        assertTrue(linked.hasNext());
         while (linked.hasNext())
         {
             tuple = (Depot.Tuple) linked.next();
@@ -362,7 +360,7 @@ extends TestCase
         linked = person.getLinked("messages");
         assertFalse(linked.hasNext());
 
-        snapshot.commit(unmarshaller);
+        snapshot.commit();
 
         snapshot = depot.newSnapshot();
 
@@ -385,19 +383,16 @@ extends TestCase
 
     public void testIndex()
     {
-        System.out.println("Test index.");
         File file = newFile();
         Depot depot = null;
         Depot.Creator creator = new Depot.Creator();
         {
             Depot.Bin.Creator recipients = creator.newBin("recipients");
-            recipients.newIndex("lastNameFirst", new FieldExtractor());
+            recipients.newIndex("lastNameFirst", new FieldExtractor(), new Depot.SerializationUnmarshaller());
             depot = creator.create(file);
         }
 
-        Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
-
-        depot.newSnapshot().commit(unmarshaller);
+        depot.newSnapshot().commit();
         Recipient alan = new Recipient("alan@blogometer.com", "Alan", "Gutierrez");
         Recipient angelo = new Recipient("frank@thinknola.com", "Angelo", "Silvestri");
         Recipient frank = new Recipient("frank@thinknola.com", "Frank", "Silvestri");
@@ -412,40 +407,98 @@ extends TestCase
 
         Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
 
-        Depot.Bag person = snapshot.getBin("recipients").add(marshaller, unmarshaller, alan);
+        Depot.Bag person = snapshot.getBin("recipients").add(marshaller, alan);
         assertEquals(alan, person.getObject());
 
-        person = snapshot.getBin("recipients").add(marshaller, unmarshaller, angelo);
-        Iterator iterator = snapshot.getBin("recipients").find("lastNameFirst", unmarshaller, new Comparable[] { "Silvestri" });
+        person = snapshot.getBin("recipients").add(marshaller, angelo);
+        Iterator iterator = snapshot.getBin("recipients").find("lastNameFirst", new Comparable[] { "Silvestri" });
 
         assertTrue(iterator.hasNext());
         Depot.Bag bag = (Depot.Bag) iterator.next();
         assertEquals(angelo, bag.getObject());
         assertFalse(iterator.hasNext());
 
-        snapshot.commit(unmarshaller);
+        snapshot.commit();
 
         snapshot = depot.newSnapshot();
 
-        iterator = snapshot.getBin("recipients").find("lastNameFirst", unmarshaller, new Comparable[] { "Silvestri" });
+        iterator = snapshot.getBin("recipients").find("lastNameFirst", new Comparable[] { "Silvestri" });
 
         assertTrue(iterator.hasNext());
         bag = (Depot.Bag) iterator.next();
         assertEquals(angelo, bag.getObject());
         assertFalse(iterator.hasNext());
 
-        snapshot.getBin("recipients").update(marshaller, unmarshaller, person.getKey(), frank);
+        snapshot.getBin("recipients").update(marshaller, person.getKey(), frank);
 
-        snapshot.commit(unmarshaller);
+        for (int i = 0; i < 0; i++)
+        {
+            System.gc();
+        }
+
+        snapshot.commit();
 
         snapshot = depot.newSnapshot();
 
-        iterator = snapshot.getBin("recipients").find("lastNameFirst", unmarshaller, new Comparable[] { "Silvestri" });
+        iterator = snapshot.getBin("recipients").find("lastNameFirst", new Comparable[] { "Silvestri" });
 
         assertTrue(iterator.hasNext());
         bag = (Depot.Bag) iterator.next();
         assertEquals(frank, bag.getObject());
         assertFalse(iterator.hasNext());
+    }
+
+    public void testUniqueIndex()
+    {
+        File file = newFile();
+        Depot depot = null;
+        Depot.Creator creator = new Depot.Creator();
+        {
+            Depot.Bin.Creator recipients = creator.newBin("recipients");
+            Depot.Index.Creator newIndex = recipients.newIndex("lastNameFirst", new FieldExtractor(), new Depot.SerializationUnmarshaller());
+            newIndex.setUnique(true);
+            depot = creator.create(file);
+        }
+
+        Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
+
+        depot.newSnapshot().commit();
+
+        Recipient alan1 = new Recipient("alan@blogometer.com", "Alan", "Gutierrez");
+        Recipient alan2 = new Recipient("alan@blogometer.com", "Alan", "Gutierrez");
+        Recipient angelo = new Recipient("angelo@thinknola.com", "Angelo", "Silvestri");
+        Recipient frank = new Recipient("frank@thinknola.com", "Frank", "Silvestri");
+        Recipient frank2 = new Recipient("frank@thinknola.com", "Angelo", "Silvestri");
+
+        Depot.Snapshot snapshot = depot.newSnapshot();
+        snapshot.getBin("recipients").add(marshaller, alan1);
+        boolean exceptional = false;
+        try
+        {
+            snapshot.getBin("recipients").add(marshaller, alan2);
+        }
+        catch (Depot.Error e)
+        {
+            assertEquals(Depot.UNIQUE_CONSTRAINT_VIOLATION_ERROR, e.code);
+            exceptional = true;
+        }
+        assertTrue(exceptional);
+
+        snapshot.getBin("recipients").add(marshaller, frank);
+        snapshot.getBin("recipients").add(marshaller, angelo);
+        exceptional = false;
+        try
+        {
+            snapshot.getBin("recipients").add(marshaller, frank2);
+        }
+        catch (Depot.Error e)
+        {
+            assertEquals(Depot.UNIQUE_CONSTRAINT_VIOLATION_ERROR, e.code);
+            exceptional = true;
+        }
+        assertTrue(exceptional);
+
+        snapshot.commit();
     }
 }
 

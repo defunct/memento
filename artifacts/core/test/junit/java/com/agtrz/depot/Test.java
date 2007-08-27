@@ -14,8 +14,6 @@ import junit.framework.Assert;
 
 public class Test
 {
-    private final static Depot.Unmarshaller UNMARSHALLER = new Depot.SerializationUnmarshaller();
-
     private final static Depot.Marshaller MARSHALLER = new Depot.SerializationMarshaller();
 
     public final static class Environment
@@ -145,7 +143,7 @@ public class Test
         {
             Depot.Bin bin = environment.mutator.getBin(bagName);
             Object object = newObject.get();
-            Depot.Bag bag = bin.add(MARSHALLER, UNMARSHALLER, object);
+            Depot.Bag bag = bin.add(MARSHALLER, object);
             environment.mapOfIdentifiers.put(new Integer(environment.objectCount++), new ObjectAllocation(bagName, bag.getKey(), object));
         }
     }
@@ -256,7 +254,7 @@ public class Test
 
         public void operate(Environment env)
         {
-            env.mutator.commit(new Depot.SerializationUnmarshaller());
+            env.mutator.commit();
         }
     }
 
