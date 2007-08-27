@@ -271,7 +271,6 @@ public class Depot
             Bento.Mutator mutator = bento.mutate();
             Strata.Creator creator = new Strata.Creator();
 
-            creator.setCacheFields(true);
             creator.setFieldExtractor(new Extractor());
             creator.setMaxDirtyTiers(5);
             creator.setSize(512);
@@ -894,6 +893,7 @@ public class Depot
 
             newMutationStrata.setStorage(newMutationStorage.create());
             newMutationStrata.setFieldExtractor(new Snapshot.Extractor());
+            newMutationStrata.setSize(512);
 
             Object txn = BentoStorage.txn(mutator);
             Strata mutations = newMutationStrata.create(txn);
@@ -917,6 +917,7 @@ public class Depot
 
                 newBinStrata.setStorage(newBinStorage.create());
                 newBinStrata.setFieldExtractor(new Bin.Extractor());
+                newBinStorage.setSize(512);
 
                 Strata strata = newBinStrata.create(BentoStorage.txn(mutator));
 
@@ -940,6 +941,7 @@ public class Depot
 
                     newJoinStrata.setStorage(newJoinStorage.create());
                     newJoinStrata.setFieldExtractor(new Join.Extractor());
+                    newJoinStrata.setSize(512);
 
                     Strata joinStrata = newJoinStrata.create(BentoStorage.txn(mutator));
 
@@ -958,13 +960,15 @@ public class Depot
                     newIndexStorage.setReader(new Index.Reader());
                     newIndexStorage.setSize(SizeOf.LONG + SizeOf.LONG + SizeOf.SHORT);
 
-                    Strata.Creator newJoinStrata = new Strata.Creator();
+                    Strata.Creator newIndexStrata = new Strata.Creator();
                     Index.Creator newIndex = (Index.Creator) index.getValue();
 
-                    newJoinStrata.setStorage(newIndexStorage.create());
-                    newJoinStrata.setFieldExtractor(new Index.Extractor());
+                    newIndexStrata.setStorage(newIndexStorage.create());
+                    newIndexStrata.setFieldExtractor(new Index.Extractor());
+                    newIndexStrata.setSize(512);
+                    newIndexStrata.setCacheFields(true);
 
-                    Strata indexStrata = newJoinStrata.create(BentoStorage.txn(mutator));
+                    Strata indexStrata = newIndexStrata.create(BentoStorage.txn(mutator));
 
                     mapOfIndices.put(nameOfIndex, new Index.Schema(indexStrata, newIndex.extractor, newIndex.unique, newIndex.unmarshaller));
                 }
@@ -1161,7 +1165,6 @@ public class Depot
         {
             Strata.Creator creator = new Strata.Creator();
 
-            creator.setCacheFields(true);
             creator.setFieldExtractor(new Extractor());
             creator.setMaxDirtyTiers(5);
             creator.setSize(512);
