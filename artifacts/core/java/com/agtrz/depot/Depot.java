@@ -12,6 +12,7 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -533,36 +534,20 @@ public class Depot
             return join;
         }
 
-        List getRecords()
+        // FIXME Call this somewhere somehow.
+        void copacetic()
         {
-            List listOfRecords = new ArrayList();
+            Set seen = new HashSet();
             Strata.Cursor isolated = isolation.first();
-            if (isolated.hasNext())
+            while (isolated.hasNext())
             {
-                Record first = (Record) isolated.next();
-                while (first != null)
+                Record record = (Record) isolated.next();
+                if (seen.contains(record))
                 {
-                    Record next = null;
-                    Record record = first;
-                    for (;;)
-                    {
-                        if (!isolated.hasNext())
-                        {
-                            break;
-                        }
-                        next = (Record) isolated.next();
-                        if (!next.key.equals(first.key))
-                        {
-                            break;
-                        }
-                        record = next;
-                    }
-                    listOfRecords.add(record);
-                    first = next;
+                    throw new Danger("Duplicate key in isolation.", 0);
                 }
+                seen.add(record.key);
             }
-            isolated.release();
-            return listOfRecords;
         }
 
         private void flush()
@@ -579,19 +564,19 @@ public class Depot
 
         void commit()
         {
-            Iterator records = getRecords().iterator();
-            while (records.hasNext())
+            Strata.Cursor isolated = isolation.first();
+            while (isolated.hasNext())
             {
-                Record record = (Record) records.next();
+                Record record = (Record) isolated.next();
                 query.insert(record);
             }
             query.flush();
 
             boolean copacetic = true;
-            records = getRecords().iterator();
-            while (copacetic && records.hasNext())
+            isolated = isolation.first();
+            while (copacetic && isolated.hasNext())
             {
-                Record record = (Record) records.next();
+                Record record = (Record) isolated.next();
                 Strata.Cursor cursor = query.find(new Comparable[] { record.key });
                 while (copacetic && cursor.hasNext())
                 {
@@ -1242,6 +1227,17 @@ public class Depot
 
         public void add(Long[] keys, Long version, boolean deleted)
         {
+            Strata.Cursor cursor = isolation.find(keys);
+            if (cursor.hasNext())
+            {
+                Record current = (Record) cursor.next();
+                cursor.release();
+                if (compare(current.keys, keys) == 0)
+                {
+                    isolation.remove(current);
+                }
+            }
+            cursor.release();
             isolation.insert(new Record(keys, version, deleted));
         }
 
@@ -1267,35 +1263,117 @@ public class Depot
             return new Iterator(snapshot, keys, query.find(keys), isolation.find(keys), schema);
         }
 
+        // FIXME Call this somewhere somehow.
+        void copacetic()
+        {
+            Set seen = new HashSet();
+            Strata.Cursor isolated = isolation.first();
+            while (isolated.hasNext())
+            {
+                Record record = (Record) isolated.next();
+                List listOfKeys = new ArrayList();
+                for (int i = 0; i < record.keys.length; i++)
+                {
+                    listOfKeys.add(record.keys[i]);
+                }
+                if (seen.contains(listOfKeys))
+                {
+                    throw new Danger("Duplicate key in isolation.", 0);
+                }
+                seen.add(listOfKeys);
+            }
+            isolated.release();
+        }
+
         private void commit()
         {
             Strata.Cursor isolated = isolation.first();
             if (isolated.hasNext())
             {
-                Record first = (Record) isolated.next();
-                while (first != null)
-                {
-                    Record next = null;
-                    Record record = first;
-                    for (;;)
-                    {
-                        if (!isolated.hasNext())
-                        {
-                            break;
-                        }
-                        next = (Record) isolated.next();
-                        if (!partial(next.keys, first.keys))
-                        {
-                            break;
-                        }
-                        record = next;
-                    }
-                    query.insert(record);
-                    first = next;
-                }
+                query.insert((Record) isolated.next());
             }
             isolated.release();
             query.flush();
+
+            boolean copacetic = true;
+            isolated = isolation.first();
+            while (copacetic && isolated.hasNext())
+            {
+                Record record = (Record) isolated.next();
+                Strata.Cursor cursor = query.find(record.keys);
+                while (copacetic && cursor.hasNext())
+                {
+                    Record candidate = (Record) cursor.next();
+                    if (compare(candidate.keys, record.keys) != 0)
+                    {
+                        break;
+                    }
+                    else if (candidate.version.equals(record.version))
+                    {
+                        break;
+                    }
+                    else if (!snapshot.isVisible(candidate.version))
+                    {
+                        copacetic = false;
+                    }
+                }
+                cursor.release();
+            }
+
+            if (!copacetic)
+            {
+                throw new Error("concurrent.modifictation", CONCURRENT_MODIFICATION_ERROR);
+            }
+        }
+
+        public void vacuum()
+        {
+            Strata.Cursor cursor = query.first();
+            Record previous = null;
+            while (cursor.hasNext() && previous == null)
+            {
+                Record record = (Record) cursor.next();
+                if (snapshot.isVisible(record.version))
+                {
+                    previous = record;
+                }
+            }
+            cursor.release();
+            for (;;)
+            {
+                cursor = query.find(previous);
+                Record found = null;
+                while (cursor.hasNext() && found == null)
+                {
+                    Record record = (Record) cursor.next();
+                    if (snapshot.isVisible(record.version))
+                    {
+                        found = record;
+                    }
+                }
+                if (!previous.equals(found))
+                {
+                    previous = found;
+                    cursor.release();
+                    continue;
+                }
+                Record next = null;
+                while (cursor.hasNext() && next == null)
+                {
+                    Record record = (Record) cursor.next();
+                    if (snapshot.isVisible(record.version))
+                    {
+                        next = record;
+                    }
+                }
+                cursor.release();
+                if (compare(previous.keys, next.keys) == 0 || previous.deleted)
+                {
+                    query.remove(previous);
+                    query.flush();
+                }
+                previous = next;
+            }
         }
 
         private final static class Record
@@ -1605,6 +1683,7 @@ public class Depot
                 {
                     query.remove((Record) cursor.next());
                 }
+                cursor.release();
                 query.flush();
             }
 
@@ -1752,6 +1831,7 @@ public class Depot
                     queryOfStored.insert(record);
                     if (schema.unique)
                     {
+                        // FIXME Very broken.
                         Bag bag = bin.get(schema.unmarshaller, record.key, record.version);
                         Comparable[] fields = schema.extractor.getFields(bag.getObject());
                         Strata.Cursor found = queryOfStored.find(fields);
