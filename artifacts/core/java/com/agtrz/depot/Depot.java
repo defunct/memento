@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import EDU.oswego.cs.dl.util.concurrent.Latch;
 import EDU.oswego.cs.dl.util.concurrent.NullSync;
 import EDU.oswego.cs.dl.util.concurrent.Sync;
 
@@ -118,7 +119,7 @@ public class Depot
 
     public Snapshot newSnapshot()
     {
-        return newSnapshot(new Test());
+        return newSnapshot(new Test(new NullSync(), new NullSync(), new NullSync()));
     }
 
     public final static class Danger
@@ -395,7 +396,6 @@ public class Depot
                 throw new Danger("update.bag.does.not.exist", 401);
             }
 
-            // Conrad Abadie.
             Bag bag = new Bag(this, key, snapshot.getVersion(), object);
             Bento.OutputStream allocation = new Bento.OutputStream(mutator);
             marshaller.marshall(allocation, object);
@@ -418,12 +418,13 @@ public class Depot
 
             if (record == null)
             {
-                throw new Danger("delete.bag.does.not.exist", 402);
+                throw new Danger("Deleted record does not exist.", 402);
             }
 
-            // FIXME This is not necessary if the record was inserted in this
-            // query.
-            isolation.insert(new Record(key, snapshot.getVersion(), Bento.NULL_ADDRESS));
+            if (!record.version.equals(snapshot.getVersion()))
+            {
+                isolation.insert(new Record(key, snapshot.getVersion(), Bento.NULL_ADDRESS));
+            }
         }
 
         public void dispose(Record record)
@@ -581,11 +582,8 @@ public class Depot
                 while (copacetic && cursor.hasNext())
                 {
                     Record candidate = (Record) cursor.next();
-                    if (!candidate.key.equals(record.key))
-                    {
-                        break;
-                    }
-                    else if (candidate.version.equals(record.version))
+                    assert candidate.key.equals(record.key);
+                    if (candidate.version.equals(record.version))
                     {
                         break;
                     }
@@ -599,7 +597,7 @@ public class Depot
 
             if (!copacetic)
             {
-                throw new Error("concurrent.modifictation", CONCURRENT_MODIFICATION_ERROR);
+                throw new Error("Concurrent modification.", CONCURRENT_MODIFICATION_ERROR);
             }
 
             Iterator joins = mapOfJoins.values().iterator();
@@ -810,7 +808,7 @@ public class Depot
             public void rollback(Snapshot snapshot)
             {
                 Bin bin = snapshot.getBin(name);
-                Strata.Cursor cursor = isolation.query(bin.mutator).first();
+                Strata.Cursor cursor = isolation.query(BentoStorage.txn(bin.mutator)).first();
                 while (cursor.hasNext())
                 {
                     Record record = (Record) cursor.next();
@@ -820,8 +818,9 @@ public class Depot
                         Index index = (Index) indices.next();
                         index.remove(bin.mutator, bin, record.key, record.version);
                     }
-                    bin.query.remove(bin);
+                    bin.query.remove(record);
                 }
+                cursor.release();
                 bin.query.flush();
             }
 
@@ -1053,7 +1052,7 @@ public class Depot
             }
             versions.release();
 
-            Snapshot snapshot = new Snapshot(mutations, mapOfBinCommons, bento, setOfCommitted, new Test(), new Long(0L));
+            Snapshot snapshot = new Snapshot(mutations, mapOfBinCommons, bento, setOfCommitted, new Test(new NullSync(), new NullSync(), new NullSync()), new Long(0L));
             Iterator failures = opener.getTemporaryBlocks().iterator();
             while (failures.hasNext())
             {
@@ -1230,11 +1229,17 @@ public class Depot
             Strata.Cursor cursor = isolation.find(keys);
             if (cursor.hasNext())
             {
-                Record current = (Record) cursor.next();
+                final Record record = (Record) cursor.next();
                 cursor.release();
-                if (compare(current.keys, keys) == 0)
+                if (compare(record.keys, keys) == 0)
                 {
-                    isolation.remove(current);
+                    isolation.remove(keys, new Strata.Deletable()
+                    {
+                        public boolean deletable(Object object)
+                        {
+                            return record.equals((Record) object);
+                        }
+                    });
                 }
             }
             cursor.release();
@@ -1322,7 +1327,7 @@ public class Depot
 
             if (!copacetic)
             {
-                throw new Error("concurrent.modifictation", CONCURRENT_MODIFICATION_ERROR);
+                throw new Error("Concurrent modification.", CONCURRENT_MODIFICATION_ERROR);
             }
         }
 
@@ -1435,14 +1440,12 @@ public class Depot
             public Comparable[] getFields(Object txn, Object object)
             {
                 Record record = (Record) object;
-                Comparable[] fields = new Comparable[record.keys.length + 2];
+                Comparable[] fields = new Comparable[record.keys.length];
                 Long[] keys = record.keys;
                 for (int i = 0; i < keys.length; i++)
                 {
                     fields[i] = keys[i];
                 }
-                fields[keys.length] = record.version;
-                fields[keys.length + 1] = record.deleted ? new Integer(1) : new Integer(0);
                 return fields;
             }
         }
@@ -1677,7 +1680,7 @@ public class Depot
             public void rollback(Snapshot snapshot)
             {
                 Join join = snapshot.getBin(binName).getJoin(joinName);
-                Strata.Query query = join.schema.strata.query(join.mutator);
+                Strata.Query query = join.schema.strata.query(BentoStorage.txn(join.mutator));
                 Strata.Cursor cursor = isolation.query(snapshot).first();
                 while (cursor.hasNext())
                 {
@@ -1835,24 +1838,25 @@ public class Depot
                         Bag bag = bin.get(schema.unmarshaller, record.key, record.version);
                         Comparable[] fields = schema.extractor.getFields(bag.getObject());
                         Strata.Cursor found = queryOfStored.find(fields);
-                        while (found.hasNext())
+                        try
                         {
-                            Record existing = (Record) found.next();
-                            if (existing.key.equals(record.key) && existing.version.equals(record.version))
+                            while (found.hasNext())
                             {
-                                break;
+                                Record existing = (Record) found.next();
+                                if (existing.key.equals(record.key) && existing.version.equals(record.version))
+                                {
+                                    break;
+                                }
+                                else if (!snapshot.isVisible(existing.version))
+                                {
+                                    throw new Error("Concurrent modification.", CONCURRENT_MODIFICATION_ERROR);
+                                }
                             }
                         }
-                        if (found.hasNext())
+                        finally
                         {
-                            Record next = (Record) found.next();
-                            Bag nextBag = bin.get(schema.unmarshaller, next.key, next.version);
-                            if (compare(fields, schema.extractor.getFields(nextBag.getObject())) == 0)
-                            {
-                                throw new Error("Concurrent modification.", CONCURRENT_MODIFICATION_ERROR);
-                            }
+                            found.release();
                         }
-
                     }
                 }
             }
@@ -2378,6 +2382,11 @@ public class Depot
         }
     }
 
+    public final static Test newTest()
+    {
+        return new Test(new Latch(), new Latch(), new Latch());
+    }
+
     public final static class Test
     {
         private Sync registerMutation;
@@ -2386,21 +2395,10 @@ public class Depot
 
         private Sync journalComplete;
 
-        public Test()
-        {
-            this.changesWritten = new NullSync();
-            this.registerMutation = new NullSync();
-            this.journalComplete = new NullSync();
-        }
-
-        public void setJournalLatches(Sync changesWritten, Sync registerMutation)
+        private Test(Sync changesWritten, Sync registerMutation, Sync journalComplete)
         {
             this.changesWritten = changesWritten;
             this.registerMutation = registerMutation;
-        }
-
-        public void setJournalComplete(Sync journalComplete)
-        {
             this.journalComplete = journalComplete;
         }
 
@@ -2410,6 +2408,35 @@ public class Depot
             try
             {
                 registerMutation.acquire();
+            }
+            catch (InterruptedException e)
+            {
+                throw new RuntimeException(e);
+            }
+        }
+
+        public void waitForChangesWritten()
+        {
+            try
+            {
+                changesWritten.acquire();
+            }
+            catch (InterruptedException e)
+            {
+                throw new RuntimeException(e);
+            }
+        }
+
+        public void registerMutation()
+        {
+            registerMutation.release();
+        }
+
+        public void waitForCompletion()
+        {
+            try
+            {
+                journalComplete.acquire();
             }
             catch (InterruptedException e)
             {

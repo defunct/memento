@@ -6,8 +6,6 @@ import java.io.IOException;
 import java.util.Iterator;
 
 import junit.framework.TestCase;
-import EDU.oswego.cs.dl.util.concurrent.Latch;
-import EDU.oswego.cs.dl.util.concurrent.Sync;
 
 public class UsageTestCase
 extends TestCase
@@ -76,7 +74,6 @@ extends TestCase
 
     public void testAddIsolation() throws InterruptedException
     {
-        System.out.println("Test add isolation record.");
         File file = newFile();
         Depot depot = newDepot(file);
 
@@ -105,12 +102,7 @@ extends TestCase
         recipient = two.getBin("recipients").get(unmarshaller, keyOfAlan);
         assertNull(recipient);
 
-        Depot.Test test = new Depot.Test();
-        Sync changesWritten = new Latch();
-        Sync registerMutation = new Latch();
-        Sync committed = new Latch();
-        test.setJournalLatches(changesWritten, registerMutation);
-        test.setJournalComplete(committed);
+        Depot.Test test = Depot.newTest();
         final Depot.Snapshot three = depot.newSnapshot(test);
         recipient = three.getBin("recipients").add(marshaller, bart);
 
@@ -132,12 +124,11 @@ extends TestCase
         {
             public void run()
             {
-                System.out.println("Thread Running!");
                 three.commit();
             }
         }).start();
 
-        changesWritten.acquire();
+        test.waitForChangesWritten();
 
         Depot.Snapshot four = depot.newSnapshot();
 
@@ -149,8 +140,8 @@ extends TestCase
         recipient = two.getBin("recipients").get(unmarshaller, keyOfBart);
         assertNull(recipient);
 
-        registerMutation.release();
-        committed.acquire();
+        test.registerMutation();
+        test.waitForCompletion();
 
         four = depot.newSnapshot();
 
@@ -301,7 +292,7 @@ extends TestCase
         assertNull(gone);
     }
 
-    public void testLink()
+    public void testJoin()
     {
         File file = newFile();
         Depot depot = null;
@@ -311,7 +302,9 @@ extends TestCase
             Depot.Bin.Creator messages = creator.newBin("messages");
             Depot.Bin.Creator bounces = creator.newBin("bounces");
 
+            // FIXME "recipientMessages".
             recipients.newJoin("messages").add(messages).add(bounces);
+            // FIXME "messageRecipients"
             messages.newJoin("recipients").add(recipients).add(bounces);
 
             depot = creator.create(file);
@@ -500,6 +493,345 @@ extends TestCase
 
         snapshot.commit();
     }
+
+    public void testUniqueIndexConcurrentModificationCommit()
+    {
+        File file = newFile();
+        Depot depot = null;
+        Depot.Creator creator = new Depot.Creator();
+        {
+            Depot.Bin.Creator recipients = creator.newBin("recipients");
+            Depot.Index.Creator newIndex = recipients.newIndex("lastNameFirst", new FieldExtractor(), new Depot.SerializationUnmarshaller());
+            newIndex.setUnique(true);
+            depot = creator.create(file);
+        }
+
+        Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
+
+        depot.newSnapshot().commit();
+
+        Recipient alan = new Recipient("alan@blogometer.com", "Alan", "Gutierrez");
+
+        Depot.Snapshot one = depot.newSnapshot();
+        one.getBin("recipients").add(marshaller, alan);
+
+        Depot.Snapshot two = depot.newSnapshot();
+        two.getBin("recipients").add(marshaller, alan);
+
+        two.commit();
+
+        try
+        {
+            one.commit();
+        }
+        catch (Depot.Error e)
+        {
+            assertEquals(Depot.CONCURRENT_MODIFICATION_ERROR, e.code);
+            return;
+        }
+        fail("Expected exception not thrown.");
+    }
+
+    public void testUniqueIndexConcurrentModification()
+    {
+        File file = newFile();
+        Depot depot = null;
+        Depot.Creator creator = new Depot.Creator();
+        {
+            Depot.Bin.Creator recipients = creator.newBin("recipients");
+            Depot.Index.Creator newIndex = recipients.newIndex("lastNameFirst", new FieldExtractor(), new Depot.SerializationUnmarshaller());
+            newIndex.setUnique(true);
+            depot = creator.create(file);
+        }
+
+        Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
+
+        Recipient alan = new Recipient("alan@blogometer.com", "Alan", "Gutierrez");
+
+        Depot.Snapshot one = depot.newSnapshot();
+        one.getBin("recipients").add(marshaller, alan);
+
+        Depot.Test test = Depot.newTest();
+        final Depot.Snapshot two = depot.newSnapshot(test);
+        two.getBin("recipients").add(marshaller, alan);
+
+        new Thread(new Runnable()
+        {
+            public void run()
+            {
+                two.commit();
+            }
+        }).start();
+
+        test.waitForChangesWritten();
+
+        try
+        {
+            one.commit();
+        }
+        catch (Depot.Error e)
+        {
+            assertEquals(Depot.CONCURRENT_MODIFICATION_ERROR, e.code);
+            return;
+        }
+        fail("Expected exception not thrown.");
+    }
+
+    public void testConcurrentBinModificationCommit()
+    {
+        File file = newFile();
+        Depot depot = null;
+        Depot.Creator creator = new Depot.Creator();
+
+        {
+            creator.newBin("recipients");
+            depot = creator.create(file);
+        }
+
+        Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
+
+        Recipient alan1 = new Recipient("alan@blogometer.com", "Alan", "Gutierrez");
+
+        Depot.Snapshot one = depot.newSnapshot();
+        Depot.Bag person = one.getBin("recipients").add(marshaller, alan1);
+
+        one.commit();
+
+        Recipient alan2 = new Recipient("alan@kiloblog.com", "Alan", "Gutierrez");
+
+        Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
+
+        Depot.Snapshot two = depot.newSnapshot();
+        person = two.getBin("recipients").get(unmarshaller, person.getKey());
+        two.getBin("recipients").update(marshaller, person.getKey(), alan2);
+
+        Depot.Snapshot three = depot.newSnapshot();
+        person = three.getBin("recipients").get(unmarshaller, person.getKey());
+        three.getBin("recipients").update(marshaller, person.getKey(), alan2);
+
+        three.commit();
+
+        try
+        {
+            two.commit();
+        }
+        catch (Depot.Error e)
+        {
+            assertEquals(Depot.CONCURRENT_MODIFICATION_ERROR, e.code);
+            return;
+        }
+        fail("Expected exception not thrown.");
+    }
+
+    public void testConcurrentBinModificationChanges()
+    {
+        File file = newFile();
+        Depot depot = null;
+        Depot.Creator creator = new Depot.Creator();
+
+        {
+            creator.newBin("recipients");
+            depot = creator.create(file);
+        }
+
+        Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
+
+        Recipient alan1 = new Recipient("alan@blogometer.com", "Alan", "Gutierrez");
+
+        Depot.Snapshot one = depot.newSnapshot();
+        Depot.Bag person = one.getBin("recipients").add(marshaller, alan1);
+
+        one.commit();
+
+        Recipient alan2 = new Recipient("alan@kiloblog.com", "Alan", "Gutierrez");
+
+        Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
+
+        Depot.Snapshot two = depot.newSnapshot();
+        person = two.getBin("recipients").get(unmarshaller, person.getKey());
+        two.getBin("recipients").update(marshaller, person.getKey(), alan2);
+
+        Depot.Test test = Depot.newTest();
+        final Depot.Snapshot three = depot.newSnapshot(test);
+        person = three.getBin("recipients").get(unmarshaller, person.getKey());
+        three.getBin("recipients").update(marshaller, person.getKey(), alan2);
+
+        new Thread(new Runnable()
+        {
+            public void run()
+            {
+                three.commit();
+            }
+        }).start();
+
+        test.waitForChangesWritten();
+
+        for (;;)
+        {
+            try
+            {
+                two.commit();
+            }
+            catch (Depot.Error e)
+            {
+                assertEquals(Depot.CONCURRENT_MODIFICATION_ERROR, e.code);
+                break;
+            }
+            fail("Expected exception not thrown.");
+        }
+
+        test.registerMutation();
+        test.waitForCompletion();
+    }
+
+    public void testConcurrentJoinModificationCommit()
+    {
+        File file = newFile();
+        Depot depot = null;
+        Depot.Creator creator = new Depot.Creator();
+        {
+            Depot.Bin.Creator recipients = creator.newBin("recipients");
+            Depot.Bin.Creator messages = creator.newBin("messages");
+            Depot.Bin.Creator bounces = creator.newBin("bounces");
+
+            // FIXME "recipientMessages".
+            recipients.newJoin("messages").add(messages).add(bounces);
+            // FIXME "messageRecipients"
+            messages.newJoin("recipients").add(recipients).add(bounces);
+
+            depot = creator.create(file);
+        }
+
+        Recipient alan = new Recipient("alan@blogometer.com", "Alan", "Gutierrez");
+        Message hello = new Message("Hello, World!");
+        Bounce received = new Bounce(false);
+
+        Depot.Snapshot one = depot.newSnapshot();
+
+        Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
+        Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
+
+        Depot.Bag person = one.getBin("recipients").add(marshaller, alan);
+        Depot.Bag message = one.getBin("messages").add(marshaller, hello);
+        Depot.Bag bounce = one.getBin("bounces").add(marshaller, received);
+
+        one.commit();
+
+        Depot.Snapshot two = depot.newSnapshot();
+
+        person = two.getBin("recipients").get(unmarshaller, person.getKey());
+        message = two.getBin("messages").get(unmarshaller, message.getKey());
+        bounce = two.getBin("bounces").get(unmarshaller, bounce.getKey());
+
+        person.link("messages", new Depot.Bag[] { message, bounce });
+
+        Depot.Test test = Depot.newTest();
+        final Depot.Snapshot three = depot.newSnapshot(test);
+
+        person = three.getBin("recipients").get(unmarshaller, person.getKey());
+        message = three.getBin("messages").get(unmarshaller, message.getKey());
+        bounce = three.getBin("bounces").get(unmarshaller, bounce.getKey());
+
+        person.link("messages", new Depot.Bag[] { message, bounce });
+
+        new Thread(new Runnable()
+        {
+            public void run()
+            {
+                three.commit();
+            }
+        }).start();
+
+        test.waitForChangesWritten();
+
+        try
+        {
+            two.commit();
+        }
+        catch (Depot.Error e)
+        {
+            assertEquals(Depot.CONCURRENT_MODIFICATION_ERROR, e.code);
+            return;
+        }
+        fail("Expected exception not thrown.");
+    }
+
+    public void testConcurrentJoinModificationChanges()
+    {
+        File file = newFile();
+        Depot depot = null;
+        Depot.Creator creator = new Depot.Creator();
+        {
+            Depot.Bin.Creator recipients = creator.newBin("recipients");
+            Depot.Bin.Creator messages = creator.newBin("messages");
+            Depot.Bin.Creator bounces = creator.newBin("bounces");
+
+            // FIXME "recipientMessages".
+            recipients.newJoin("messages").add(messages).add(bounces);
+            // FIXME "messageRecipients"
+            messages.newJoin("recipients").add(recipients).add(bounces);
+
+            depot = creator.create(file);
+        }
+
+        Recipient alan = new Recipient("alan@blogometer.com", "Alan", "Gutierrez");
+        Message hello = new Message("Hello, World!");
+        Bounce received = new Bounce(false);
+
+        Depot.Snapshot one = depot.newSnapshot();
+
+        Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
+        Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
+
+        Depot.Bag person = one.getBin("recipients").add(marshaller, alan);
+        Depot.Bag message = one.getBin("messages").add(marshaller, hello);
+        Depot.Bag bounce = one.getBin("bounces").add(marshaller, received);
+
+        one.commit();
+
+        Depot.Snapshot two = depot.newSnapshot();
+
+        person = two.getBin("recipients").get(unmarshaller, person.getKey());
+        message = two.getBin("messages").get(unmarshaller, message.getKey());
+        bounce = two.getBin("bounces").get(unmarshaller, bounce.getKey());
+
+        person.link("messages", new Depot.Bag[] { message, bounce });
+
+        Depot.Snapshot three = depot.newSnapshot();
+
+        person = three.getBin("recipients").get(unmarshaller, person.getKey());
+        message = three.getBin("messages").get(unmarshaller, message.getKey());
+        bounce = three.getBin("bounces").get(unmarshaller, bounce.getKey());
+
+        person.link("messages", new Depot.Bag[] { message, bounce });
+
+        three.commit();
+
+        try
+        {
+            two.commit();
+        }
+        catch (Depot.Error e)
+        {
+            assertEquals(Depot.CONCURRENT_MODIFICATION_ERROR, e.code);
+            return;
+        }
+        fail("Expected exception not thrown.");
+    }
+    // public void testThought()
+    // {
+    // for (;;)
+    // {
+    // try
+    // {
+    // break;
+    // }
+    // finally
+    // {
+    // continue;
+    // }
+    // }
+    // }
 }
 
 /* vim: set et sw=4 ts=4 ai tw=78 nowrap: */
