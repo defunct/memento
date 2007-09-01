@@ -626,6 +626,11 @@ public class Depot
             return index.find(snapshot, mutator, this, fields);
         }
 
+        public Cursor first(Unmarshaller unmarshaller)
+        {
+            return new Cursor(snapshot, mutator, isolation.first(), common.schema.strata.query(BentoStorage.txn(mutator)).first(), unmarshaller);
+        }
+
         private final static class Record
         {
             public final Long key;
@@ -839,6 +844,138 @@ public class Depot
                 query.destroy();
             }
         }
+
+        public final static class Cursor
+        implements Iterator
+        {
+            private final Snapshot snapshot;
+
+            private final Bento.Mutator mutator;
+
+            private final Strata.Cursor isolation;
+
+            private final Strata.Cursor common;
+
+            private final Unmarshaller unmarshaller;
+
+            private Bag nextIsolated;
+
+            private Bag nextCommon;
+
+            private Record[] firstIsolated;
+
+            private Record[] firstCommon;
+
+            public Cursor(Snapshot snapshot, Bento.Mutator mutator, Strata.Cursor isolation, Strata.Cursor common, Unmarshaller unmarshaller)
+            {
+                this.snapshot = snapshot;
+                this.mutator = mutator;
+                this.isolation = isolation;
+                this.common = common;
+                this.unmarshaller = unmarshaller;
+                this.firstIsolated = new Record[1];
+                this.firstCommon = new Record[1];
+                this.nextIsolated = next(isolation, firstIsolated, true);
+                this.nextCommon = next(common, firstCommon, false);
+            }
+
+            public boolean hasNext()
+            {
+                return !(nextIsolated == null && nextCommon == null);
+            }
+
+            private Bag next(Strata.Cursor cursor, Record[] first, boolean isolated)
+            {
+                while (first[0] == null && cursor.hasNext())
+                {
+                    Record record = (Record) cursor.next();
+                    if (isolated || snapshot.isVisible(record.version))
+                    {
+                        first[0] = record;
+                    }
+                }
+                Record candidate = first[0];
+                for (;;)
+                {
+                    if (candidate == null)
+                    {
+                        break;
+                    }
+                    if (!cursor.hasNext())
+                    {
+                        cursor.release();
+                        first[0] = null;
+                        break;
+                    }
+                    Record record = (Record) cursor.next();
+                    if (!first[0].key.equals(record.key))
+                    {
+                        first[0] = record;
+                        break;
+                    }
+                    if (isolated || snapshot.isVisible(record.version))
+                    {
+                        candidate = record;
+                    }
+                }
+                if (candidate == null)
+                {
+                    return null;
+                }
+                Bento.Block block = mutator.load(candidate.address);
+                Object object = unmarshaller.unmarshall(new ByteBufferInputStream(block.toByteBuffer(), false));
+                return new Bag(null, candidate.key, candidate.version, object);
+            }
+
+            public Bag nextBag()
+            {
+                Bag next = null;
+                if (nextIsolated == null)
+                {
+                    if (nextCommon != null)
+                    {
+                        next = nextCommon;
+                        nextCommon = next(common, firstCommon, false);
+                    }
+                }
+                else if (nextCommon == null)
+                {
+                    next = nextIsolated;
+                    nextIsolated = next(isolation, firstIsolated, true);
+                }
+                else
+                {
+                    int compare = nextIsolated.getKey().compareTo(nextCommon.getKey());
+                    if (compare == 0)
+                    {
+                        next = nextIsolated;
+                        nextCommon = next(common, firstCommon, false);
+                        nextIsolated = next(isolation, firstIsolated, true);
+                    }
+                    else if (compare < 0)
+                    {
+                        next = nextIsolated;
+                        nextIsolated = next(isolation, firstIsolated, true);
+                    }
+                    else
+                    {
+                        next = nextCommon;
+                        nextCommon = next(common, firstCommon, false);
+                    }
+                }
+                return next;
+            }
+
+            public Object next()
+            {
+                return nextBag();
+            }
+
+            public void remove()
+            {
+                throw new UnsupportedOperationException();
+            }
+        }
     }
 
     public interface Janitor
@@ -901,7 +1038,7 @@ public class Depot
 
                 newBinStrata.setStorage(newBinStorage.create());
                 newBinStrata.setFieldExtractor(new Bin.Extractor());
-                newBinStorage.setSize(512);
+                newBinStrata.setSize(512);
 
                 Strata strata = newBinStrata.create(BentoStorage.txn(mutator));
 
@@ -1681,7 +1818,7 @@ public class Depot
             {
                 Join join = snapshot.getBin(binName).getJoin(joinName);
                 Strata.Query query = join.schema.strata.query(BentoStorage.txn(join.mutator));
-                Strata.Cursor cursor = isolation.query(snapshot).first();
+                Strata.Cursor cursor = isolation.query(BentoStorage.txn(join.mutator)).first();
                 while (cursor.hasNext())
                 {
                     query.remove((Record) cursor.next());

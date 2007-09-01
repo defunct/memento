@@ -157,10 +157,6 @@ extends TestCase
         two.rollback();
     }
 
-    public void testAddTwoRecords()
-    {
-    }
-
     public void testUpdateRecord() throws InterruptedException
     {
         File file = newFile();
@@ -424,11 +420,6 @@ extends TestCase
 
         snapshot.getBin("recipients").update(marshaller, person.getKey(), frank);
 
-        for (int i = 0; i < 0; i++)
-        {
-            System.gc();
-        }
-
         snapshot.commit();
 
         snapshot = depot.newSnapshot();
@@ -439,6 +430,26 @@ extends TestCase
         bag = (Depot.Bag) iterator.next();
         assertEquals(frank, bag.getObject());
         assertFalse(iterator.hasNext());
+
+        snapshot.rollback();
+
+        depot.close();
+
+        Depot.Opener opener = new Depot.Opener();
+        depot = opener.open(file);
+
+        snapshot = depot.newSnapshot();
+
+        iterator = snapshot.getBin("recipients").find("lastNameFirst", new Comparable[] { "Silvestri" });
+
+        assertTrue(iterator.hasNext());
+        bag = (Depot.Bag) iterator.next();
+        assertEquals(frank, bag.getObject());
+        assertFalse(iterator.hasNext());
+
+        snapshot.rollback();
+
+        depot.close();
     }
 
     public void testUniqueIndex()
@@ -479,6 +490,27 @@ extends TestCase
 
         snapshot.getBin("recipients").add(marshaller, frank);
         snapshot.getBin("recipients").add(marshaller, angelo);
+        exceptional = false;
+        try
+        {
+            snapshot.getBin("recipients").add(marshaller, frank2);
+        }
+        catch (Depot.Error e)
+        {
+            assertEquals(Depot.UNIQUE_CONSTRAINT_VIOLATION_ERROR, e.code);
+            exceptional = true;
+        }
+        assertTrue(exceptional);
+
+        snapshot.commit();
+
+        depot.close();
+
+        Depot.Opener opener = new Depot.Opener();
+        depot = opener.open(file);
+
+        snapshot = depot.newSnapshot();
+
         exceptional = false;
         try
         {
@@ -818,6 +850,7 @@ extends TestCase
         }
         fail("Expected exception not thrown.");
     }
+
     // public void testThought()
     // {
     // for (;;)
@@ -832,6 +865,45 @@ extends TestCase
     // }
     // }
     // }
+
+    private final static String[] ALPHABET = new String[] { "alpha", "beta", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india", "juliet", "kilo", "lima", "mike", "november", "oscar", "papa", "quebec", "romeo", "sierra", "tango", "uniform", "victor", "whisky", "yankee", "x-ray", "zebra" };
+
+    public void testBinCursor()
+    {
+        File file = newFile();
+        Depot depot = null;
+        Depot.Creator creator = new Depot.Creator();
+
+        {
+            creator.newBin("recipients");
+            depot = creator.create(file);
+        }
+
+        Depot.Snapshot snapshot = depot.newSnapshot();
+        Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
+        for (int i = 0; i < 1024; i++)
+        {
+            String letter = ALPHABET[i % ALPHABET.length];
+            snapshot.getBin("recipients").add(marshaller, new Recipient(letter + "@alphabet.com", letter, letter));
+        }
+
+        snapshot.commit();
+        
+        snapshot = depot.newSnapshot();
+        
+        int i = 0;
+        
+        Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
+        Depot.Bin.Cursor cursor = snapshot.getBin("recipients").first(unmarshaller);
+        while (cursor.hasNext())
+        {
+            Depot.Bag bag = cursor.nextBag();
+            Recipient recipient = (Recipient) bag.getObject();
+            assertEquals(ALPHABET[i++ % ALPHABET.length], recipient.getFirstName());
+        }
+        
+        snapshot.rollback();
+    }
 }
 
 /* vim: set et sw=4 ts=4 ai tw=78 nowrap: */
