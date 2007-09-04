@@ -33,8 +33,8 @@ extends TestCase
         Depot.Bin.Creator messages = creator.newBin("messages");
         Depot.Bin.Creator bounces = creator.newBin("bounces");
 
-        recipients.newJoin("messages").add(messages).add(bounces);
-        messages.newJoin("recipients").add(recipients).add(bounces);
+        creator.newJoin("messages").add(recipients).add(messages).add(bounces);
+        creator.newJoin("recipients").add(messages).add(recipients).add(bounces);
 
         return creator.create(file);
     }
@@ -299,9 +299,9 @@ extends TestCase
             Depot.Bin.Creator bounces = creator.newBin("bounces");
 
             // FIXME "recipientMessages".
-            recipients.newJoin("messages").add(messages).add(bounces);
+            creator.newJoin("messages").add(recipients).add(messages).add(bounces);
             // FIXME "messageRecipients"
-            messages.newJoin("recipients").add(recipients).add(bounces);
+            creator.newJoin("recipients").add(messages).add(recipients).add(bounces);
 
             depot = creator.create(file);
         }
@@ -319,11 +319,11 @@ extends TestCase
         Depot.Bag message = snapshot.getBin("messages").add(marshaller, hello);
         Depot.Bag bounce = snapshot.getBin("bounces").add(marshaller, received);
 
-        person.link("messages", new Depot.Bag[] { message, bounce });
+        snapshot.getJoin("messages").link(new Depot.Bag[] { person, message, bounce });
 
         Long keyOfPerson = person.getKey();
 
-        Iterator linked = person.getLinked("messages");
+        Iterator linked = snapshot.getJoin("messages").find(new Depot.Bag[] { person });
         assertTrue(linked.hasNext());
         while (linked.hasNext())
         {
@@ -336,7 +336,7 @@ extends TestCase
         snapshot = depot.newSnapshot();
 
         person = snapshot.getBin("recipients").get(unmarshaller, keyOfPerson);
-        linked = person.getLinked("messages");
+        linked = snapshot.getJoin("messages").find(new Depot.Bag[] { person });
         Depot.Tuple tuple = null;
         assertTrue(linked.hasNext());
         while (linked.hasNext())
@@ -345,8 +345,8 @@ extends TestCase
             assertEquals(alan, tuple.getBag(unmarshaller, 0).getObject());
         }
 
-        person.unlink("messages", new Depot.Bag[] { tuple.getBag(unmarshaller, 1), tuple.getBag(unmarshaller, 2) });
-        linked = person.getLinked("messages");
+        snapshot.getJoin("messages").unlink(new Depot.Bag[] { tuple.getBag(unmarshaller, 0), tuple.getBag(unmarshaller, 1), tuple.getBag(unmarshaller, 2) });
+        linked = snapshot.getJoin("messages").find(new Depot.Bag[] { person });
         assertFalse(linked.hasNext());
 
         snapshot.commit();
@@ -354,7 +354,7 @@ extends TestCase
         snapshot = depot.newSnapshot();
 
         person = snapshot.getBin("recipients").get(unmarshaller, keyOfPerson);
-        linked = person.getLinked("messages");
+        linked = snapshot.getJoin("messages").find(new Depot.Bag[] { person });
         assertFalse(linked.hasNext());
     }
 
@@ -727,9 +727,9 @@ extends TestCase
             Depot.Bin.Creator bounces = creator.newBin("bounces");
 
             // FIXME "recipientMessages".
-            recipients.newJoin("messages").add(messages).add(bounces);
+            creator.newJoin("messages").add(recipients).add(messages).add(bounces);
             // FIXME "messageRecipients"
-            messages.newJoin("recipients").add(recipients).add(bounces);
+            creator.newJoin("recipients").add(messages).add(recipients).add(bounces);
 
             depot = creator.create(file);
         }
@@ -755,7 +755,7 @@ extends TestCase
         message = two.getBin("messages").get(unmarshaller, message.getKey());
         bounce = two.getBin("bounces").get(unmarshaller, bounce.getKey());
 
-        person.link("messages", new Depot.Bag[] { message, bounce });
+        two.getJoin("messages").link(new Depot.Bag[] { person, message, bounce });
 
         Depot.Test test = Depot.newTest();
         final Depot.Snapshot three = depot.newSnapshot(test);
@@ -764,7 +764,7 @@ extends TestCase
         message = three.getBin("messages").get(unmarshaller, message.getKey());
         bounce = three.getBin("bounces").get(unmarshaller, bounce.getKey());
 
-        person.link("messages", new Depot.Bag[] { message, bounce });
+        three.getJoin("messages").link(new Depot.Bag[] { person, message, bounce });
 
         new Thread(new Runnable()
         {
@@ -799,9 +799,9 @@ extends TestCase
             Depot.Bin.Creator bounces = creator.newBin("bounces");
 
             // FIXME "recipientMessages".
-            recipients.newJoin("messages").add(messages).add(bounces);
+            creator.newJoin("messages").add(recipients).add(messages).add(bounces);
             // FIXME "messageRecipients"
-            messages.newJoin("recipients").add(recipients).add(bounces);
+            creator.newJoin("recipients").add(messages).add(recipients).add(bounces);
 
             depot = creator.create(file);
         }
@@ -827,7 +827,7 @@ extends TestCase
         message = two.getBin("messages").get(unmarshaller, message.getKey());
         bounce = two.getBin("bounces").get(unmarshaller, bounce.getKey());
 
-        person.link("messages", new Depot.Bag[] { message, bounce });
+        two.getJoin("messages").link(new Depot.Bag[] { person, message, bounce });
 
         Depot.Snapshot three = depot.newSnapshot();
 
@@ -835,7 +835,7 @@ extends TestCase
         message = three.getBin("messages").get(unmarshaller, message.getKey());
         bounce = three.getBin("bounces").get(unmarshaller, bounce.getKey());
 
-        person.link("messages", new Depot.Bag[] { message, bounce });
+        three.getJoin("messages").link(new Depot.Bag[] { person, message, bounce });
 
         three.commit();
 
@@ -888,11 +888,11 @@ extends TestCase
         }
 
         snapshot.commit();
-        
+
         snapshot = depot.newSnapshot();
-        
+
         int i = 0;
-        
+
         Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
         Depot.Bin.Cursor cursor = snapshot.getBin("recipients").first(unmarshaller);
         while (cursor.hasNext())
@@ -901,7 +901,7 @@ extends TestCase
             Recipient recipient = (Recipient) bag.getObject();
             assertEquals(ALPHABET[i++ % ALPHABET.length], recipient.getFirstName());
         }
-        
+
         snapshot.rollback();
     }
 }

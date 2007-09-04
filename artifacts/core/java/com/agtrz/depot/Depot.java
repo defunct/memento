@@ -52,9 +52,12 @@ public class Depot
 
     private final Map mapOfBinCommons;
 
-    public Depot(File file, Bento bento, Strata mutations, Map mapOfBinCommons)
+    private final Map mapOfJoinSchemas;
+
+    public Depot(File file, Bento bento, Strata mutations, Map mapOfBinCommons, Map mapOfJoinSchemas)
     {
         this.mapOfBinCommons = mapOfBinCommons;
+        this.mapOfJoinSchemas = mapOfJoinSchemas;
         this.snapshots = mutations;
         this.bento = bento;
     }
@@ -114,7 +117,7 @@ public class Depot
 
         mutator.getJournal().commit();
 
-        return new Snapshot(snapshots, mapOfBinCommons, bento, setOfCommitted, test, version);
+        return new Snapshot(snapshots, mapOfBinCommons, mapOfJoinSchemas, bento, setOfCommitted, test, version);
     }
 
     public Snapshot newSnapshot()
@@ -180,17 +183,14 @@ public class Depot
     {
         private static final long serialVersionUID = 20070210L;
 
-        private final Bin bin;
-
         private final Long key;
 
         private final Long version;
 
         private final Object object;
 
-        public Bag(Bin bin, Long key, Long version, Object object)
+        public Bag(Long key, Long version, Object object)
         {
-            this.bin = bin;
             this.key = key;
             this.version = version;
             this.object = object;
@@ -211,46 +211,44 @@ public class Depot
             return version;
         }
 
-        public void link(String name, Bag[] bags)
-        {
-            Long[] keys = new Long[bags.length + 1];
-
-            keys[0] = getKey();
-
-            for (int i = 0; i < bags.length; i++)
-            {
-                keys[i + 1] = bags[i].getKey();
-            }
-
-            bin.getJoin(name).link(keys);
-        }
-
-        public void unlink(String name, Bag[] bags)
-        {
-            Long[] keys = new Long[bags.length + 1];
-
-            keys[0] = getKey();
-
-            for (int i = 0; i < bags.length; i++)
-            {
-                keys[i + 1] = bags[i].getKey();
-            }
-
-            bin.getJoin(name).unlink(keys);
-        }
-
-        public Iterator getLinked(String name)
-        {
-            Join join = bin.getJoin(name);
-            return join.find(new Bag[] { this });
-        }
+        // public void link(String name, Bag[] bags)
+        // {
+        // Long[] keys = new Long[bags.length + 1];
+        //
+        // keys[0] = getKey();
+        //
+        // for (int i = 0; i < bags.length; i++)
+        // {
+        // keys[i + 1] = bags[i].getKey();
+        // }
+        //
+        // bin.getJoin(name).link(keys);
+        // }
+        //
+        // public void unlink(String name, Bag[] bags)
+        // {
+        // Long[] keys = new Long[bags.length + 1];
+        //
+        // keys[0] = getKey();
+        //
+        // for (int i = 0; i < bags.length; i++)
+        // {
+        // keys[i + 1] = bags[i].getKey();
+        // }
+        //
+        // bin.getJoin(name).unlink(keys);
+        // }
+        //
+        // public Iterator getLinked(String name)
+        // {
+        // Join join = bin.getJoin(name);
+        // return join.find(new Bag[] { this });
+        // }
     }
 
     public final static class Bin
     {
         private final String name;
-
-        private final Bento bento;
 
         private final Bento.Mutator mutator;
 
@@ -258,19 +256,14 @@ public class Depot
 
         private final Common common;
 
-        private final Map mapOfJoins;
-
         private final Map mapOfIndices;
-
-        private final Map mapOfJanitors;
 
         private final Strata.Query query;
 
         private final Strata.Query isolation;
 
-        public Bin(Snapshot snapshot, Bento bento, String name, Common common, Map mapOfJanitors)
+        public Bin(Snapshot snapshot, Bento.Mutator mutator, String name, Common common, Map mapOfJanitors)
         {
-            Bento.Mutator mutator = bento.mutate();
             Strata.Creator creator = new Strata.Creator();
 
             creator.setFieldExtractor(new Extractor());
@@ -305,13 +298,10 @@ public class Depot
             this.snapshot = snapshot;
             this.name = name;
             this.common = common;
-            this.mapOfJoins = new HashMap();
             this.mapOfIndices = newIndexMap(snapshot, common);
             this.query = common.schema.strata.query(BentoStorage.txn(mutator));
             this.isolation = isolation.query(BentoStorage.txn(mutator));
             this.mutator = mutator;
-            this.bento = bento;
-            this.mapOfJanitors = mapOfJanitors;
         }
 
         private static Map newIndexMap(Snapshot snapshot, Common common)
@@ -334,7 +324,7 @@ public class Depot
 
         public Bag add(Marshaller marshaller, Object object)
         {
-            Bag bag = new Bag(this, common.nextIdentifier(), snapshot.getVersion(), object);
+            Bag bag = new Bag(common.nextIdentifier(), snapshot.getVersion(), object);
 
             Bento.OutputStream allocation = new Bento.OutputStream(mutator);
 
@@ -396,7 +386,7 @@ public class Depot
                 throw new Danger("update.bag.does.not.exist", 401);
             }
 
-            Bag bag = new Bag(this, key, snapshot.getVersion(), object);
+            Bag bag = new Bag(key, snapshot.getVersion(), object);
             Bento.OutputStream allocation = new Bento.OutputStream(mutator);
             marshaller.marshall(allocation, object);
             Bento.Address address = allocation.allocate(false);
@@ -478,7 +468,7 @@ public class Depot
         {
             Bento.Block block = mutator.load(record.address);
             Object object = unmarshaller.unmarshall(new ByteBufferInputStream(block.toByteBuffer(), false));
-            return new Bag(this, record.key, record.version, object);
+            return new Bag(record.key, record.version, object);
         }
 
         private Record getRecord(Long key)
@@ -523,18 +513,6 @@ public class Depot
             return record == null ? null : unmarshall(unmarshaller, record);
         }
 
-        public Join getJoin(String joinName)
-        {
-            Join join = (Join) mapOfJoins.get(joinName);
-            if (join == null)
-            {
-                Join.Schema joinSchema = (Join.Schema) common.schema.mapOfJoinSchemas.get(joinName);
-                join = new Join(snapshot, bento.mutate(), joinSchema, name, joinName, mapOfJanitors);
-                mapOfJoins.put(joinName, join);
-            }
-            return join;
-        }
-
         // FIXME Call this somewhere somehow.
         void copacetic()
         {
@@ -554,13 +532,6 @@ public class Depot
         private void flush()
         {
             isolation.flush();
-
-            Iterator joins = mapOfJoins.values().iterator();
-            while (joins.hasNext())
-            {
-                Join join = (Join) joins.next();
-                join.flush();
-            }
         }
 
         void commit()
@@ -598,13 +569,6 @@ public class Depot
             if (!copacetic)
             {
                 throw new Error("Concurrent modification.", CONCURRENT_MODIFICATION_ERROR);
-            }
-
-            Iterator joins = mapOfJoins.values().iterator();
-            while (joins.hasNext())
-            {
-                Join join = (Join) joins.next();
-                join.commit();
             }
 
             Iterator indices = mapOfIndices.values().iterator();
@@ -710,14 +674,11 @@ public class Depot
 
             public final Strata strata;
 
-            public final Map mapOfJoinSchemas;
-
             public final Map mapOfIndexSchemas;
 
-            public Schema(Strata strata, Map mapOfJoinSchemas, Map mapOfIndexSchemas, Unmarshaller unmarshaller, Marshaller marshaller)
+            public Schema(Strata strata, Map mapOfIndexSchemas, Unmarshaller unmarshaller, Marshaller marshaller)
             {
                 this.strata = strata;
-                this.mapOfJoinSchemas = mapOfJoinSchemas;
                 this.mapOfIndexSchemas = mapOfIndexSchemas;
             }
         }
@@ -746,8 +707,6 @@ public class Depot
 
             private final Map mapOfIndices;
 
-            private final Map mapOfJoinCreators;
-
             private Unmarshaller unmarshaller;
 
             private Marshaller marshaller;
@@ -756,7 +715,6 @@ public class Depot
             {
                 this.name = name;
                 this.mapOfIndices = new HashMap();
-                this.mapOfJoinCreators = new HashMap();
                 this.unmarshaller = new SerializationUnmarshaller();
                 this.marshaller = new SerializationMarshaller();
             }
@@ -764,17 +722,6 @@ public class Depot
             public String getName()
             {
                 return name;
-            }
-
-            public Join.Creator newJoin(String name)
-            {
-                if (mapOfJoinCreators.containsKey(name))
-                {
-                    throw new IllegalStateException();
-                }
-                Join.Creator newJoin = new Join.Creator(getName(), getName());
-                mapOfJoinCreators.put(name, newJoin);
-                return newJoin;
             }
 
             public Index.Creator newIndex(String name, FieldExtractor fields, Unmarshaller unmarshaller)
@@ -924,7 +871,7 @@ public class Depot
                 }
                 Bento.Block block = mutator.load(candidate.address);
                 Object object = unmarshaller.unmarshall(new ByteBufferInputStream(block.toByteBuffer(), false));
-                return new Bag(null, candidate.key, candidate.version, object);
+                return new Bag(candidate.key, candidate.version, object);
             }
 
             public Bag nextBag()
@@ -975,6 +922,12 @@ public class Depot
             {
                 throw new UnsupportedOperationException();
             }
+            
+            public void release()
+            {
+                isolation.release();
+                common.release();
+            }
         }
     }
 
@@ -990,11 +943,28 @@ public class Depot
     {
         private final Map mapOfBinCreators = new HashMap();
 
+        private final Map mapOfJoinCreators = new HashMap();
+
         public Bin.Creator newBin(String name)
         {
+            if (mapOfBinCreators.containsKey(name))
+            {
+                throw new IllegalStateException();
+            }
             Bin.Creator newBin = new Bin.Creator(name);
             mapOfBinCreators.put(name, newBin);
             return newBin;
+        }
+
+        public Join.Creator newJoin(String name)
+        {
+            if (mapOfJoinCreators.containsKey(name))
+            {
+                throw new IllegalStateException();
+            }
+            Join.Creator newJoin = new Join.Creator();
+            mapOfJoinCreators.put(name, newJoin);
+            return newJoin;
         }
 
         public Depot create(File file)
@@ -1044,31 +1014,6 @@ public class Depot
 
                 Bin.Creator newBin = (Bin.Creator) entry.getValue();
 
-                Map mapOfJoins = new HashMap();
-                Iterator joins = newBin.mapOfJoinCreators.entrySet().iterator();
-                while (joins.hasNext())
-                {
-                    Map.Entry join = (Map.Entry) joins.next();
-                    String joinName = (String) join.getKey();
-                    Join.Creator newJoin = (Join.Creator) join.getValue();
-                    Map mapOfFields = new LinkedHashMap(newJoin.mapOfFields);
-
-                    BentoStorage.Creator newJoinStorage = new BentoStorage.Creator();
-                    newJoinStorage.setWriter(new Join.Writer(mapOfFields.size()));
-                    newJoinStorage.setReader(new Join.Reader(mapOfFields.size()));
-                    newJoinStorage.setSize(SizeOf.LONG * mapOfFields.size() + SizeOf.LONG + SizeOf.SHORT);
-
-                    Strata.Creator newJoinStrata = new Strata.Creator();
-
-                    newJoinStrata.setStorage(newJoinStorage.create());
-                    newJoinStrata.setFieldExtractor(new Join.Extractor());
-                    newJoinStrata.setSize(512);
-
-                    Strata joinStrata = newJoinStrata.create(BentoStorage.txn(mutator));
-
-                    mapOfJoins.put(joinName, new Join.Schema(joinStrata, mapOfFields));
-                }
-
                 Map mapOfIndices = new HashMap();
                 Iterator indices = newBin.mapOfIndices.entrySet().iterator();
                 while (indices.hasNext())
@@ -1094,7 +1039,32 @@ public class Depot
                     mapOfIndices.put(nameOfIndex, new Index.Schema(indexStrata, newIndex.extractor, newIndex.unique, newIndex.unmarshaller));
                 }
 
-                mapOfBins.put(name, new Bin.Schema(strata, mapOfJoins, mapOfIndices, newBin.unmarshaller, newBin.marshaller));
+                mapOfBins.put(name, new Bin.Schema(strata, mapOfIndices, newBin.unmarshaller, newBin.marshaller));
+            }
+
+            Map mapOfJoins = new HashMap();
+            Iterator joins = mapOfJoinCreators.entrySet().iterator();
+            while (joins.hasNext())
+            {
+                Map.Entry join = (Map.Entry) joins.next();
+                String joinName = (String) join.getKey();
+                Join.Creator newJoin = (Join.Creator) join.getValue();
+                Map mapOfFields = new LinkedHashMap(newJoin.mapOfFields);
+
+                BentoStorage.Creator newJoinStorage = new BentoStorage.Creator();
+                newJoinStorage.setWriter(new Join.Writer(mapOfFields.size()));
+                newJoinStorage.setReader(new Join.Reader(mapOfFields.size()));
+                newJoinStorage.setSize(SizeOf.LONG * mapOfFields.size() + SizeOf.LONG + SizeOf.SHORT);
+
+                Strata.Creator newJoinStrata = new Strata.Creator();
+
+                newJoinStrata.setStorage(newJoinStorage.create());
+                newJoinStrata.setFieldExtractor(new Join.Extractor());
+                newJoinStrata.setSize(512);
+
+                Strata joinStrata = newJoinStrata.create(BentoStorage.txn(mutator));
+
+                mapOfJoins.put(joinName, new Join.Schema(joinStrata, mapOfFields));
             }
 
             Bento.OutputStream allocation = new Bento.OutputStream(mutator);
@@ -1103,6 +1073,7 @@ public class Depot
                 ObjectOutputStream out = new ObjectOutputStream(allocation);
                 out.writeObject(mutations);
                 out.writeObject(mapOfBins);
+                out.writeObject(mapOfJoins);
             }
             catch (IOException e)
             {
@@ -1139,11 +1110,13 @@ public class Depot
             Bento.Address addressOfBags = new Bento.Address(data.getLong(), data.getInt());
             Strata mutations = null;
             Map mapOfBinSchemas = null;
+            Map mapOfJoinSchemas = null;
             try
             {
                 ObjectInputStream objects = new ObjectInputStream(new ByteBufferInputStream(mutator.load(addressOfBags).toByteBuffer(), false));
                 mutations = (Strata) objects.readObject();
                 mapOfBinSchemas = (Map) objects.readObject();
+                mapOfJoinSchemas = (Map) objects.readObject();
             }
             catch (IOException e)
             {
@@ -1164,8 +1137,8 @@ public class Depot
 
                 long identifer = 1L;
                 Strata.Query query = binSchema.strata.query(BentoStorage.txn(mutator));
-                Strata.Cursor last = query.last();
-                // TODO You can use hasPrevious when it is implemented.
+                Strata.Cursor last = query.first();
+                // FIXME You can use hasPrevious when it is implemented.
                 while (last.hasNext())
                 {
                     Bin.Record record = (Bin.Record) last.next();
@@ -1189,7 +1162,7 @@ public class Depot
             }
             versions.release();
 
-            Snapshot snapshot = new Snapshot(mutations, mapOfBinCommons, bento, setOfCommitted, new Test(new NullSync(), new NullSync(), new NullSync()), new Long(0L));
+            Snapshot snapshot = new Snapshot(mutations, mapOfBinCommons, mapOfJoinSchemas, bento, setOfCommitted, new Test(new NullSync(), new NullSync(), new NullSync()), new Long(0L));
             Iterator failures = opener.getTemporaryBlocks().iterator();
             while (failures.hasNext())
             {
@@ -1214,7 +1187,7 @@ public class Depot
                 mutator.getJournal().commit();
             }
 
-            return new Depot(file, bento, mutations, mapOfBinCommons);
+            return new Depot(file, bento, mutations, mapOfBinCommons, mapOfJoinSchemas);
         }
     }
 
@@ -1282,7 +1255,7 @@ public class Depot
 
         private final Strata.Query isolation;
 
-        public Join(Snapshot snapshot, Bento.Mutator mutator, Schema schema, String binName, String joinName, Map mapOfJanitors)
+        public Join(Snapshot snapshot, Bento.Mutator mutator, Schema schema, String name, Map mapOfJanitors)
         {
             Strata.Creator creator = new Strata.Creator();
 
@@ -1300,7 +1273,7 @@ public class Depot
 
             Strata isolation = creator.create(BentoStorage.txn(mutator));
 
-            Janitor janitor = new Janitor(isolation, binName, joinName);
+            Janitor janitor = new Janitor(isolation, name);
 
             Bento.OutputStream allocation = new Bento.OutputStream(mutator);
             try
@@ -1400,9 +1373,9 @@ public class Depot
             query.remove(record);
         }
 
-        public Iterator find(Long[] keys)
+        public Cursor find(Long[] keys)
         {
-            return new Iterator(snapshot, keys, query.find(keys), isolation.find(keys), schema);
+            return new Cursor(snapshot, keys, query.find(keys), isolation.find(keys), schema);
         }
 
         // FIXME Call this somewhere somehow.
@@ -1655,9 +1628,8 @@ public class Depot
         {
             private final HashMap mapOfFields = new LinkedHashMap();
 
-            public Creator(String fieldName, String binName)
+            public Creator()
             {
-                mapOfFields.put(fieldName, binName);
             }
 
             public Creator add(String fieldName, Bin.Creator newBin)
@@ -1671,9 +1643,14 @@ public class Depot
                 mapOfFields.put(newBin.getName(), newBin.getName());
                 return this;
             }
+
+            public Creator alternate(String name)
+            {
+                throw new UnsupportedOperationException();
+            }
         }
 
-        private final static class Iterator
+        private final static class Cursor
         implements java.util.Iterator
         {
             private final Strata.Cursor stored;
@@ -1692,7 +1669,7 @@ public class Depot
 
             private Join.Record next;
 
-            public Iterator(Snapshot snapshot, Long[] keys, Strata.Cursor stored, Strata.Cursor isolated, Schema schema)
+            public Cursor(Snapshot snapshot, Long[] keys, Strata.Cursor stored, Strata.Cursor isolated, Schema schema)
             {
                 this.snapshot = snapshot;
                 this.keys = keys;
@@ -1803,20 +1780,17 @@ public class Depot
 
             private final Strata isolation;
 
-            private final String binName;
+            private final String name;
 
-            private final String joinName;
-
-            public Janitor(Strata isolation, String binName, String joinName)
+            public Janitor(Strata isolation, String name)
             {
                 this.isolation = isolation;
-                this.binName = binName;
-                this.joinName = joinName;
+                this.name = name;
             }
 
             public void rollback(Snapshot snapshot)
             {
-                Join join = snapshot.getBin(binName).getJoin(joinName);
+                Join join = snapshot.getJoin(name);
                 Strata.Query query = join.schema.strata.query(BentoStorage.txn(join.mutator));
                 Strata.Cursor cursor = isolation.query(BentoStorage.txn(join.mutator)).first();
                 while (cursor.hasNext())
@@ -2275,6 +2249,8 @@ public class Depot
 
         private final Map mapOfBinCommons;
 
+        private final Map mapOfJoinSchemas;
+
         private final Map mapOfJanitors;
 
         private final Set setOfCommitted;
@@ -2282,6 +2258,8 @@ public class Depot
         private final Bento bento;
 
         private final Map mapOfBins;
+
+        private final Map mapOfJoins;
 
         private final Long version;
 
@@ -2291,12 +2269,14 @@ public class Depot
 
         private boolean spent;
 
-        public Snapshot(Strata snapshots, Map mapOfBinCommons, Bento bento, Set setOfCommitted, Test test, Long version)
+        public Snapshot(Strata snapshots, Map mapOfBinCommons, Map mapOfJoinSchemas, Bento bento, Set setOfCommitted, Test test, Long version)
         {
             this.snapshots = snapshots;
             this.mapOfBinCommons = mapOfBinCommons;
+            this.mapOfJoinSchemas = mapOfJoinSchemas;
             this.bento = bento;
             this.mapOfBins = new HashMap();
+            this.mapOfJoins = new HashMap();
             this.version = version;
             this.test = test;
             this.setOfCommitted = setOfCommitted;
@@ -2310,10 +2290,22 @@ public class Depot
             if (bin == null)
             {
                 Bin.Common binCommon = (Bin.Common) mapOfBinCommons.get(name);
-                bin = new Bin(this, bento, name, binCommon, mapOfJanitors);
+                bin = new Bin(this, bento.mutate(), name, binCommon, mapOfJanitors);
                 mapOfBins.put(name, bin);
             }
             return bin;
+        }
+
+        public Join getJoin(String joinName)
+        {
+            Join join = (Join) mapOfJoins.get(joinName);
+            if (join == null)
+            {
+                Join.Schema schema = (Join.Schema) mapOfJoinSchemas.get(joinName);
+                join = new Join(this, bento.mutate(), schema, joinName, mapOfJanitors);
+                mapOfJoins.put(joinName, join);
+            }
+            return join;
         }
 
         public Long getVersion()
@@ -2350,6 +2342,13 @@ public class Depot
                 bin.flush();
             }
 
+            Iterator joins = mapOfJoins.values().iterator();
+            while (joins.hasNext())
+            {
+                Join join = (Join) joins.next();
+                join.flush();
+            }
+
             try
             {
                 bins = mapOfBins.values().iterator();
@@ -2357,6 +2356,13 @@ public class Depot
                 {
                     Bin bin = (Bin) bins.next();
                     bin.commit();
+                }
+
+                joins = mapOfJoins.values().iterator();
+                while (joins.hasNext())
+                {
+                    Join join = (Join) joins.next();
+                    join.commit();
                 }
             }
             catch (Error e)

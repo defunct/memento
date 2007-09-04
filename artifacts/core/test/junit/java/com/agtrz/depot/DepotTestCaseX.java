@@ -147,8 +147,7 @@ extends TestCase
             Depot.Creator creator = new Depot.Creator();
             Depot.Bin.Creator people = creator.newBin("people");
             Depot.Bin.Creator circles = creator.newBin("circles");
-            circles.newJoin("membership").add(people);
-            people.newJoin("membership").add(circles);
+            creator.newJoin("membership").add(circles).add(people).alternate("people");
             storage = creator.create(file);
         }
 
@@ -156,8 +155,8 @@ extends TestCase
         new Test.Add(new Test.PersonServer("Dwight", "Eisenhower"), "people").operate(env);
         new Test.Get(0).operate(env);
         new Test.Add(new Test.CircleServer("United States Army"), "circles").operate(env);
-        new Test.Join("people", "membership", 0, 1).operate(env);
-        new Test.Join("circles", "membership", 1, 0).operate(env);
+        new Test.Join("membership", 0, 1).operate(env);
+        new Test.Join("membership", 1, 0).operate(env);
         new Test.Get(0).operate(env);
         new Test.Get(1).operate(env);
         new Test.Commit().operate(env);
@@ -167,14 +166,14 @@ extends TestCase
         new Test.Get(1).operate(env);
     }
 
-//    private Storage newStorage()
-//    {
-//        Storage.Creator creator = new Storage.Creator();
-//        creator.newBag("people");
-//        File file = newFile();
-//        Storage storage = creator.create(file);
-//        return storage;
-//    }
+    // private Storage newStorage()
+    // {
+    // Storage.Creator creator = new Storage.Creator();
+    // creator.newBag("people");
+    // File file = newFile();
+    // Storage storage = creator.create(file);
+    // return storage;
+    // }
 
     public void testCreate()
     {

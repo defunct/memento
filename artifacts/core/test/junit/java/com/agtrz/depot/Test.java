@@ -153,17 +153,14 @@ public class Test
     {
         private static final long serialVersionUID = 20070208L;
 
-        private final String bagName;
-
         private final String joinName;
 
         private final int objectCountOne;
 
         private final int objectCountTwo;
 
-        public Join(String bagName, String joinName, int objectCountOne, int objectCountTwo)
+        public Join(String joinName, int objectCountOne, int objectCountTwo)
         {
-            this.bagName = bagName;
             this.joinName = joinName;
             this.objectCountOne = objectCountOne;
             this.objectCountTwo = objectCountTwo;
@@ -172,7 +169,7 @@ public class Test
         public void operate(Environment env)
         {
             Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
-            Depot.Join join = env.mutator.getBin(bagName).getJoin(joinName);
+            Depot.Join join = env.mutator.getJoin(joinName);
             ObjectAllocation left = (ObjectAllocation) env.mapOfIdentifiers.get(new Integer(objectCountOne));
             ObjectAllocation right = (ObjectAllocation) env.mapOfIdentifiers.get(new Integer(objectCountTwo));
             Depot.Bag keptLeft = env.mutator.getBin(left.bagName).get(unmarshaller, left.key);
@@ -205,10 +202,10 @@ public class Test
             while (relationships.hasNext())
             {
                 Map.Entry entry = (Map.Entry) relationships.next();
-                String name = (String) entry.getKey();
+                // String name = (String) entry.getKey();
                 Set setOfObjects = (Set) entry.getValue();
                 int count = 0;
-                Iterator found = keptObject.getLinked(name);
+                Iterator found = null; // keptObject.getLinked(name);
                 while (found.hasNext())
                 {
                     Depot.Bag[] records = (Depot.Bag[]) found.next();
