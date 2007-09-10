@@ -11,6 +11,7 @@ import java.io.Serializable;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -175,6 +176,11 @@ public class Depot
         {
             mapOfProperties.put(name, value);
             return this;
+        }
+
+        public Map getProperties()
+        {
+            return Collections.unmodifiableMap(mapOfProperties);
         }
     }
 
@@ -579,7 +585,7 @@ public class Depot
             }
         }
 
-        public Iterator find(String string, Comparable[] fields)
+        public Index.Cursor find(String string, Comparable[] fields)
         {
             Index index = (Index) mapOfIndices.get(string);
             if (index == null)
@@ -1801,7 +1807,7 @@ public class Depot
             }
         }
 
-        private final static class Cursor
+        public final static class Cursor
         implements java.util.Iterator
         {
             private final Strata.Cursor stored;
@@ -1940,6 +1946,12 @@ public class Depot
                 next = nextRecord();
                 return tuple;
             }
+
+            public void release()
+            {
+                stored.release();
+                isolated.release();
+            }
         }
 
         public final static class Janitor
@@ -2013,6 +2025,16 @@ public class Depot
                 }
             }
             throw new IllegalArgumentException();
+        }
+
+        public Map getKeys()
+        {
+            Map mapOfKeys = new HashMap();
+            for (int i = 0; i < fields.length; i++)
+            {
+                mapOfKeys.put(fields[i], record.keys[i]);
+            }
+            return mapOfKeys;
         }
     }
 
@@ -2111,7 +2133,7 @@ public class Depot
             });
         }
 
-        public Iterator find(Snapshot snapshot, Bento.Mutator mutator, Bin bin, Comparable[] fields)
+        public Cursor find(Snapshot snapshot, Bento.Mutator mutator, Bin bin, Comparable[] fields)
         {
             Transaction txn = new Transaction(mutator, bin, schema);
             return new Cursor(schema.strata.query(txn).find(fields), isolation.query(txn).find(fields), txn, fields);
@@ -2335,7 +2357,7 @@ public class Depot
                 this.stored = stored;
                 this.nextStored = next(stored, false);
                 this.nextIsolated = next(isolated, true);
-                this.next = nextBag();
+                this.next = seekBag();
             }
 
             private Record next(Strata.Cursor cursor, boolean isolated)
@@ -2358,7 +2380,7 @@ public class Depot
                 return null;
             }
 
-            private Bag nextBag()
+            private Bag seekBag()
             {
                 Bag bag = null;
                 if (nextIsolated != null || nextStored != null)
@@ -2403,6 +2425,13 @@ public class Depot
                 return bag;
             }
 
+            public Bag nextBag()
+            {
+                Bag bag = next;
+                next = seekBag();
+                return bag;
+            }
+
             public boolean hasNext()
             {
                 return next != null;
@@ -2415,9 +2444,7 @@ public class Depot
 
             public Object next()
             {
-                Bag bag = next;
-                next = nextBag();
-                return bag;
+                return nextBag();
             }
 
             public void release()
