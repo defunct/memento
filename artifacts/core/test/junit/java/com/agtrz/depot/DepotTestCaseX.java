@@ -147,7 +147,8 @@ extends TestCase
             Depot.Creator creator = new Depot.Creator();
             Depot.Bin.Creator people = creator.newBin("people");
             Depot.Bin.Creator circles = creator.newBin("circles");
-            creator.newJoin("membership").add(circles).add(people).alternate("people");
+            Depot.Join.Creator membership = creator.newJoin("membership").add(circles.getName()).add(people.getName());
+            membership.alternate(new String[] { "people" });
             storage = creator.create(file);
         }
 

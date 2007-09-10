@@ -922,7 +922,7 @@ public class Depot
             {
                 throw new UnsupportedOperationException();
             }
-            
+
             public void release()
             {
                 isolation.release();
@@ -937,6 +937,46 @@ public class Depot
         public void rollback(Snapshot snapshot);
 
         public void dispose(Bento.Mutator mutator, boolean deallocate);
+    }
+
+    private static Strata newJoinStrata(Bento.Mutator mutator, int size)
+    {
+
+        BentoStorage.Creator newJoinStorage = new BentoStorage.Creator();
+        newJoinStorage.setWriter(new Join.Writer(size));
+        newJoinStorage.setReader(new Join.Reader(size));
+        newJoinStorage.setSize(SizeOf.LONG * size + SizeOf.LONG + SizeOf.SHORT);
+
+        Strata.Creator newJoinStrata = new Strata.Creator();
+
+        newJoinStrata.setStorage(newJoinStorage.create());
+        newJoinStrata.setFieldExtractor(new Join.Extractor());
+        newJoinStrata.setSize(512);
+
+        return newJoinStrata.create(BentoStorage.txn(mutator));
+    }
+
+    private static Join.Index newJoinIndex(Bento.Mutator mutator, Map mapOfFields, String[] order)
+    {
+        List listOfFields = new ArrayList();
+        for (int i = 0; i < order.length; i++)
+        {
+            listOfFields.add(order[i]);
+        }
+        if (order.length < mapOfFields.size())
+        {
+            Iterator fields = mapOfFields.keySet().iterator();
+            while (fields.hasNext())
+            {
+                String field = (String) fields.next();
+                if (!listOfFields.contains(field))
+                {
+                    listOfFields.add(field);
+                }
+            }
+        }
+        String[] fields = (String[]) listOfFields.toArray(new String[listOfFields.size()]);
+        return new Join.Index(newJoinStrata(mutator, fields.length), fields);
     }
 
     public final static class Creator
@@ -962,7 +1002,7 @@ public class Depot
             {
                 throw new IllegalStateException();
             }
-            Join.Creator newJoin = new Join.Creator();
+            Join.Creator newJoin = new Join.Creator(mapOfBinCreators.keySet());
             mapOfJoinCreators.put(name, newJoin);
             return newJoin;
         }
@@ -1047,24 +1087,22 @@ public class Depot
             while (joins.hasNext())
             {
                 Map.Entry join = (Map.Entry) joins.next();
+
                 String joinName = (String) join.getKey();
                 Join.Creator newJoin = (Join.Creator) join.getValue();
+
+                Join.Index[] indexes = new Join.Index[newJoin.listOfAlternates.size() + 1];
+
+                String[] order = (String[]) newJoin.mapOfFields.keySet().toArray(new String[newJoin.mapOfFields.size()]);
+                indexes[0] = newJoinIndex(mutator, newJoin.mapOfFields, order);
+
                 Map mapOfFields = new LinkedHashMap(newJoin.mapOfFields);
-
-                BentoStorage.Creator newJoinStorage = new BentoStorage.Creator();
-                newJoinStorage.setWriter(new Join.Writer(mapOfFields.size()));
-                newJoinStorage.setReader(new Join.Reader(mapOfFields.size()));
-                newJoinStorage.setSize(SizeOf.LONG * mapOfFields.size() + SizeOf.LONG + SizeOf.SHORT);
-
-                Strata.Creator newJoinStrata = new Strata.Creator();
-
-                newJoinStrata.setStorage(newJoinStorage.create());
-                newJoinStrata.setFieldExtractor(new Join.Extractor());
-                newJoinStrata.setSize(512);
-
-                Strata joinStrata = newJoinStrata.create(BentoStorage.txn(mutator));
-
-                mapOfJoins.put(joinName, new Join.Schema(joinStrata, mapOfFields));
+                for (int i = 0; i < newJoin.listOfAlternates.size(); i++)
+                {
+                    order = (String[]) newJoin.listOfAlternates.get(i);
+                    indexes[i + 1] = newJoinIndex(mutator, mapOfFields, order);
+                }
+                mapOfJoins.put(joinName, new Join.Schema(indexes, mapOfFields));
             }
 
             Bento.OutputStream allocation = new Bento.OutputStream(mutator);
@@ -1251,29 +1289,32 @@ public class Depot
 
         private final Bento.Mutator mutator;
 
-        private final Strata.Query query;
-
-        private final Strata.Query isolation;
+        private final Strata.Query[] isolation;
 
         public Join(Snapshot snapshot, Bento.Mutator mutator, Schema schema, String name, Map mapOfJanitors)
         {
-            Strata.Creator creator = new Strata.Creator();
+            Strata[] isolations = new Strata[schema.indices.length];
 
-            creator.setFieldExtractor(new Extractor());
-            creator.setMaxDirtyTiers(5);
-            creator.setSize(512);
+            for (int i = 0; i < schema.indices.length; i++)
+            {
+                Strata.Creator creator = new Strata.Creator();
 
-            BentoStorage.Creator newStorage = new BentoStorage.Creator();
+                creator.setFieldExtractor(new Extractor());
+                creator.setMaxDirtyTiers(5);
+                creator.setSize(512);
 
-            newStorage.setReader(new Reader(schema.mapOfFields.size()));
-            newStorage.setWriter(new Writer(schema.mapOfFields.size()));
-            newStorage.setSize(SizeOf.LONG * schema.mapOfFields.size() + SizeOf.LONG + SizeOf.SHORT);
+                BentoStorage.Creator newStorage = new BentoStorage.Creator();
 
-            creator.setStorage(newStorage.create());
+                newStorage.setReader(new Reader(schema.mapOfFields.size()));
+                newStorage.setWriter(new Writer(schema.mapOfFields.size()));
+                newStorage.setSize(SizeOf.LONG * schema.mapOfFields.size() + SizeOf.LONG + SizeOf.SHORT);
 
-            Strata isolation = creator.create(BentoStorage.txn(mutator));
+                creator.setStorage(newStorage.create());
 
-            Janitor janitor = new Janitor(isolation, name);
+                isolations[i] = creator.create(BentoStorage.txn(mutator));
+            }
+
+            Janitor janitor = new Janitor(isolations, name);
 
             Bento.OutputStream allocation = new Bento.OutputStream(mutator);
             try
@@ -1288,206 +1329,269 @@ public class Depot
 
             mapOfJanitors.put(allocation.temporary(true), janitor);
 
+            Strata.Query[] isolationQueries = new Strata.Query[isolations.length];
+            for (int i = 0; i < isolations.length; i++)
+            {
+                isolationQueries[i] = isolations[i].query(BentoStorage.txn(mutator));
+            }
+
             this.snapshot = snapshot;
-            this.query = schema.strata.query(BentoStorage.txn(mutator));
-            this.isolation = isolation.query(BentoStorage.txn(mutator));
+            this.isolation = isolationQueries;
             this.schema = schema;
             this.mutator = mutator;
         }
 
         private void flush()
         {
-            isolation.flush();
-        }
-
-        public void unlink(Bag[] bags)
-        {
-            Long[] keys = new Long[bags.length];
-
-            for (int i = 0; i < bags.length; i++)
+            for (int i = 0; i < isolation.length; i++)
             {
-                keys[i] = bags[i].getKey();
+                isolation[i].flush();
             }
-
-            unlink(keys);
         }
 
-        public void unlink(Long[] keys)
+        public void unlink(Map mapOfKeys)
         {
-            add(keys, snapshot.getVersion(), true);
+            add(mapOfKeys, snapshot.getVersion(), true);
         }
 
-        public void link(Long[] keys)
+        public void link(Map mapOfKeys)
         {
-            add(keys, snapshot.getVersion(), false);
+            add(mapOfKeys, snapshot.getVersion(), false);
         }
 
-        public void link(Bag[] bags)
+        private void insertIsolation(Map mapOfKeys, Long version, boolean deleted, int index)
         {
-            Long[] keys = new Long[bags.length];
-
-            for (int i = 0; i < bags.length; i++)
+            Long[] keys = new Long[schema.mapOfFields.size()];
+            for (int i = 0; i < keys.length; i++)
             {
-                keys[i] = bags[i].getKey();
+                keys[i] = (Long) mapOfKeys.get(schema.indices[index].fields[i]);
             }
-
-            add(keys, snapshot.getVersion(), false);
+            isolation[index].insert(new Record(keys, version, deleted));
         }
 
-        public void add(Long[] keys, Long version, boolean deleted)
+        private void removeIsolation(Map mapOfKeys, Long version, boolean deleted, int index)
         {
-            Strata.Cursor cursor = isolation.find(keys);
+            Long[] keys = new Long[schema.mapOfFields.size()];
+            for (int i = 0; i < keys.length; i++)
+            {
+                keys[i] = (Long) mapOfKeys.get(schema.indices[index].fields[i]);
+            }
+            final Record record = new Record(keys, version, deleted);
+            isolation[index].remove(keys, new Strata.Deletable()
+            {
+                public boolean deletable(Object object)
+                {
+                    return record.equals((Record) object);
+                }
+            });
+        }
+
+        private void add(Map mapOfKeys, Long version, boolean deleted)
+        {
+            Long[] keys = new Long[schema.mapOfFields.size()];
+            for (int i = 0; i < keys.length; i++)
+            {
+                keys[i] = (Long) mapOfKeys.get(schema.indices[0].fields[i]);
+            }
+            Strata.Cursor cursor = isolation[0].find(keys);
             if (cursor.hasNext())
             {
                 final Record record = (Record) cursor.next();
                 cursor.release();
                 if (compare(record.keys, keys) == 0)
                 {
-                    isolation.remove(keys, new Strata.Deletable()
+                    for (int i = 0; i < schema.indices.length; i++)
                     {
-                        public boolean deletable(Object object)
-                        {
-                            return record.equals((Record) object);
-                        }
-                    });
+                        removeIsolation(mapOfKeys, version, deleted, i);
+                    }
                 }
             }
-            cursor.release();
-            isolation.insert(new Record(keys, version, deleted));
+            else
+            {
+                cursor.release();
+            }
+            for (int i = 0; i < schema.indices.length; i++)
+            {
+                insertIsolation(mapOfKeys, version, deleted, i);
+            }
         }
 
-        public java.util.Iterator find(Bag[] bags)
+        public Cursor find(Map mapOfKeys)
         {
-            Long[] keys = new Long[bags.length];
-
-            for (int i = 0; i < bags.length; i++)
+            if (mapOfKeys.size() == 0)
             {
-                keys[i] = bags[i].getKey();
+                throw new IllegalArgumentException();
+            }
+            Iterator fields = mapOfKeys.keySet().iterator();
+            while (fields.hasNext())
+            {
+                if (!schema.mapOfFields.containsKey(fields.next()))
+                {
+                    throw new IllegalArgumentException();
+                }
+            }
+            int index = 0;
+            int most = 0;
+            for (int i = 0; i < schema.indices.length; i++)
+            {
+                int count = 0;
+                for (int j = 0; j < schema.indices[i].fields.length; j++)
+                {
+                    if (mapOfKeys.containsKey(schema.indices[i].fields[j]))
+                    {
+                        count++;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                if (count > most)
+                {
+                    most = count;
+                    index = i;
+                }
             }
 
-            return find(keys);
-        }
+            Strata.Query common = schema.indices[index].strata.query(BentoStorage.txn(mutator));
+            Long[] keys = new Long[most];
+            if (most == 0)
+            {
+                return new Cursor(snapshot, keys, mapOfKeys, common.first(), isolation[index].first(), schema, schema.indices[index]);
+            }
 
-        public void dispose(Record record)
-        {
-            query.remove(record);
-        }
+            Map mapToScan = new HashMap(mapOfKeys);
+            for (int i = 0; i < most; i++)
+            {
+                String field = schema.indices[index].fields[i];
+                keys[i] = (Long) mapOfKeys.get(field);
+                mapToScan.remove(field);
+            }
 
-        public Cursor find(Long[] keys)
-        {
-            return new Cursor(snapshot, keys, query.find(keys), isolation.find(keys), schema);
+            return new Cursor(snapshot, keys, mapToScan, common.find(keys), isolation[index].find(keys), schema, schema.indices[index]);
         }
 
         // FIXME Call this somewhere somehow.
         void copacetic()
         {
-            Set seen = new HashSet();
-            Strata.Cursor isolated = isolation.first();
-            while (isolated.hasNext())
+            for (int i = 0; i < schema.indices.length; i++)
             {
-                Record record = (Record) isolated.next();
-                List listOfKeys = new ArrayList();
-                for (int i = 0; i < record.keys.length; i++)
+                Set seen = new HashSet();
+                Strata.Cursor isolated = isolation[i].first();
+                while (isolated.hasNext())
                 {
-                    listOfKeys.add(record.keys[i]);
+                    Record record = (Record) isolated.next();
+                    List listOfKeys = new ArrayList();
+                    for (int j = 0; j < record.keys.length; j++)
+                    {
+                        listOfKeys.add(record.keys[j]);
+                    }
+                    if (seen.contains(listOfKeys))
+                    {
+                        throw new Danger("Duplicate key in isolation.", 0);
+                    }
+                    seen.add(listOfKeys);
                 }
-                if (seen.contains(listOfKeys))
-                {
-                    throw new Danger("Duplicate key in isolation.", 0);
-                }
-                seen.add(listOfKeys);
+                isolated.release();
             }
-            isolated.release();
         }
 
         private void commit()
         {
-            Strata.Cursor isolated = isolation.first();
-            if (isolated.hasNext())
+            for (int i = 0; i < schema.indices.length; i++)
             {
-                query.insert((Record) isolated.next());
-            }
-            isolated.release();
-            query.flush();
-
-            boolean copacetic = true;
-            isolated = isolation.first();
-            while (copacetic && isolated.hasNext())
-            {
-                Record record = (Record) isolated.next();
-                Strata.Cursor cursor = query.find(record.keys);
-                while (copacetic && cursor.hasNext())
+                Strata.Query query = schema.indices[i].strata.query(BentoStorage.txn(mutator));
+                Strata.Cursor isolated = isolation[i].first();
+                if (isolated.hasNext())
                 {
-                    Record candidate = (Record) cursor.next();
-                    if (compare(candidate.keys, record.keys) != 0)
-                    {
-                        break;
-                    }
-                    else if (candidate.version.equals(record.version))
-                    {
-                        break;
-                    }
-                    else if (!snapshot.isVisible(candidate.version))
-                    {
-                        copacetic = false;
-                    }
+                    query.insert((Record) isolated.next());
                 }
-                cursor.release();
-            }
+                isolated.release();
+                query.flush();
 
-            if (!copacetic)
-            {
-                throw new Error("Concurrent modification.", CONCURRENT_MODIFICATION_ERROR);
+                boolean copacetic = true;
+                isolated = isolation[i].first();
+                while (copacetic && isolated.hasNext())
+                {
+                    Record record = (Record) isolated.next();
+                    Strata.Cursor cursor = query.find(record.keys);
+                    while (copacetic && cursor.hasNext())
+                    {
+                        Record candidate = (Record) cursor.next();
+                        if (compare(candidate.keys, record.keys) != 0)
+                        {
+                            break;
+                        }
+                        else if (candidate.version.equals(record.version))
+                        {
+                            break;
+                        }
+                        else if (!snapshot.isVisible(candidate.version))
+                        {
+                            copacetic = false;
+                        }
+                    }
+                    cursor.release();
+                }
+
+                if (!copacetic)
+                {
+                    throw new Error("Concurrent modification.", CONCURRENT_MODIFICATION_ERROR);
+                }
             }
         }
 
         public void vacuum()
         {
-            Strata.Cursor cursor = query.first();
-            Record previous = null;
-            while (cursor.hasNext() && previous == null)
+            for (int i = 0; i < schema.indices.length; i++)
             {
-                Record record = (Record) cursor.next();
-                if (snapshot.isVisible(record.version))
-                {
-                    previous = record;
-                }
-            }
-            cursor.release();
-            for (;;)
-            {
-                cursor = query.find(previous);
-                Record found = null;
-                while (cursor.hasNext() && found == null)
+                Strata.Query query = schema.indices[i].strata.query(BentoStorage.txn(mutator));
+                Strata.Cursor cursor = query.first();
+                Record previous = null;
+                while (cursor.hasNext() && previous == null)
                 {
                     Record record = (Record) cursor.next();
                     if (snapshot.isVisible(record.version))
                     {
-                        found = record;
-                    }
-                }
-                if (!previous.equals(found))
-                {
-                    previous = found;
-                    cursor.release();
-                    continue;
-                }
-                Record next = null;
-                while (cursor.hasNext() && next == null)
-                {
-                    Record record = (Record) cursor.next();
-                    if (snapshot.isVisible(record.version))
-                    {
-                        next = record;
+                        previous = record;
                     }
                 }
                 cursor.release();
-                if (compare(previous.keys, next.keys) == 0 || previous.deleted)
+                for (;;)
                 {
-                    query.remove(previous);
-                    query.flush();
+                    cursor = query.find(previous);
+                    Record found = null;
+                    while (cursor.hasNext() && found == null)
+                    {
+                        Record record = (Record) cursor.next();
+                        if (snapshot.isVisible(record.version))
+                        {
+                            found = record;
+                        }
+                    }
+                    if (!previous.equals(found))
+                    {
+                        previous = found;
+                        cursor.release();
+                        continue;
+                    }
+                    Record next = null;
+                    while (cursor.hasNext() && next == null)
+                    {
+                        Record record = (Record) cursor.next();
+                        if (snapshot.isVisible(record.version))
+                        {
+                            next = record;
+                        }
+                    }
+                    cursor.release();
+                    if (compare(previous.keys, next.keys) == 0 || previous.deleted)
+                    {
+                        query.remove(previous);
+                        query.flush();
+                    }
+                    previous = next;
                 }
-                previous = next;
             }
         }
 
@@ -1615,38 +1719,85 @@ public class Depot
 
             public final Map mapOfFields;
 
+            public final Index[] indices;
+
+            public Schema(Index[] indices, Map mapOfFields)
+            {
+                this.indices = indices;
+                this.mapOfFields = mapOfFields;
+            }
+        }
+
+        private final static class Index
+        implements Serializable
+        {
+            private static final long serialVersionUID = 20070903L;
+
             public final Strata strata;
 
-            public Schema(Strata strata, Map mapOfFields)
+            public final String[] fields;
+
+            public Index(Strata strata, String[] fields)
             {
-                this.mapOfFields = mapOfFields;
                 this.strata = strata;
+                this.fields = fields;
             }
         }
 
         public final static class Creator
         {
-            private final HashMap mapOfFields = new LinkedHashMap();
+            private final Set setOfBinNames;
 
-            public Creator()
+            private final Map mapOfFields;
+
+            private final List listOfAlternates;
+
+            public Creator(Set setOfBinNames)
             {
+                this.setOfBinNames = setOfBinNames;
+                this.mapOfFields = new LinkedHashMap();
+                this.listOfAlternates = new ArrayList();
             }
 
-            public Creator add(String fieldName, Bin.Creator newBin)
+            public Creator add(String fieldName, String binName)
             {
-                mapOfFields.put(fieldName, newBin.getName());
+                if (!setOfBinNames.contains(binName))
+                {
+                    throw new IllegalStateException();
+                }
+                if (mapOfFields.containsKey(fieldName))
+                {
+                    throw new IllegalStateException();
+                }
+                mapOfFields.put(fieldName, binName);
                 return this;
             }
 
-            public Creator add(Bin.Creator newBin)
+            public Creator add(String binName)
             {
-                mapOfFields.put(newBin.getName(), newBin.getName());
-                return this;
+                return add(binName, binName);
             }
 
-            public Creator alternate(String name)
+            public void alternate(String[] fields)
             {
-                throw new UnsupportedOperationException();
+                Set seen = new HashSet();
+                if (fields.length > mapOfFields.size())
+                {
+                    throw new IllegalArgumentException();
+                }
+                for (int i = 0; i < fields.length; i++)
+                {
+                    if (seen.contains(fields[i]))
+                    {
+                        throw new IllegalArgumentException();
+                    }
+                    if (!mapOfFields.containsKey(fields[i]))
+                    {
+                        throw new IllegalArgumentException();
+                    }
+                    seen.add(fields[i]);
+                }
+                listOfAlternates.add(fields);
             }
         }
 
@@ -1661,7 +1812,7 @@ public class Depot
 
             private final Long[] keys;
 
-            private final Map.Entry[] fieldMappings;
+            private final Schema schema;
 
             private Join.Record nextStored;
 
@@ -1669,20 +1820,27 @@ public class Depot
 
             private Join.Record next;
 
-            public Cursor(Snapshot snapshot, Long[] keys, Strata.Cursor stored, Strata.Cursor isolated, Schema schema)
+            private final Map mapToScan;
+
+            private final Index index;
+
+            public Cursor(Snapshot snapshot, Long[] keys, Map mapToScan, Strata.Cursor stored, Strata.Cursor isolated, Schema schema, Index index)
             {
                 this.snapshot = snapshot;
                 this.keys = keys;
                 this.stored = stored;
                 this.isolated = isolated;
+                this.mapToScan = mapToScan;
+                this.index = index;
                 this.nextStored = next(stored, false);
                 this.nextIsolated = next(isolated, true);
                 this.next = nextRecord();
-                this.fieldMappings = (Map.Entry[]) schema.mapOfFields.entrySet().toArray(new Map.Entry[schema.mapOfFields.size()]);
+                this.schema = schema;
             }
 
             private Record next(Strata.Cursor cursor, boolean isolated)
             {
+
                 Record candidate = null;
                 Long[] candidateKeys = null;
                 for (;;)
@@ -1692,9 +1850,20 @@ public class Depot
                         break;
                     }
                     Record record = (Record) cursor.next();
-                    if (!partial(keys, record.keys))
+                    if (keys.length > 0 && !partial(keys, record.keys))
                     {
                         break;
+                    }
+                    if (mapToScan.size() > 0)
+                    {
+                        for (int i = keys.length; i < index.fields.length; i++)
+                        {
+                            Long value = (Long) mapToScan.get(index.fields[i]);
+                            if (value != null && !record.keys[i].equals(value))
+                            {
+                                continue;
+                            }
+                        }
                     }
                     if (isolated || snapshot.isVisible(record.version))
                     {
@@ -1704,7 +1873,7 @@ public class Depot
                         }
                         else if (!partial(candidateKeys, record.keys))
                         {
-                            continue;
+                            break;
                         }
                         candidate = record;
                     }
@@ -1767,7 +1936,7 @@ public class Depot
 
             public Object next()
             {
-                Tuple tuple = new Tuple(snapshot, fieldMappings, next);
+                Tuple tuple = new Tuple(snapshot, schema.mapOfFields, index.fields, next);
                 next = nextRecord();
                 return tuple;
             }
@@ -1778,11 +1947,11 @@ public class Depot
         {
             private static final long serialVersionUID = 20070826L;
 
-            private final Strata isolation;
+            private final Strata[] isolation;
 
             private final String name;
 
-            public Janitor(Strata isolation, String name)
+            public Janitor(Strata[] isolation, String name)
             {
                 this.isolation = isolation;
                 this.name = name;
@@ -1791,19 +1960,26 @@ public class Depot
             public void rollback(Snapshot snapshot)
             {
                 Join join = snapshot.getJoin(name);
-                Strata.Query query = join.schema.strata.query(BentoStorage.txn(join.mutator));
-                Strata.Cursor cursor = isolation.query(BentoStorage.txn(join.mutator)).first();
-                while (cursor.hasNext())
+                for (int i = 0; i < join.schema.indices.length; i++)
                 {
-                    query.remove((Record) cursor.next());
+                    Strata.Query query = join.schema.indices[i].strata.query(BentoStorage.txn(join.mutator));
+                    Strata.Cursor cursor = isolation[i].query(BentoStorage.txn(join.mutator)).first();
+                    while (cursor.hasNext())
+                    {
+                        query.remove((Record) cursor.next());
+                    }
+                    cursor.release();
+                    query.flush();
                 }
-                cursor.release();
-                query.flush();
+
             }
 
             public void dispose(Bento.Mutator mutator, boolean deallocate)
             {
-                isolation.query(BentoStorage.txn(mutator)).destroy();
+                for (int i = 0; i < isolation.length; i++)
+                {
+                    isolation[i].query(BentoStorage.txn(mutator)).destroy();
+                }
             }
         }
     }
@@ -1812,21 +1988,31 @@ public class Depot
     {
         private final Snapshot snapshot;
 
-        private final Map.Entry[] fieldMappings;
+        private final String[] fields;
+
+        private final Map mapOfFields;
 
         private final Join.Record record;
 
-        public Tuple(Snapshot snapshot, Map.Entry[] fieldMappings, Join.Record record)
+        public Tuple(Snapshot snapshot, Map mapOfFields, String[] fields, Join.Record record)
         {
             this.snapshot = snapshot;
-            this.fieldMappings = fieldMappings;
+            this.mapOfFields = mapOfFields;
+            this.fields = fields;
             this.record = record;
         }
 
-        public Bag getBag(Unmarshaller unmarshaller, int i)
+        public Bag getBag(Unmarshaller unmarshaller, String fieldName)
         {
-            String bagName = (String) fieldMappings[i].getValue();
-            return snapshot.getBin(bagName).get(unmarshaller, record.keys[i]);
+            for (int i = 0; i < fields.length; i++)
+            {
+                if (fields[i].equals(fieldName))
+                {
+                    String bagName = (String) mapOfFields.get(fieldName);
+                    return snapshot.getBin(bagName).get(unmarshaller, record.keys[i]);
+                }
+            }
+            throw new IllegalArgumentException();
         }
     }
 
@@ -1945,7 +2131,6 @@ public class Depot
                     queryOfStored.insert(record);
                     if (schema.unique)
                     {
-                        // FIXME Very broken.
                         Bag bag = bin.get(schema.unmarshaller, record.key, record.version);
                         Comparable[] fields = schema.extractor.getFields(bag.getObject());
                         Strata.Cursor found = queryOfStored.find(fields);

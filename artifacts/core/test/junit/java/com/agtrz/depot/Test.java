@@ -168,14 +168,18 @@ public class Test
 
         public void operate(Environment env)
         {
-            Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
             Depot.Join join = env.mutator.getJoin(joinName);
             ObjectAllocation left = (ObjectAllocation) env.mapOfIdentifiers.get(new Integer(objectCountOne));
             ObjectAllocation right = (ObjectAllocation) env.mapOfIdentifiers.get(new Integer(objectCountTwo));
-            Depot.Bag keptLeft = env.mutator.getBin(left.bagName).get(unmarshaller, left.key);
-            Depot.Bag keptRight = env.mutator.getBin(right.bagName).get(unmarshaller, right.key);
-            join.link(new Depot.Bag[] { keptLeft, keptRight });
-            left.relate(joinName, keptRight.getKey());
+
+            Map mapOfKeys = new HashMap();
+
+            mapOfKeys.put(left.bagName, left.key);
+            mapOfKeys.put(right.bagName, right.key);
+
+            join.link(mapOfKeys);
+
+            left.relate(joinName, right.key);
         }
     }
 

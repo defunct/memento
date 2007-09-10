@@ -3,7 +3,9 @@ package com.agtrz.depot;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 
 import junit.framework.TestCase;
 
@@ -33,8 +35,13 @@ extends TestCase
         Depot.Bin.Creator messages = creator.newBin("messages");
         Depot.Bin.Creator bounces = creator.newBin("bounces");
 
-        creator.newJoin("messages").add(recipients).add(messages).add(bounces);
-        creator.newJoin("recipients").add(messages).add(recipients).add(bounces);
+        Depot.Join.Creator newJoin = creator.newJoin("messages");
+
+        newJoin.add(recipients.getName());
+        newJoin.add(messages.getName());
+        newJoin.add(bounces.getName());
+
+        newJoin.alternate(new String[] { "messages", "recipients", "bounces" });
 
         return creator.create(file);
     }
@@ -298,10 +305,13 @@ extends TestCase
             Depot.Bin.Creator messages = creator.newBin("messages");
             Depot.Bin.Creator bounces = creator.newBin("bounces");
 
-            // FIXME "recipientMessages".
-            creator.newJoin("messages").add(recipients).add(messages).add(bounces);
-            // FIXME "messageRecipients"
-            creator.newJoin("recipients").add(messages).add(recipients).add(bounces);
+            Depot.Join.Creator newJoin = creator.newJoin("messages");
+
+            newJoin.add(recipients.getName());
+            newJoin.add(messages.getName());
+            newJoin.add(bounces.getName());
+
+            newJoin.alternate(new String[] { "messages", "recipients", "bounces" });
 
             depot = creator.create(file);
         }
@@ -319,16 +329,26 @@ extends TestCase
         Depot.Bag message = snapshot.getBin("messages").add(marshaller, hello);
         Depot.Bag bounce = snapshot.getBin("bounces").add(marshaller, received);
 
-        snapshot.getJoin("messages").link(new Depot.Bag[] { person, message, bounce });
+        Map select = new HashMap();
+
+        select.put("recipients", person.getKey());
+        select.put("messages", message.getKey());
+        select.put("bounces", bounce.getKey());
+
+        snapshot.getJoin("messages").link(select);
 
         Long keyOfPerson = person.getKey();
 
-        Iterator linked = snapshot.getJoin("messages").find(new Depot.Bag[] { person });
+        select.clear();
+
+        select.put("recipients", person.getKey());
+        Iterator linked = snapshot.getJoin("messages").find(select);
+
         assertTrue(linked.hasNext());
         while (linked.hasNext())
         {
             Depot.Tuple tuple = (Depot.Tuple) linked.next();
-            assertEquals(alan, tuple.getBag(unmarshaller, 0).getObject());
+            assertEquals(alan, tuple.getBag(unmarshaller, "recipients").getObject());
         }
 
         snapshot.commit();
@@ -336,17 +356,31 @@ extends TestCase
         snapshot = depot.newSnapshot();
 
         person = snapshot.getBin("recipients").get(unmarshaller, keyOfPerson);
-        linked = snapshot.getJoin("messages").find(new Depot.Bag[] { person });
+
+        select.clear();
+        select.put("recipients", person.getKey());
+        linked = snapshot.getJoin("messages").find(select);
+
         Depot.Tuple tuple = null;
         assertTrue(linked.hasNext());
         while (linked.hasNext())
         {
             tuple = (Depot.Tuple) linked.next();
-            assertEquals(alan, tuple.getBag(unmarshaller, 0).getObject());
+            assertEquals(alan, tuple.getBag(unmarshaller, "recipients").getObject());
         }
 
-        snapshot.getJoin("messages").unlink(new Depot.Bag[] { tuple.getBag(unmarshaller, 0), tuple.getBag(unmarshaller, 1), tuple.getBag(unmarshaller, 2) });
-        linked = snapshot.getJoin("messages").find(new Depot.Bag[] { person });
+        select.clear();
+
+        select.put("recipients", tuple.getBag(unmarshaller, "recipients").getKey());
+        select.put("messages", tuple.getBag(unmarshaller, "messages").getKey());
+        select.put("bounces", tuple.getBag(unmarshaller, "bounces").getKey());
+
+        snapshot.getJoin("messages").unlink(select);
+
+        select.clear();
+        select.put("recipients", person.getKey());
+        linked = snapshot.getJoin("messages").find(select);
+
         assertFalse(linked.hasNext());
 
         snapshot.commit();
@@ -354,7 +388,11 @@ extends TestCase
         snapshot = depot.newSnapshot();
 
         person = snapshot.getBin("recipients").get(unmarshaller, keyOfPerson);
-        linked = snapshot.getJoin("messages").find(new Depot.Bag[] { person });
+
+        select.clear();
+        select.put("recipients", person.getKey());
+        linked = snapshot.getJoin("messages").find(select);
+
         assertFalse(linked.hasNext());
     }
 
@@ -726,10 +764,8 @@ extends TestCase
             Depot.Bin.Creator messages = creator.newBin("messages");
             Depot.Bin.Creator bounces = creator.newBin("bounces");
 
-            // FIXME "recipientMessages".
-            creator.newJoin("messages").add(recipients).add(messages).add(bounces);
-            // FIXME "messageRecipients"
-            creator.newJoin("recipients").add(messages).add(recipients).add(bounces);
+            creator.newJoin("messages").add(recipients.getName()).add(messages.getName()).add(bounces.getName());
+            creator.newJoin("recipients").add(messages.getName()).add(recipients.getName()).add(bounces.getName());
 
             depot = creator.create(file);
         }
@@ -755,7 +791,13 @@ extends TestCase
         message = two.getBin("messages").get(unmarshaller, message.getKey());
         bounce = two.getBin("bounces").get(unmarshaller, bounce.getKey());
 
-        two.getJoin("messages").link(new Depot.Bag[] { person, message, bounce });
+        Map select = new HashMap();
+
+        select.put("recipients", person.getKey());
+        select.put("messages", message.getKey());
+        select.put("bounces", bounce.getKey());
+
+        two.getJoin("messages").link(select);
 
         Depot.Test test = Depot.newTest();
         final Depot.Snapshot three = depot.newSnapshot(test);
@@ -764,7 +806,13 @@ extends TestCase
         message = three.getBin("messages").get(unmarshaller, message.getKey());
         bounce = three.getBin("bounces").get(unmarshaller, bounce.getKey());
 
-        three.getJoin("messages").link(new Depot.Bag[] { person, message, bounce });
+        select.clear();
+
+        select.put("recipients", person.getKey());
+        select.put("messages", message.getKey());
+        select.put("bounces", bounce.getKey());
+
+        three.getJoin("messages").link(select);
 
         new Thread(new Runnable()
         {
@@ -798,10 +846,8 @@ extends TestCase
             Depot.Bin.Creator messages = creator.newBin("messages");
             Depot.Bin.Creator bounces = creator.newBin("bounces");
 
-            // FIXME "recipientMessages".
-            creator.newJoin("messages").add(recipients).add(messages).add(bounces);
-            // FIXME "messageRecipients"
-            creator.newJoin("recipients").add(messages).add(recipients).add(bounces);
+            creator.newJoin("messages").add(recipients.getName()).add(messages.getName()).add(bounces.getName());
+            creator.newJoin("recipients").add(messages.getName()).add(recipients.getName()).add(bounces.getName());
 
             depot = creator.create(file);
         }
@@ -827,7 +873,13 @@ extends TestCase
         message = two.getBin("messages").get(unmarshaller, message.getKey());
         bounce = two.getBin("bounces").get(unmarshaller, bounce.getKey());
 
-        two.getJoin("messages").link(new Depot.Bag[] { person, message, bounce });
+        Map select = new HashMap();
+
+        select.put("recipients", person.getKey());
+        select.put("messages", message.getKey());
+        select.put("bounces", bounce.getKey());
+
+        two.getJoin("messages").link(select);
 
         Depot.Snapshot three = depot.newSnapshot();
 
@@ -835,7 +887,13 @@ extends TestCase
         message = three.getBin("messages").get(unmarshaller, message.getKey());
         bounce = three.getBin("bounces").get(unmarshaller, bounce.getKey());
 
-        three.getJoin("messages").link(new Depot.Bag[] { person, message, bounce });
+        select.clear();
+
+        select.put("recipients", person.getKey());
+        select.put("messages", message.getKey());
+        select.put("bounces", bounce.getKey());
+
+        three.getJoin("messages").link(select);
 
         three.commit();
 
