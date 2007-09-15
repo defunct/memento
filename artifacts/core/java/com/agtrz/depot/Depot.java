@@ -585,7 +585,7 @@ public class Depot
             }
         }
 
-        public Index.Cursor find(String string, Comparable[] fields)
+        public Index.Cursor find(String string, Comparable[] fields, boolean limit)
         {
             Index index = (Index) mapOfIndices.get(string);
             if (index == null)
@@ -593,7 +593,12 @@ public class Depot
                 throw new Danger("no.such.index", 503).add(string);
             }
 
-            return index.find(snapshot, mutator, this, fields);
+            return index.find(snapshot, mutator, this, fields, limit);
+        }
+
+        public Index.Cursor find(String string, Comparable[] fields)
+        {
+            return find(string, fields, true);
         }
 
         public Cursor first(Unmarshaller unmarshaller)
@@ -730,13 +735,13 @@ public class Depot
                 return name;
             }
 
-            public Index.Creator newIndex(String name, FieldExtractor fields, Unmarshaller unmarshaller)
+            public Index.Creator newIndex(String name, FieldExtractor extractor, Unmarshaller unmarshaller)
             {
                 if (mapOfIndices.containsKey(name))
                 {
                     throw new IllegalStateException();
                 }
-                Index.Creator newIndex = new Index.Creator(fields, unmarshaller);
+                Index.Creator newIndex = new Index.Creator(extractor, unmarshaller);
                 mapOfIndices.put(name, newIndex);
                 return newIndex;
             }
@@ -2072,7 +2077,7 @@ public class Depot
             Transaction txn = new Transaction(mutator, bin, schema);
             if (schema.unique)
             {
-                Iterator found = find(snapshot, mutator, bin, schema.extractor.getFields(bag.getObject()));
+                Iterator found = find(snapshot, mutator, bin, schema.extractor.getFields(bag.getObject()), true);
                 if (found.hasNext())
                 {
                     found.next(); // Release locks.
@@ -2104,7 +2109,7 @@ public class Depot
             found.release();
             if (schema.unique)
             {
-                Iterator exists = find(snapshot, mutator, bin, schema.extractor.getFields(bag.getObject()));
+                Iterator exists = find(snapshot, mutator, bin, schema.extractor.getFields(bag.getObject()), true);
                 if (exists.hasNext())
                 {
                     Bag existing = (Bag) exists.next();
@@ -2133,10 +2138,10 @@ public class Depot
             });
         }
 
-        public Cursor find(Snapshot snapshot, Bento.Mutator mutator, Bin bin, Comparable[] fields)
+        private Cursor find(Snapshot snapshot, Bento.Mutator mutator, Bin bin, Comparable[] fields, boolean limit)
         {
             Transaction txn = new Transaction(mutator, bin, schema);
-            return new Cursor(schema.strata.query(txn).find(fields), isolation.query(txn).find(fields), txn, fields);
+            return new Cursor(schema.strata.query(txn).find(fields), isolation.query(txn).find(fields), txn, fields, limit);
         }
 
         private void commit(Snapshot snapshot, Bento.Mutator mutator, Bin bin)
@@ -2343,16 +2348,19 @@ public class Depot
 
             private final Strata.Cursor stored;
 
+            private final boolean limit;
+
             private Record nextStored;
 
             private Record nextIsolated;
 
             private Bag next;
 
-            public Cursor(Strata.Cursor stored, Strata.Cursor isolated, Transaction txn, Comparable[] fields)
+            public Cursor(Strata.Cursor stored, Strata.Cursor isolated, Transaction txn, Comparable[] fields, boolean limit)
             {
                 this.txn = txn;
                 this.fields = fields;
+                this.limit = limit;
                 this.isolated = isolated;
                 this.stored = stored;
                 this.nextStored = next(stored, false);
@@ -2370,7 +2378,7 @@ public class Depot
                     {
                         continue;
                     }
-                    if (!partial(fields, txn.schema.extractor.getFields(bag.getObject())))
+                    if (limit && !partial(fields, txn.schema.extractor.getFields(bag.getObject())))
                     {
                         return null;
                     }
@@ -2444,7 +2452,7 @@ public class Depot
 
             public Object next()
             {
-                return nextBag();
+                return nextBag().getObject();
             }
 
             public void release()

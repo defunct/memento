@@ -104,8 +104,6 @@ extends TestCase
 
         one.commit();
 
-        System.out.println("One is done!");
-
         recipient = two.getBin("recipients").get(unmarshaller, keyOfAlan);
         assertNull(recipient);
 
@@ -441,8 +439,7 @@ extends TestCase
         Iterator iterator = snapshot.getBin("recipients").find("lastNameFirst", new Comparable[] { "Silvestri" });
 
         assertTrue(iterator.hasNext());
-        Depot.Bag bag = (Depot.Bag) iterator.next();
-        assertEquals(angelo, bag.getObject());
+        assertEquals(angelo, iterator.next());
         assertFalse(iterator.hasNext());
 
         snapshot.commit();
@@ -452,8 +449,7 @@ extends TestCase
         iterator = snapshot.getBin("recipients").find("lastNameFirst", new Comparable[] { "Silvestri" });
 
         assertTrue(iterator.hasNext());
-        bag = (Depot.Bag) iterator.next();
-        assertEquals(angelo, bag.getObject());
+        assertEquals(angelo, iterator.next());
         assertFalse(iterator.hasNext());
 
         snapshot.getBin("recipients").update(marshaller, person.getKey(), frank);
@@ -465,8 +461,7 @@ extends TestCase
         iterator = snapshot.getBin("recipients").find("lastNameFirst", new Comparable[] { "Silvestri" });
 
         assertTrue(iterator.hasNext());
-        bag = (Depot.Bag) iterator.next();
-        assertEquals(frank, bag.getObject());
+        assertEquals(frank, iterator.next());
         assertFalse(iterator.hasNext());
 
         snapshot.rollback();
@@ -481,8 +476,7 @@ extends TestCase
         iterator = snapshot.getBin("recipients").find("lastNameFirst", new Comparable[] { "Silvestri" });
 
         assertTrue(iterator.hasNext());
-        bag = (Depot.Bag) iterator.next();
-        assertEquals(frank, bag.getObject());
+        assertEquals(frank, iterator.next());
         assertFalse(iterator.hasNext());
 
         snapshot.rollback();
