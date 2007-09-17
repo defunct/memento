@@ -585,12 +585,12 @@ public class Depot
             }
         }
 
-        public Index.Cursor find(String string, Comparable[] fields, boolean limit)
+        public Index.Cursor find(String indexName, Comparable[] fields, boolean limit)
         {
-            Index index = (Index) mapOfIndices.get(string);
+            Index index = (Index) mapOfIndices.get(indexName);
             if (index == null)
             {
-                throw new Danger("no.such.index", 503).add(string);
+                throw new Danger("no.such.index", 503).add(indexName);
             }
 
             return index.find(snapshot, mutator, this, fields, limit);
@@ -599,6 +599,17 @@ public class Depot
         public Index.Cursor find(String string, Comparable[] fields)
         {
             return find(string, fields, true);
+        }
+
+        public Index.Cursor first(String indexName)
+        {
+            Index index = (Index) mapOfIndices.get(indexName);
+            if (index == null)
+            {
+                throw new Danger("no.such.index", 503).add(indexName);
+            }
+
+            return index.first(snapshot, mutator, this);
         }
 
         public Cursor first(Unmarshaller unmarshaller)
@@ -733,6 +744,18 @@ public class Depot
             public String getName()
             {
                 return name;
+            }
+
+            public Index.Creator newIndex(String name, FieldExtractor extractor, Unmarshaller unmarshaller, boolean unique)
+            {
+                if (mapOfIndices.containsKey(name))
+                {
+                    throw new IllegalStateException();
+                }
+                Index.Creator newIndex = new Index.Creator(extractor, unmarshaller);
+                mapOfIndices.put(name, newIndex);
+                newIndex.setUnique(unique);
+                return newIndex;
             }
 
             public Index.Creator newIndex(String name, FieldExtractor extractor, Unmarshaller unmarshaller)
@@ -1173,6 +1196,7 @@ public class Depot
             }
             catch (ClassNotFoundException e)
             {
+                // FIXME Entirely possible and common.
                 throw new AsinineCheckedExceptionThatIsEntirelyImpossible(e);
             }
             mutator.getJournal().commit();
@@ -2144,6 +2168,12 @@ public class Depot
             return new Cursor(schema.strata.query(txn).find(fields), isolation.query(txn).find(fields), txn, fields, limit);
         }
 
+        private Cursor first(Snapshot snapshot, Bento.Mutator mutator, Bin bin)
+        {
+            Transaction txn = new Transaction(mutator, bin, schema);
+            return new Cursor(schema.strata.query(txn).first(), isolation.query(txn).first(), txn, new Comparable[] {}, false);
+        }
+
         private void commit(Snapshot snapshot, Bento.Mutator mutator, Bin bin)
         {
             Transaction txn = new Transaction(mutator, bin, schema);
@@ -2461,6 +2491,60 @@ public class Depot
                 stored.release();
             }
         }
+
+        public final static class Range
+        implements Iterator
+        {
+            private int count;
+
+            private final int limit;
+
+            private final Cursor cursor;
+
+            public Range(Cursor cursor, int offset, int limit)
+            {
+                while (offset != 0 && cursor.hasNext())
+                {
+                    cursor.next();
+                    offset--;
+                }
+                this.limit = limit;
+                this.cursor = cursor;
+            }
+
+            public boolean hasNext()
+            {
+                return count < limit && cursor.hasNext();
+            }
+
+            public Depot.Bag nextBag()
+            {
+                Depot.Bag bag = cursor.nextBag();
+                count++;
+                return bag;
+            }
+
+            public Object next()
+            {
+                Depot.Bag bag = nextBag();
+                if (!hasNext())
+                {
+                    cursor.release();
+                }
+                return bag.getObject();
+            }
+
+            public void remove()
+            {
+                throw new UnsupportedOperationException();
+            }
+
+            public void release()
+            {
+                cursor.release();
+            }
+        }
+
     }
 
     public final static class Snapshot
