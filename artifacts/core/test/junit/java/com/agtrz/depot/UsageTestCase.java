@@ -413,7 +413,9 @@ extends TestCase
         Depot.Creator creator = new Depot.Creator();
         {
             Depot.Bin.Creator recipients = creator.newBin("recipients");
-            recipients.newIndex("lastNameFirst", new FieldExtractor(), new Depot.SerializationUnmarshaller());
+            Depot.Index.Creator lastNameFirst = recipients.newIndex("lastNameFirst");
+            lastNameFirst.setExtractor(new FieldExtractor());
+            lastNameFirst.setUnmarshaller(new Depot.SerializationUnmarshaller());
             depot = creator.create(file);
         }
 
@@ -491,7 +493,9 @@ extends TestCase
         Depot.Creator creator = new Depot.Creator();
         {
             Depot.Bin.Creator recipients = creator.newBin("recipients");
-            Depot.Index.Creator newIndex = recipients.newIndex("lastNameFirst", new FieldExtractor(), new Depot.SerializationUnmarshaller());
+            Depot.Index.Creator newIndex = recipients.newIndex("lastNameFirst");
+            newIndex.setExtractor(new FieldExtractor());
+            newIndex.setUnmarshaller(new Depot.SerializationUnmarshaller());
             newIndex.setUnique(true);
             depot = creator.create(file);
         }
@@ -565,7 +569,9 @@ extends TestCase
         Depot.Creator creator = new Depot.Creator();
         {
             Depot.Bin.Creator recipients = creator.newBin("recipients");
-            Depot.Index.Creator newIndex = recipients.newIndex("lastNameFirst", new FieldExtractor(), new Depot.SerializationUnmarshaller());
+            Depot.Index.Creator newIndex = recipients.newIndex("lastNameFirst");
+            newIndex.setExtractor(new FieldExtractor());
+            newIndex.setUnmarshaller(new Depot.SerializationUnmarshaller());
             newIndex.setUnique(true);
             depot = creator.create(file);
         }
@@ -603,7 +609,9 @@ extends TestCase
         Depot.Creator creator = new Depot.Creator();
         {
             Depot.Bin.Creator recipients = creator.newBin("recipients");
-            Depot.Index.Creator newIndex = recipients.newIndex("lastNameFirst", new FieldExtractor(), new Depot.SerializationUnmarshaller());
+            Depot.Index.Creator newIndex = recipients.newIndex("lastNameFirst");
+            newIndex.setExtractor(new FieldExtractor());
+            newIndex.setUnmarshaller(new Depot.SerializationUnmarshaller());
             newIndex.setUnique(true);
             depot = creator.create(file);
         }

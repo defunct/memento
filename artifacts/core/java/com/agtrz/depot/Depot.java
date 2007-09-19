@@ -1,6 +1,10 @@
 /* Copyright Alan Gutierrez 2006 */
 package com.agtrz.depot;
 
+import java.beans.BeanInfo;
+import java.beans.IntrospectionException;
+import java.beans.Introspector;
+import java.beans.PropertyDescriptor;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -40,6 +44,8 @@ public class Depot
     public final static int CONCURRENT_MODIFICATION_ERROR = 301;
 
     public final static int UNIQUE_CONSTRAINT_VIOLATION_ERROR = 302;
+
+    public final static int NOT_NULL_VIOLATION_ERROR = 303;
 
     private final static URI HEADER_URI = URI.create("http://syndibase.agtrz.com/strata");
 
@@ -86,6 +92,18 @@ public class Depot
             }
         }
         return 0;
+    }
+
+    private static boolean hasNulls(Comparable[] fields)
+    {
+        for (int i = 0; i < fields.length; i++)
+        {
+            if (fields[i] == null)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     // FIXME Wait for all processes to end.
@@ -216,40 +234,6 @@ public class Depot
         {
             return version;
         }
-
-        // public void link(String name, Bag[] bags)
-        // {
-        // Long[] keys = new Long[bags.length + 1];
-        //
-        // keys[0] = getKey();
-        //
-        // for (int i = 0; i < bags.length; i++)
-        // {
-        // keys[i + 1] = bags[i].getKey();
-        // }
-        //
-        // bin.getJoin(name).link(keys);
-        // }
-        //
-        // public void unlink(String name, Bag[] bags)
-        // {
-        // Long[] keys = new Long[bags.length + 1];
-        //
-        // keys[0] = getKey();
-        //
-        // for (int i = 0; i < bags.length; i++)
-        // {
-        // keys[i + 1] = bags[i].getKey();
-        // }
-        //
-        // bin.getJoin(name).unlink(keys);
-        // }
-        //
-        // public Iterator getLinked(String name)
-        // {
-        // Join join = bin.getJoin(name);
-        // return join.find(new Bag[] { this });
-        // }
     }
 
     public final static class Bin
@@ -746,25 +730,13 @@ public class Depot
                 return name;
             }
 
-            public Index.Creator newIndex(String name, FieldExtractor extractor, Unmarshaller unmarshaller, boolean unique)
+            public Index.Creator newIndex(String name)
             {
                 if (mapOfIndices.containsKey(name))
                 {
                     throw new IllegalStateException();
                 }
-                Index.Creator newIndex = new Index.Creator(extractor, unmarshaller);
-                mapOfIndices.put(name, newIndex);
-                newIndex.setUnique(unique);
-                return newIndex;
-            }
-
-            public Index.Creator newIndex(String name, FieldExtractor extractor, Unmarshaller unmarshaller)
-            {
-                if (mapOfIndices.containsKey(name))
-                {
-                    throw new IllegalStateException();
-                }
-                Index.Creator newIndex = new Index.Creator(extractor, unmarshaller);
+                Index.Creator newIndex = new Index.Creator();
                 mapOfIndices.put(name, newIndex);
                 return newIndex;
             }
@@ -1110,7 +1082,7 @@ public class Depot
 
                     Strata indexStrata = newIndexStrata.create(BentoStorage.txn(mutator));
 
-                    mapOfIndices.put(nameOfIndex, new Index.Schema(indexStrata, newIndex.extractor, newIndex.unique, newIndex.unmarshaller));
+                    mapOfIndices.put(nameOfIndex, new Index.Schema(indexStrata, newIndex.extractor, newIndex.unique, newIndex.notNull, newIndex.unmarshaller));
                 }
 
                 mapOfBins.put(name, new Bin.Schema(strata, mapOfIndices, newBin.unmarshaller, newBin.marshaller));
@@ -2073,6 +2045,60 @@ public class Depot
         public abstract Comparable[] getFields(Object object);
     }
 
+    public final static class BeanExtractor
+    implements FieldExtractor
+    {
+        private static final long serialVersionUID = 20070917L;
+
+        private final Class type;
+
+        private final String[] methods;
+
+        public BeanExtractor(Class type, String[] fields)
+        {
+            BeanInfo beanInfo;
+            try
+            {
+                beanInfo = Introspector.getBeanInfo(type);
+            }
+            catch (IntrospectionException e)
+            {
+                throw new Danger("Extractor", e, 1);
+            }
+            String[] methods = new String[fields.length];
+            PropertyDescriptor[] properties = beanInfo.getPropertyDescriptors();
+            for (int i = 0; i < properties.length; i++)
+            {
+                for (int j = 0; j < fields.length; j++)
+                {
+                    if (properties[i].getName().equals(fields[j]))
+                    {
+                        methods[j] = properties[i].getReadMethod().getName();
+                    }
+                }
+            }
+            this.type = type;
+            this.methods = methods;
+        }
+
+        public Comparable[] getFields(Object object)
+        {
+            Comparable[] comparables = new Comparable[methods.length];
+            for (int i = 0; i < methods.length; i++)
+            {
+                try
+                {
+                    comparables[i] = (Comparable) type.getMethod(methods[0], new Class[0]).invoke(object, new Object[0]);
+                }
+                catch (Exception e)
+                {
+                    throw new Danger("A.", e, 0);
+                }
+            }
+            return comparables;
+        }
+    }
+
     public final static class Index
     {
         private final Schema schema;
@@ -2099,9 +2125,14 @@ public class Depot
         public void add(Snapshot snapshot, Bento.Mutator mutator, Bin bin, Bag bag)
         {
             Transaction txn = new Transaction(mutator, bin, schema);
-            if (schema.unique)
+            Comparable[] fields = schema.extractor.getFields(bag.getObject());
+            if (schema.notNull && hasNulls(fields))
             {
-                Iterator found = find(snapshot, mutator, bin, schema.extractor.getFields(bag.getObject()), true);
+                throw new Error("Not null violation.", NOT_NULL_VIOLATION_ERROR);
+            }
+            if (schema.unique && (schema.notNull || !hasNulls(fields)))
+            {
+                Iterator found = find(snapshot, mutator, bin, fields, true);
                 if (found.hasNext())
                 {
                     found.next(); // Release locks.
@@ -2131,9 +2162,14 @@ public class Depot
                 }
             }
             found.release();
-            if (schema.unique)
+            Comparable[] fields = schema.extractor.getFields(bag.getObject());
+            if (schema.notNull && hasNulls(fields))
             {
-                Iterator exists = find(snapshot, mutator, bin, schema.extractor.getFields(bag.getObject()), true);
+                throw new Error("Not null violation.", NOT_NULL_VIOLATION_ERROR);
+            }
+            if (schema.unique && (schema.notNull || !hasNulls(fields)))
+            {
+                Iterator exists = find(snapshot, mutator, bin, fields, true);
                 if (exists.hasNext())
                 {
                     Bag existing = (Bag) exists.next();
@@ -2190,25 +2226,28 @@ public class Depot
                     {
                         Bag bag = bin.get(schema.unmarshaller, record.key, record.version);
                         Comparable[] fields = schema.extractor.getFields(bag.getObject());
-                        Strata.Cursor found = queryOfStored.find(fields);
-                        try
+                        if (schema.notNull || !hasNulls(fields))
                         {
-                            while (found.hasNext())
+                            Strata.Cursor found = queryOfStored.find(fields);
+                            try
                             {
-                                Record existing = (Record) found.next();
-                                if (existing.key.equals(record.key) && existing.version.equals(record.version))
+                                while (found.hasNext())
                                 {
-                                    break;
-                                }
-                                else if (!snapshot.isVisible(existing.version))
-                                {
-                                    throw new Error("Concurrent modification.", CONCURRENT_MODIFICATION_ERROR);
+                                    Record existing = (Record) found.next();
+                                    if (existing.key.equals(record.key) && existing.version.equals(record.version))
+                                    {
+                                        break;
+                                    }
+                                    else if (!snapshot.isVisible(existing.version))
+                                    {
+                                        throw new Error("Concurrent modification.", CONCURRENT_MODIFICATION_ERROR);
+                                    }
                                 }
                             }
-                        }
-                        finally
-                        {
-                            found.release();
+                            finally
+                            {
+                                found.release();
+                            }
                         }
                     }
                 }
@@ -2222,21 +2261,46 @@ public class Depot
 
         public final static class Creator
         {
-            private final Unmarshaller unmarshaller;
+            private Unmarshaller unmarshaller;
 
-            private final FieldExtractor extractor;
+            private FieldExtractor extractor;
 
             private boolean unique;
 
-            public Creator(FieldExtractor extractor, Unmarshaller unmarshaller)
+            private boolean notNull;
+
+            public Creator()
+            {
+            }
+
+            public void setExtractor(Class type, String field)
+            {
+                setExtractor(type, new String[] { field });
+            }
+
+            public void setExtractor(Class type, String[] fields)
+            {
+                setExtractor(new BeanExtractor(type, fields));
+            }
+
+            public void setExtractor(FieldExtractor extractor)
             {
                 this.extractor = extractor;
+            }
+
+            public void setUnmarshaller(Unmarshaller unmarshaller)
+            {
                 this.unmarshaller = unmarshaller;
             }
 
             public void setUnique(boolean unique)
             {
                 this.unique = unique;
+            }
+
+            public void setNotNull(boolean notNull)
+            {
+                this.notNull = notNull;
             }
         }
 
@@ -2319,13 +2383,16 @@ public class Depot
 
             public final boolean unique;
 
+            public final boolean notNull;
+
             public final Unmarshaller unmarshaller;
 
-            public Schema(Strata strata, FieldExtractor extractor, boolean unique, Unmarshaller unmarshaller)
+            public Schema(Strata strata, FieldExtractor extractor, boolean unique, boolean notNull, Unmarshaller unmarshaller)
             {
                 this.extractor = extractor;
                 this.strata = strata;
                 this.unique = unique;
+                this.notNull = notNull;
                 this.unmarshaller = unmarshaller;
             }
         }
