@@ -1509,7 +1509,7 @@ public class Depot
             {
                 Strata.Query query = schema.indices[i].strata.query(BentoStorage.txn(mutator));
                 Strata.Cursor isolated = isolation[i].first();
-                if (isolated.hasNext())
+                while (isolated.hasNext())
                 {
                     query.insert((Record) isolated.next());
                 }
@@ -1660,14 +1660,7 @@ public class Depot
 
             public Comparable[] getFields(Object txn, Object object)
             {
-                Record record = (Record) object;
-                Comparable[] fields = new Comparable[record.keys.length];
-                Long[] keys = record.keys;
-                for (int i = 0; i < keys.length; i++)
-                {
-                    fields[i] = keys[i];
-                }
-                return fields;
+                return ((Record) object).keys;
             }
         }
 
@@ -1941,6 +1934,13 @@ public class Depot
                 throw new UnsupportedOperationException();
             }
 
+            public Tuple nextTuple()
+            {
+                Tuple tuple = new Tuple(snapshot, schema.mapOfFields, index.fields, next);
+                next = nextRecord();
+                return tuple;
+            }
+
             public Object next()
             {
                 Tuple tuple = new Tuple(snapshot, schema.mapOfFields, index.fields, next);
@@ -2075,6 +2075,13 @@ public class Depot
                     {
                         methods[j] = properties[i].getReadMethod().getName();
                     }
+                }
+            }
+            for (int i = 0; i < methods.length; i++)
+            {
+                if (methods[i] == null)
+                {
+                    throw new Error("A", 1);
                 }
             }
             this.type = type;
