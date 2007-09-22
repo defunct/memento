@@ -236,6 +236,7 @@ public class Depot
         }
     }
 
+    // FIXME Vacuum.
     public final static class Bin
     {
         private final String name;
@@ -325,16 +326,17 @@ public class Depot
 
             isolation.insert(record);
 
-            Iterator indices = mapOfIndices.values().iterator();
-            while (indices.hasNext())
+            Iterator entries = mapOfIndices.entrySet().iterator();
+            while (entries.hasNext())
             {
-                Index index = (Index) indices.next();
+                Map.Entry entry = (Map.Entry) entries.next();
                 try
                 {
-                    index.add(snapshot, mutator, this, bag);
+                    ((Index) entry.getValue()).add(snapshot, mutator, this, bag);
                 }
                 catch (Error e)
                 {
+                    e.put("index", entry.getKey());
                     isolation.remove(record);
                     mutator.free(mutator.load(record.address));
                     throw e;
@@ -2147,6 +2149,7 @@ public class Depot
         }
     }
 
+    // FIXME Vacuum.
     public final static class Index
     {
         private final Schema schema;
