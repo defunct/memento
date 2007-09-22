@@ -1801,12 +1801,52 @@ public class Depot
             }
         }
 
-        public final static class Cursor
-        implements java.util.Iterator
+        private final static class Advancer
         {
-            private final Strata.Cursor stored;
+            private final Strata.Cursor cursor;
 
-            private final Strata.Cursor isolated;
+            private Record record;
+
+            private boolean atEnd;
+
+            public Advancer(Strata.Cursor cursor)
+            {
+                this.cursor = cursor;
+            }
+
+            public Record getRecord()
+            {
+                return record;
+            }
+
+            public boolean getAtEnd()
+            {
+                return atEnd;
+            }
+
+            public boolean advance()
+            {
+                if (!cursor.hasNext())
+                {
+                    atEnd = true;
+                    return false;
+                }
+                record = (Record) cursor.next();
+                return true;
+            }
+
+            public void release()
+            {
+                cursor.release();
+            }
+        }
+
+        public final static class Cursor
+        implements Iterator
+        {
+            private final Advancer stored;
+
+            private final Advancer isolated;
 
             private final Snapshot snapshot;
 
@@ -1824,32 +1864,31 @@ public class Depot
 
             private final Index index;
 
-            public Cursor(Snapshot snapshot, Long[] keys, Map mapToScan, Strata.Cursor stored, Strata.Cursor isolated, Schema schema, Index index)
+            public Cursor(Snapshot snapshot, Long[] keys, Map mapToScan, Strata.Cursor storedCursor, Strata.Cursor isolatedCursor, Schema schema, Index index)
             {
                 this.snapshot = snapshot;
                 this.keys = keys;
-                this.stored = stored;
-                this.isolated = isolated;
+                this.stored = new Advancer(storedCursor);
+                this.isolated = new Advancer(isolatedCursor);
                 this.mapToScan = mapToScan;
                 this.index = index;
-                this.nextStored = next(stored, false);
-                this.nextIsolated = next(isolated, true);
+                this.nextStored = stored.advance() ? next(stored, false) : null;
+                this.nextIsolated = isolated.advance() ? next(isolated, true) : null;
                 this.next = nextRecord();
                 this.schema = schema;
             }
 
-            private Record next(Strata.Cursor cursor, boolean isolated)
+            private Record next(Advancer cursor, boolean isolated)
             {
-
                 Record candidate = null;
                 Long[] candidateKeys = null;
                 for (;;)
                 {
-                    if (!cursor.hasNext())
+                    if (cursor.getAtEnd())
                     {
                         break;
                     }
-                    Record record = (Record) cursor.next();
+                    Record record = cursor.getRecord();
                     if (keys.length > 0 && !partial(keys, record.keys))
                     {
                         break;
@@ -1861,6 +1900,7 @@ public class Depot
                             Long value = (Long) mapToScan.get(index.fields[i]);
                             if (value != null && !record.keys[i].equals(value))
                             {
+                                cursor.advance();
                                 continue;
                             }
                         }
@@ -1877,6 +1917,7 @@ public class Depot
                         }
                         candidate = record;
                     }
+                    cursor.advance();
                 }
                 return candidate;
             }
@@ -2797,27 +2838,26 @@ public class Depot
 
         public void rollback()
         {
-            if (spent)
+            // FIXME Rethink. Cannot reuse.
+            if (!spent)
             {
-                throw new Danger("rollback.spent.snapshot", 502);
+                spent = true;
+                Bento.Mutator mutator = bento.mutate();
+
+                Iterator janitors = mapOfJanitors.entrySet().iterator();
+                while (janitors.hasNext())
+                {
+                    Map.Entry entry = (Map.Entry) janitors.next();
+                    Bento.Address address = (Bento.Address) entry.getKey();
+                    Janitor janitor = (Janitor) entry.getValue();
+                    mutator.free(mutator.load(address));
+                    janitor.dispose(mutator, true);
+                }
+
+                Strata.Query query = snapshots.query(BentoStorage.txn(mutator));
+
+                query.remove(new Comparable[] { version }, Strata.ANY);
             }
-
-            spent = true;
-            Bento.Mutator mutator = bento.mutate();
-
-            Iterator janitors = mapOfJanitors.entrySet().iterator();
-            while (janitors.hasNext())
-            {
-                Map.Entry entry = (Map.Entry) janitors.next();
-                Bento.Address address = (Bento.Address) entry.getKey();
-                Janitor janitor = (Janitor) entry.getValue();
-                mutator.free(mutator.load(address));
-                janitor.dispose(mutator, true);
-            }
-
-            Strata.Query query = snapshots.query(BentoStorage.txn(mutator));
-
-            query.remove(new Comparable[] { version }, Strata.ANY);
         }
 
         private final static class Record
