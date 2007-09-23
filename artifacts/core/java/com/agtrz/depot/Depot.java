@@ -1888,11 +1888,13 @@ public class Depot
                 {
                     if (cursor.getAtEnd())
                     {
+                        cursor.release();
                         break;
                     }
                     Record record = cursor.getRecord();
                     if (keys.length > 0 && !partial(keys, record.keys))
                     {
+                        cursor.release();
                         break;
                     }
                     if (mapToScan.size() > 0)
@@ -2220,11 +2222,11 @@ public class Depot
             }
             if (schema.unique && (schema.notNull || !hasNulls(fields)))
             {
-                Iterator exists = find(snapshot, mutator, bin, fields, true);
+                Cursor exists = find(snapshot, mutator, bin, fields, true);
                 if (exists.hasNext())
                 {
-                    Bag existing = (Bag) exists.next();
-                    if (existing.getKey().equals(bag.getKey()))
+                    Bag existing =   exists.nextBag();
+                    if (!existing.getKey().equals(bag.getKey()))
                     {
                         throw new Error("unique.index.constraint.violation", UNIQUE_CONSTRAINT_VIOLATION_ERROR).put("bin", bin.getName());
                     }
@@ -2528,6 +2530,7 @@ public class Depot
                     }
                     if (limit && !partial(fields, txn.schema.extractor.getFields(bag.getObject())))
                     {
+                        cursor.release();
                         return null;
                     }
                     return record;
