@@ -73,7 +73,18 @@ public class Depot
     {
         for (int i = 0; i < partial.length; i++)
         {
-            if (!partial[i].equals(full[i]))
+            if (partial[i] == null)
+            {
+                if (full[i] != null)
+                {
+                    return false;
+                }
+            }
+            else if (full[i] == null)
+            {
+                return false;
+            }
+            else if (partial[i].compareTo(full[i]) != 0)
             {
                 return false;
             }
@@ -960,6 +971,7 @@ public class Depot
         newJoinStrata.setStorage(newJoinStorage.create());
         newJoinStrata.setFieldExtractor(new Join.Extractor());
         newJoinStrata.setSize(512);
+        newJoinStrata.setMaxDirtyTiers(1);
 
         return newJoinStrata.create(BentoStorage.txn(mutator));
     }
@@ -1057,6 +1069,7 @@ public class Depot
                 newBinStrata.setStorage(newBinStorage.create());
                 newBinStrata.setFieldExtractor(new Bin.Extractor());
                 newBinStrata.setSize(512);
+                newBinStrata.setMaxDirtyTiers(1);
 
                 Strata strata = newBinStrata.create(BentoStorage.txn(mutator));
 
@@ -1080,6 +1093,7 @@ public class Depot
                     newIndexStrata.setStorage(newIndexStorage.create());
                     newIndexStrata.setFieldExtractor(new Index.Extractor());
                     newIndexStrata.setSize(512);
+                    newIndexStrata.setMaxDirtyTiers(1);
                     newIndexStrata.setCacheFields(true);
 
                     Strata indexStrata = newIndexStrata.create(BentoStorage.txn(mutator));
@@ -2225,7 +2239,7 @@ public class Depot
                 Cursor exists = find(snapshot, mutator, bin, fields, true);
                 if (exists.hasNext())
                 {
-                    Bag existing =   exists.nextBag();
+                    Bag existing = exists.nextBag();
                     if (!existing.getKey().equals(bag.getKey()))
                     {
                         throw new Error("unique.index.constraint.violation", UNIQUE_CONSTRAINT_VIOLATION_ERROR).put("bin", bin.getName());
