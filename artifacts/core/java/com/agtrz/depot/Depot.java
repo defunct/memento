@@ -324,6 +324,42 @@ public class Depot
             return name;
         }
 
+        public void load(Marshaller marshaller, Iterator iterator)
+        {
+            // FIXME Either check for empty bin or determine if existing
+            // commit logic will detect collision.
+            while (iterator.hasNext())
+            {
+                Bag bag = (Bag) iterator.next();
+
+                Bento.OutputStream allocation = new Bento.OutputStream(mutator);
+
+                marshaller.marshall(allocation, bag.getObject());
+
+                Bento.Address address = allocation.allocate(false);
+                Record record = new Record(bag.getKey(), bag.getVersion(), address);
+
+                isolation.insert(record);
+
+                Iterator entries = mapOfIndices.entrySet().iterator();
+                while (entries.hasNext())
+                {
+                    Map.Entry entry = (Map.Entry) entries.next();
+                    try
+                    {
+                        ((Index) entry.getValue()).add(snapshot, mutator, this, bag);
+                    }
+                    catch (Error e)
+                    {
+                        e.put("index", entry.getKey());
+                        isolation.remove(record);
+                        mutator.free(mutator.load(record.address));
+                        throw e;
+                    }
+                }
+            }
+        }
+
         public Bag add(Marshaller marshaller, Object object)
         {
             Bag bag = new Bag(common.nextIdentifier(), snapshot.getVersion(), object);
