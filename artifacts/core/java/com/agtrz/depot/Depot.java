@@ -266,21 +266,21 @@ public class Depot
 
         public Bin(Snapshot snapshot, Bento.Mutator mutator, String name, Common common, Map mapOfJanitors)
         {
-            Strata.Creator creator = new Strata.Creator();
+            Strata.Schema creator = new Strata.Schema();
 
             creator.setFieldExtractor(new Extractor());
             creator.setMaxDirtyTiers(5);
             creator.setSize(512);
 
-            BentoStorage.Creator newStorage = new BentoStorage.Creator();
+            BentoStorage.Schema newStorage = new BentoStorage.Schema();
 
             newStorage.setReader(new Reader());
             newStorage.setWriter(new Writer());
             newStorage.setSize(SizeOf.LONG * 3 + SizeOf.INTEGER);
 
-            creator.setStorage(newStorage.create());
+            creator.setStorage(newStorage);
 
-            Strata isolation = creator.create(BentoStorage.txn(mutator));
+            Strata isolation = creator.newStrata(BentoStorage.txn(mutator));
 
             Bin.Janitor janitor = new Bin.Janitor(isolation, name);
 
@@ -997,19 +997,19 @@ public class Depot
     private static Strata newJoinStrata(Bento.Mutator mutator, int size)
     {
 
-        BentoStorage.Creator newJoinStorage = new BentoStorage.Creator();
+        BentoStorage.Schema newJoinStorage = new BentoStorage.Schema();
         newJoinStorage.setWriter(new Join.Writer(size));
         newJoinStorage.setReader(new Join.Reader(size));
         newJoinStorage.setSize(SizeOf.LONG * size + SizeOf.LONG + SizeOf.SHORT);
 
-        Strata.Creator newJoinStrata = new Strata.Creator();
+        Strata.Schema newJoinStrata = new Strata.Schema();
 
-        newJoinStrata.setStorage(newJoinStorage.create());
+        newJoinStrata.setStorage(newJoinStorage);
         newJoinStrata.setFieldExtractor(new Join.Extractor());
         newJoinStrata.setSize(512);
         newJoinStrata.setMaxDirtyTiers(1);
 
-        return newJoinStrata.create(BentoStorage.txn(mutator));
+        return newJoinStrata.newStrata(BentoStorage.txn(mutator));
     }
 
     private static Join.Index newJoinIndex(Bento.Mutator mutator, Map mapOfFields, String[] order)
@@ -1070,20 +1070,20 @@ public class Depot
             Bento bento = newBento.create(file);
             Bento.Mutator mutator = bento.mutate(bento.newNullJournal());
 
-            BentoStorage.Creator newMutationStorage = new BentoStorage.Creator();
+            BentoStorage.Schema newMutationStorage = new BentoStorage.Schema();
 
             newMutationStorage.setWriter(new Snapshot.Writer());
             newMutationStorage.setReader(new Snapshot.Reader());
             newMutationStorage.setSize(SizeOf.LONG + SizeOf.INTEGER);
 
-            Strata.Creator newMutationStrata = new Strata.Creator();
+            Strata.Schema newMutationStrata = new Strata.Schema();
 
-            newMutationStrata.setStorage(newMutationStorage.create());
+            newMutationStrata.setStorage(newMutationStorage);
             newMutationStrata.setFieldExtractor(new Snapshot.Extractor());
             newMutationStrata.setSize(512);
 
             Object txn = BentoStorage.txn(mutator);
-            Strata mutations = newMutationStrata.create(txn);
+            Strata mutations = newMutationStrata.newStrata(txn);
 
             Strata.Query query = mutations.query(txn);
             query.insert(new Snapshot.Record(new Long(1L), COMMITTED));
@@ -1095,19 +1095,19 @@ public class Depot
                 Map.Entry entry = (Map.Entry) bags.next();
                 String name = (String) entry.getKey();
 
-                BentoStorage.Creator newBinStorage = new BentoStorage.Creator();
+                BentoStorage.Schema newBinStorage = new BentoStorage.Schema();
                 newBinStorage.setWriter(new Bin.Writer());
                 newBinStorage.setReader(new Bin.Reader());
                 newBinStorage.setSize(SizeOf.LONG * 2 + Bento.ADDRESS_SIZE);
 
-                Strata.Creator newBinStrata = new Strata.Creator();
+                Strata.Schema newBinStrata = new Strata.Schema();
 
-                newBinStrata.setStorage(newBinStorage.create());
+                newBinStrata.setStorage(newBinStorage);
                 newBinStrata.setFieldExtractor(new Bin.Extractor());
                 newBinStrata.setSize(512);
                 newBinStrata.setMaxDirtyTiers(1);
 
-                Strata strata = newBinStrata.create(BentoStorage.txn(mutator));
+                Strata strata = newBinStrata.newStrata(BentoStorage.txn(mutator));
 
                 Bin.Creator newBin = (Bin.Creator) entry.getValue();
 
@@ -1118,21 +1118,21 @@ public class Depot
                     Map.Entry index = (Map.Entry) indices.next();
                     String nameOfIndex = (String) index.getKey();
 
-                    BentoStorage.Creator newIndexStorage = new BentoStorage.Creator();
+                    BentoStorage.Schema newIndexStorage = new BentoStorage.Schema();
                     newIndexStorage.setWriter(new Index.Writer());
                     newIndexStorage.setReader(new Index.Reader());
                     newIndexStorage.setSize(SizeOf.LONG + SizeOf.LONG + SizeOf.SHORT);
 
-                    Strata.Creator newIndexStrata = new Strata.Creator();
+                    Strata.Schema newIndexStrata = new Strata.Schema();
                     Index.Creator newIndex = (Index.Creator) index.getValue();
 
-                    newIndexStrata.setStorage(newIndexStorage.create());
+                    newIndexStrata.setStorage(newIndexStorage);
                     newIndexStrata.setFieldExtractor(new Index.Extractor());
                     newIndexStrata.setSize(512);
                     newIndexStrata.setMaxDirtyTiers(1);
                     newIndexStrata.setCacheFields(true);
 
-                    Strata indexStrata = newIndexStrata.create(BentoStorage.txn(mutator));
+                    Strata indexStrata = newIndexStrata.newStrata(BentoStorage.txn(mutator));
 
                     mapOfIndices.put(nameOfIndex, new Index.Schema(indexStrata, newIndex.extractor, newIndex.unique, newIndex.notNull, newIndex.unmarshaller));
                 }
@@ -1174,8 +1174,8 @@ public class Depot
             catch (IOException e)
             {
                 throw new AsinineCheckedExceptionThatIsEntirelyImpossible(e);
-
             }
+            
             Bento.Address addressOfBins = allocation.allocate(false);
 
             Bento.Block block = mutator.load(bento.getStaticAddress(HEADER_URI));
@@ -1356,21 +1356,21 @@ public class Depot
 
             for (int i = 0; i < schema.indices.length; i++)
             {
-                Strata.Creator creator = new Strata.Creator();
+                Strata.Schema creator = new Strata.Schema();
 
                 creator.setFieldExtractor(new Extractor());
                 creator.setMaxDirtyTiers(5);
                 creator.setSize(512);
 
-                BentoStorage.Creator newStorage = new BentoStorage.Creator();
+                BentoStorage.Schema newStorage = new BentoStorage.Schema();
 
                 newStorage.setReader(new Reader(schema.mapOfFields.size()));
                 newStorage.setWriter(new Writer(schema.mapOfFields.size()));
                 newStorage.setSize(SizeOf.LONG * schema.mapOfFields.size() + SizeOf.LONG + SizeOf.SHORT);
 
-                creator.setStorage(newStorage.create());
+                creator.setStorage(newStorage);
 
-                isolations[i] = creator.create(BentoStorage.txn(mutator));
+                isolations[i] = creator.newStrata(BentoStorage.txn(mutator));
             }
 
             Janitor janitor = new Janitor(isolations, name);
@@ -2216,13 +2216,13 @@ public class Depot
 
         private static Strata newIsolation()
         {
-            Strata.Creator creator = new Strata.Creator();
+            Strata.Schema creator = new Strata.Schema();
 
             creator.setCacheFields(true);
             creator.setFieldExtractor(new Extractor());
-            creator.setStorage(new ArrayListStorage());
+            creator.setStorage(new ArrayListStorage.Schema());
 
-            return creator.create(null);
+            return creator.newStrata(null);
         }
 
         public void add(Snapshot snapshot, Bento.Mutator mutator, Bin bin, Bag bag)
