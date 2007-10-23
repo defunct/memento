@@ -360,17 +360,14 @@ public class Depot
             }
         }
 
-        public Bag add(Marshaller marshaller, Object object)
+        private void restore(Bag bag)
         {
-            Bag bag = new Bag(common.nextIdentifier(), snapshot.getVersion(), object);
-
             Bento.OutputStream allocation = new Bento.OutputStream(mutator);
 
-            marshaller.marshall(allocation, object);
+            common.schema.marshaller.marshall(allocation, bag.getObject());
 
             Bento.Address address = allocation.allocate(false);
             Record record = new Record(bag.getKey(), bag.getVersion(), address);
-
             isolation.insert(record);
 
             Iterator entries = mapOfIndices.entrySet().iterator();
@@ -389,6 +386,13 @@ public class Depot
                     throw e;
                 }
             }
+        }
+
+        public Bag add(Object object)
+        {
+            Bag bag = new Bag(common.nextIdentifier(), snapshot.getVersion(), object);
+
+            restore(bag);
 
             return bag;
         }
@@ -416,7 +420,7 @@ public class Depot
             return record;
         }
 
-        public Bag update(Marshaller marshaller, Long key, Object object)
+        public Bag update(Long key, Object object)
         {
             Record record = update(key);
 
@@ -427,7 +431,7 @@ public class Depot
 
             Bag bag = new Bag(key, snapshot.getVersion(), object);
             Bento.OutputStream allocation = new Bento.OutputStream(mutator);
-            marshaller.marshall(allocation, object);
+            common.schema.marshaller.marshall(allocation, object);
             Bento.Address address = allocation.allocate(false);
             isolation.insert(new Record(bag.getKey(), bag.getVersion(), address));
 
@@ -538,6 +542,11 @@ public class Depot
                 return isDeleted(stored) ? null : stored;
             }
             return null;
+        }
+
+        public Bag get(Long key)
+        {
+            return get(common.schema.unmarshaller, key);
         }
 
         public Bag get(Unmarshaller unmarshaller, Long key)
@@ -731,10 +740,16 @@ public class Depot
 
             public final Map mapOfIndexSchemas;
 
+            public final Unmarshaller unmarshaller;
+
+            public final Marshaller marshaller;
+
             public Schema(Strata strata, Map mapOfIndexSchemas, Unmarshaller unmarshaller, Marshaller marshaller)
             {
                 this.strata = strata;
                 this.mapOfIndexSchemas = mapOfIndexSchemas;
+                this.unmarshaller = unmarshaller;
+                this.marshaller = marshaller;
             }
         }
 
@@ -1126,6 +1141,11 @@ public class Depot
                     Strata.Schema newIndexStrata = new Strata.Schema();
                     Index.Creator newIndex = (Index.Creator) index.getValue();
 
+                    if (newIndex.unmarshaller == null)
+                    {
+                        newIndex.setUnmarshaller(newBin.unmarshaller);
+                    }
+
                     newIndexStrata.setStorage(newIndexStorage);
                     newIndexStrata.setFieldExtractor(new Index.Extractor());
                     newIndexStrata.setSize(512);
@@ -1175,7 +1195,7 @@ public class Depot
             {
                 throw new AsinineCheckedExceptionThatIsEntirelyImpossible(e);
             }
-            
+
             Bento.Address addressOfBins = allocation.allocate(false);
 
             Bento.Block block = mutator.load(bento.getStaticAddress(HEADER_URI));
@@ -1306,7 +1326,7 @@ public class Depot
             }
             catch (IOException e)
             {
-                throw new AsinineCheckedExceptionThatIsEntirelyImpossible(e);
+                throw new Danger("io", 403);
             }
         }
     }
@@ -1330,7 +1350,7 @@ public class Depot
             }
             catch (IOException e)
             {
-                throw new AsinineCheckedExceptionThatIsEntirelyImpossible(e);
+                throw new Danger("io", 403);
             }
             catch (ClassNotFoundException e)
             {
@@ -2108,6 +2128,19 @@ public class Depot
             this.mapOfFields = mapOfFields;
             this.fields = fields;
             this.record = record;
+        }
+
+        public Bag getBag(String fieldName)
+        {
+            for (int i = 0; i < fields.length; i++)
+            {
+                if (fields[i].equals(fieldName))
+                {
+                    String bagName = (String) mapOfFields.get(fieldName);
+                    return snapshot.getBin(bagName).get(record.keys[i]);
+                }
+            }
+            throw new IllegalArgumentException();
         }
 
         public Bag getBag(Unmarshaller unmarshaller, String fieldName)

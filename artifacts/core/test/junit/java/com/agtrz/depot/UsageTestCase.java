@@ -54,9 +54,8 @@ extends TestCase
         Recipient alan = new Recipient("alan@blogometer.com", "Alan", "Gutierrez");
         Depot.Snapshot snapshot = depot.newSnapshot();
 
-        Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
         Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
-        Depot.Bag recipient = snapshot.getBin("recipients").add(marshaller, alan);
+        Depot.Bag recipient = snapshot.getBin("recipients").add(alan);
 
         Long key = recipient.getKey();
 
@@ -89,9 +88,8 @@ extends TestCase
 
         Depot.Snapshot one = depot.newSnapshot();
 
-        Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
         final Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
-        Depot.Bag recipient = one.getBin("recipients").add(marshaller, alan);
+        Depot.Bag recipient = one.getBin("recipients").add(alan);
 
         Long keyOfAlan = recipient.getKey();
 
@@ -109,7 +107,7 @@ extends TestCase
 
         Depot.Test test = Depot.newTest();
         final Depot.Snapshot three = depot.newSnapshot(test);
-        recipient = three.getBin("recipients").add(marshaller, bart);
+        recipient = three.getBin("recipients").add(bart);
 
         Long keyOfBart = recipient.getKey();
 
@@ -171,9 +169,8 @@ extends TestCase
 
         Depot.Snapshot one = depot.newSnapshot();
 
-        Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
         Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
-        Long key = one.getBin("recipients").add(marshaller, alan).getKey();
+        Long key = one.getBin("recipients").add(alan).getKey();
         one.commit();
 
         Thread.sleep(1);
@@ -187,7 +184,7 @@ extends TestCase
 
         Thread.sleep(1);
         Depot.Snapshot three = depot.newSnapshot();
-        Depot.Bag updated = three.getBin("recipients").update(marshaller, key, kiloblog);
+        Depot.Bag updated = three.getBin("recipients").update(key, kiloblog);
 
         assertNotNull(updated);
         assertEquals(kiloblog, updated.getObject());
@@ -229,10 +226,9 @@ extends TestCase
 
         Depot.Snapshot one = depot.newSnapshot();
 
-        Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
         Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
 
-        Long key = one.getBin("recipients").add(marshaller, alan).getKey();
+        Long key = one.getBin("recipients").add(alan).getKey();
         one.commit();
 
         Depot.Snapshot two = depot.newSnapshot();
@@ -244,7 +240,7 @@ extends TestCase
         Recipient kiloblog = new Recipient("alan@kiloblog.com", alan.getFirstName(), alan.getLastName());
 
         Depot.Snapshot three = depot.newSnapshot();
-        Depot.Bag updated = three.getBin("recipients").update(marshaller, key, kiloblog);
+        Depot.Bag updated = three.getBin("recipients").update(key, kiloblog);
 
         assertNotNull(updated);
         assertEquals(kiloblog, updated.getObject());
@@ -320,12 +316,11 @@ extends TestCase
 
         Depot.Snapshot snapshot = depot.newSnapshot();
 
-        Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
         Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
 
-        Depot.Bag person = snapshot.getBin("recipients").add(marshaller, alan);
-        Depot.Bag message = snapshot.getBin("messages").add(marshaller, hello);
-        Depot.Bag bounce = snapshot.getBin("bounces").add(marshaller, received);
+        Depot.Bag person = snapshot.getBin("recipients").add(alan);
+        Depot.Bag message = snapshot.getBin("messages").add(hello);
+        Depot.Bag bounce = snapshot.getBin("bounces").add(received);
 
         Map select = new HashMap();
 
@@ -415,7 +410,6 @@ extends TestCase
             Depot.Bin.Creator recipients = creator.newBin("recipients");
             Depot.Index.Creator lastNameFirst = recipients.newIndex("lastNameFirst");
             lastNameFirst.setExtractor(new FieldExtractor());
-            lastNameFirst.setUnmarshaller(new Depot.SerializationUnmarshaller());
             depot = creator.create(file);
         }
 
@@ -432,12 +426,10 @@ extends TestCase
         //
         Depot.Snapshot snapshot = depot.newSnapshot();
 
-        Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
-
-        Depot.Bag person = snapshot.getBin("recipients").add(marshaller, alan);
+        Depot.Bag person = snapshot.getBin("recipients").add(alan);
         assertEquals(alan, person.getObject());
 
-        person = snapshot.getBin("recipients").add(marshaller, angelo);
+        person = snapshot.getBin("recipients").add(angelo);
         Iterator iterator = snapshot.getBin("recipients").find("lastNameFirst", new Comparable[] { "Silvestri" });
 
         assertTrue(iterator.hasNext());
@@ -454,7 +446,7 @@ extends TestCase
         assertEquals(angelo, iterator.next());
         assertFalse(iterator.hasNext());
 
-        snapshot.getBin("recipients").update(marshaller, person.getKey(), frank);
+        snapshot.getBin("recipients").update(person.getKey(), frank);
 
         snapshot.commit();
 
@@ -495,12 +487,9 @@ extends TestCase
             Depot.Bin.Creator recipients = creator.newBin("recipients");
             Depot.Index.Creator newIndex = recipients.newIndex("lastNameFirst");
             newIndex.setExtractor(new FieldExtractor());
-            newIndex.setUnmarshaller(new Depot.SerializationUnmarshaller());
             newIndex.setUnique(true);
             depot = creator.create(file);
         }
-
-        Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
 
         depot.newSnapshot().commit();
 
@@ -511,11 +500,11 @@ extends TestCase
         Recipient frank2 = new Recipient("frank@thinknola.com", "Angelo", "Silvestri");
 
         Depot.Snapshot snapshot = depot.newSnapshot();
-        snapshot.getBin("recipients").add(marshaller, alan1);
+        snapshot.getBin("recipients").add(alan1);
         boolean exceptional = false;
         try
         {
-            snapshot.getBin("recipients").add(marshaller, alan2);
+            snapshot.getBin("recipients").add(alan2);
         }
         catch (Depot.Error e)
         {
@@ -524,12 +513,12 @@ extends TestCase
         }
         assertTrue(exceptional);
 
-        snapshot.getBin("recipients").add(marshaller, frank);
-        snapshot.getBin("recipients").add(marshaller, angelo);
+        snapshot.getBin("recipients").add(frank);
+        snapshot.getBin("recipients").add(angelo);
         exceptional = false;
         try
         {
-            snapshot.getBin("recipients").add(marshaller, frank2);
+            snapshot.getBin("recipients").add(frank2);
         }
         catch (Depot.Error e)
         {
@@ -550,7 +539,7 @@ extends TestCase
         exceptional = false;
         try
         {
-            snapshot.getBin("recipients").add(marshaller, frank2);
+            snapshot.getBin("recipients").add(frank2);
         }
         catch (Depot.Error e)
         {
@@ -571,22 +560,19 @@ extends TestCase
             Depot.Bin.Creator recipients = creator.newBin("recipients");
             Depot.Index.Creator newIndex = recipients.newIndex("lastNameFirst");
             newIndex.setExtractor(new FieldExtractor());
-            newIndex.setUnmarshaller(new Depot.SerializationUnmarshaller());
             newIndex.setUnique(true);
             depot = creator.create(file);
         }
-
-        Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
 
         depot.newSnapshot().commit();
 
         Recipient alan = new Recipient("alan@blogometer.com", "Alan", "Gutierrez");
 
         Depot.Snapshot one = depot.newSnapshot();
-        one.getBin("recipients").add(marshaller, alan);
+        one.getBin("recipients").add(alan);
 
         Depot.Snapshot two = depot.newSnapshot();
-        two.getBin("recipients").add(marshaller, alan);
+        two.getBin("recipients").add(alan);
 
         two.commit();
 
@@ -611,21 +597,18 @@ extends TestCase
             Depot.Bin.Creator recipients = creator.newBin("recipients");
             Depot.Index.Creator newIndex = recipients.newIndex("lastNameFirst");
             newIndex.setExtractor(new FieldExtractor());
-            newIndex.setUnmarshaller(new Depot.SerializationUnmarshaller());
             newIndex.setUnique(true);
             depot = creator.create(file);
         }
 
-        Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
-
         Recipient alan = new Recipient("alan@blogometer.com", "Alan", "Gutierrez");
 
         Depot.Snapshot one = depot.newSnapshot();
-        one.getBin("recipients").add(marshaller, alan);
+        one.getBin("recipients").add(alan);
 
         Depot.Test test = Depot.newTest();
         final Depot.Snapshot two = depot.newSnapshot(test);
-        two.getBin("recipients").add(marshaller, alan);
+        two.getBin("recipients").add(alan);
 
         new Thread(new Runnable()
         {
@@ -660,12 +643,10 @@ extends TestCase
             depot = creator.create(file);
         }
 
-        Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
-
         Recipient alan1 = new Recipient("alan@blogometer.com", "Alan", "Gutierrez");
 
         Depot.Snapshot one = depot.newSnapshot();
-        Depot.Bag person = one.getBin("recipients").add(marshaller, alan1);
+        Depot.Bag person = one.getBin("recipients").add(alan1);
 
         one.commit();
 
@@ -675,11 +656,11 @@ extends TestCase
 
         Depot.Snapshot two = depot.newSnapshot();
         person = two.getBin("recipients").get(unmarshaller, person.getKey());
-        two.getBin("recipients").update(marshaller, person.getKey(), alan2);
+        two.getBin("recipients").update(person.getKey(), alan2);
 
         Depot.Snapshot three = depot.newSnapshot();
         person = three.getBin("recipients").get(unmarshaller, person.getKey());
-        three.getBin("recipients").update(marshaller, person.getKey(), alan2);
+        three.getBin("recipients").update(person.getKey(), alan2);
 
         three.commit();
 
@@ -706,12 +687,10 @@ extends TestCase
             depot = creator.create(file);
         }
 
-        Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
-
         Recipient alan1 = new Recipient("alan@blogometer.com", "Alan", "Gutierrez");
 
         Depot.Snapshot one = depot.newSnapshot();
-        Depot.Bag person = one.getBin("recipients").add(marshaller, alan1);
+        Depot.Bag person = one.getBin("recipients").add(alan1);
 
         one.commit();
 
@@ -721,12 +700,12 @@ extends TestCase
 
         Depot.Snapshot two = depot.newSnapshot();
         person = two.getBin("recipients").get(unmarshaller, person.getKey());
-        two.getBin("recipients").update(marshaller, person.getKey(), alan2);
+        two.getBin("recipients").update(person.getKey(), alan2);
 
         Depot.Test test = Depot.newTest();
         final Depot.Snapshot three = depot.newSnapshot(test);
         person = three.getBin("recipients").get(unmarshaller, person.getKey());
-        three.getBin("recipients").update(marshaller, person.getKey(), alan2);
+        three.getBin("recipients").update(person.getKey(), alan2);
 
         new Thread(new Runnable()
         {
@@ -778,12 +757,11 @@ extends TestCase
 
         Depot.Snapshot one = depot.newSnapshot();
 
-        Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
         Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
 
-        Depot.Bag person = one.getBin("recipients").add(marshaller, alan);
-        Depot.Bag message = one.getBin("messages").add(marshaller, hello);
-        Depot.Bag bounce = one.getBin("bounces").add(marshaller, received);
+        Depot.Bag person = one.getBin("recipients").add(alan);
+        Depot.Bag message = one.getBin("messages").add(hello);
+        Depot.Bag bounce = one.getBin("bounces").add(received);
 
         one.commit();
 
@@ -860,12 +838,11 @@ extends TestCase
 
         Depot.Snapshot one = depot.newSnapshot();
 
-        Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
         Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
 
-        Depot.Bag person = one.getBin("recipients").add(marshaller, alan);
-        Depot.Bag message = one.getBin("messages").add(marshaller, hello);
-        Depot.Bag bounce = one.getBin("bounces").add(marshaller, received);
+        Depot.Bag person = one.getBin("recipients").add(alan);
+        Depot.Bag message = one.getBin("messages").add(hello);
+        Depot.Bag bounce = one.getBin("bounces").add(received);
 
         one.commit();
 
@@ -940,11 +917,10 @@ extends TestCase
         }
 
         Depot.Snapshot snapshot = depot.newSnapshot();
-        Depot.Marshaller marshaller = new Depot.SerializationMarshaller();
         for (int i = 0; i < 1024; i++)
         {
             String letter = ALPHABET[i % ALPHABET.length];
-            snapshot.getBin("recipients").add(marshaller, new Recipient(letter + "@alphabet.com", letter, letter));
+            snapshot.getBin("recipients").add(new Recipient(letter + "@alphabet.com", letter, letter));
         }
 
         snapshot.commit();
