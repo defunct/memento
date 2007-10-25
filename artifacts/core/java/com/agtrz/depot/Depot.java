@@ -5,6 +5,7 @@ import java.beans.BeanInfo;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
+import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -366,7 +367,17 @@ public class Depot
             }
         }
 
-        private void restore(Bag bag)
+        private void restore(Long key, Object object)
+        {
+            Bag bag = new Bag(key, snapshot.getVersion(), object);
+            insert(bag);
+            if (common.identifier <= key.intValue())
+            {
+                common.identifier = key.intValue() + 1;
+            }
+        }
+
+        private void insert(Bag bag)
         {
             Bento.OutputStream allocation = new Bento.OutputStream(mutator);
 
@@ -398,7 +409,7 @@ public class Depot
         {
             Bag bag = new Bag(common.nextIdentifier(), snapshot.getVersion(), object);
 
-            restore(bag);
+            insert(bag);
 
             return bag;
         }
@@ -660,6 +671,11 @@ public class Depot
             return index.first(snapshot, mutator, this);
         }
 
+        public Cursor first()
+        {
+            return first(schema.unmarshaller);
+        }
+
         public Cursor first(Unmarshaller unmarshaller)
         {
             return new Cursor(snapshot, mutator, isolation.first(), schema.getStrata().query(BentoStorage.txn(mutator)).first(), unmarshaller);
@@ -793,7 +809,7 @@ public class Depot
                 {
                     Map.Entry entry = (Map.Entry) entries.next();
                     String name = (String) entry.getKey();
-                    Index.Schema schema = (Index.Schema) mapOfIndexSchemas.get(name);
+                    Index.Schema schema = (Index.Schema) mapOfIndexStratas.get(name);
                     mapOfIndexSchemas.put(name, schema.toSchema());
                 }
                 return mapOfIndexSchemas;
@@ -1168,6 +1184,55 @@ public class Depot
             this.file = file;
             this.bento = bento;
             this.snapshots = mutations;
+        }
+    }
+
+    public final static class Loader
+    {
+        public Depot load(ObjectInputStream in, File file)
+        {
+            Restoration.Schema schema;
+            try
+            {
+                schema = (Restoration.Schema) in.readObject();
+            }
+            catch (IOException e)
+            {
+                throw new Danger("io", e, 400);
+            }
+            catch (ClassNotFoundException e)
+            {
+                throw new Danger("class.not.found", e, 400);
+            }
+            Depot depot = schema.newDepot(file);
+            Snapshot snapshot = depot.newSnapshot();
+            for (;;)
+            {
+                Restoration.Insert insert;
+                try
+                {
+                    insert = (Restoration.Insert) in.readObject();
+                }
+                catch (EOFException e)
+                {
+                    break;
+                }
+                catch (IOException e)
+                {
+                    throw new Danger("io", e, 400);
+                }
+                catch (ClassNotFoundException e)
+                {
+                    throw new Danger("class.not.found", e, 400);
+                }
+                if (insert == null)
+                {
+                    break;
+                }
+                insert.insert(snapshot);
+            }
+            snapshot.commit();
+            return depot;
         }
     }
 
@@ -1618,10 +1683,10 @@ public class Depot
 
         public Cursor find(Map mapOfKeys)
         {
-            if (mapOfKeys.size() == 0)
-            {
-                throw new IllegalArgumentException();
-            }
+//            if (mapOfKeys.size() == 0)
+//            {
+//                throw new IllegalArgumentException();
+//            }
             Iterator fields = mapOfKeys.keySet().iterator();
             while (fields.hasNext())
             {
@@ -2940,7 +3005,10 @@ public class Depot
     public final static class Restoration
     {
         public final static class Schema
+        implements Serializable
         {
+            private static final long serialVersionUID = 20071025L;
+
             private final Map mapOfBinSchemas;
 
             private final Map mapOfJoinSchemas;
@@ -2950,19 +3018,19 @@ public class Depot
                 this.mapOfBinSchemas = new HashMap(mapOfBinSchemas);
                 this.mapOfJoinSchemas = new HashMap(mapOfJoinSchemas);
 
-                Iterator bins = new HashSet(mapOfBinSchemas.keySet()).iterator();
+                Iterator bins = new HashSet(this.mapOfBinSchemas.keySet()).iterator();
                 while (bins.hasNext())
                 {
                     String name = (String) bins.next();
-                    Bin.Schema schema = (Bin.Schema) mapOfBinSchemas.get(name);
-                    mapOfBinSchemas.put(name, schema.toSchema());
+                    Bin.Schema schema = (Bin.Schema) this.mapOfBinSchemas.get(name);
+                    this.mapOfBinSchemas.put(name, schema.toSchema());
                 }
-                Iterator joins = new HashSet(mapOfJoinSchemas.keySet()).iterator();
+                Iterator joins = new HashSet(this.mapOfJoinSchemas.keySet()).iterator();
                 while (joins.hasNext())
                 {
                     String name = (String) joins.next();
-                    Join.Schema schema = (Join.Schema) mapOfJoinSchemas.get(name);
-                    mapOfJoinSchemas.put(name, schema.toSchema());
+                    Depot.Join.Schema schema = (Depot.Join.Schema) this.mapOfJoinSchemas.get(name);
+                    this.mapOfJoinSchemas.put(name, schema.toSchema());
                 }
             }
 
@@ -2985,12 +3053,77 @@ public class Depot
                 while (joins.hasNext())
                 {
                     String name = (String) joins.next();
-                    Join.Schema schema = (Join.Schema) mapOfJoinSchemas.get(name);
+                    Depot.Join.Schema schema = (Depot.Join.Schema) mapOfJoinSchemas.get(name);
                     mapOfJoinSchemas.put(name, schema.toStrata(txn));
                 }
 
                 Map mapOfBinCommons = newMapOfBinCommons(mapOfBinSchemas, mutator);
                 return new Depot(empty.file, empty.bento, empty.snapshots, mapOfBinCommons, mapOfBinSchemas, mapOfJoinSchemas);
+            }
+        }
+
+        public interface Insert
+        {
+            public void insert(Snapshot snapshot);
+        }
+
+        public final static class Bag
+        implements Insert, Serializable
+        {
+            private static final long serialVersionUID = 20071025L;
+
+            private final String name;
+
+            private final Long key;
+
+            private final Object object;
+
+            public Bag(String name, Long key, Object object)
+            {
+                this.name = name;
+                this.key = key;
+                this.object = object;
+            }
+
+            public String getName()
+            {
+                return name;
+            }
+
+            public Long getKey()
+            {
+                return key;
+            }
+
+            public Object getObject()
+            {
+                return object;
+            }
+
+            public void insert(Snapshot snapshot)
+            {
+                snapshot.getBin(name).restore(key, object);
+            }
+        }
+
+        public final static class Join
+        implements Insert, Serializable
+        {
+            private static final long serialVersionUID = 20071025L;
+
+            private final String name;
+
+            private final Map mapOfKeys;
+
+            public Join(String name, Map mapOfKeys)
+            {
+                this.name = name;
+                this.mapOfKeys = mapOfKeys;
+            }
+
+            public void insert(Snapshot snapshot)
+            {
+                snapshot.getJoin(name).link(mapOfKeys);
             }
         }
     }
@@ -3080,6 +3213,37 @@ public class Depot
                 return true;
             }
             return false;
+        }
+
+        public void dump(ObjectOutputStream out) throws IOException
+        {
+            out.writeObject(new Restoration.Schema(mapOfBinSchemas, mapOfJoinSchemas));
+
+            Iterator bins = mapOfBinSchemas.keySet().iterator();
+            while (bins.hasNext())
+            {
+                String name = (String) bins.next();
+
+                Bin.Cursor bags = getBin(name).first();
+                while (bags.hasNext())
+                {
+                    Bag bag = bags.nextBag();
+                    out.writeObject(new Restoration.Bag(name, bag.getKey(), bag.getObject()));
+                }
+            }
+
+            Iterator joins = mapOfJoinSchemas.keySet().iterator();
+            while (joins.hasNext())
+            {
+                String name = (String) joins.next();
+
+                Join.Cursor links = getJoin(name).find(Collections.EMPTY_MAP);
+                while (links.hasNext())
+                {
+                    Tuple tuple = (Tuple) links.nextTuple();
+                    out.writeObject(new Restoration.Join(name, tuple.getKeys()));
+                }
+            }
         }
 
         public void commit()

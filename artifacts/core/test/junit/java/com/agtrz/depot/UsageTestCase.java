@@ -1,13 +1,23 @@
 /* Copyright Alan Gutierrez 2006 */
 package com.agtrz.depot;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.OutputStreamWriter;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
 import junit.framework.TestCase;
+
+import com.thoughtworks.xstream.XStream;
+import com.thoughtworks.xstream.io.xml.PrettyPrintWriter;
+import com.thoughtworks.xstream.io.xml.XppReader;
 
 public class UsageTestCase
 extends TestCase
@@ -939,6 +949,154 @@ extends TestCase
         }
 
         snapshot.rollback();
+    }
+
+    public void testBackup() throws IOException
+    {
+        File file = newFile();
+        Depot depot = null;
+        Depot.Creator creator = new Depot.Creator();
+        {
+            Depot.Bin.Creator recipients = creator.newBin("recipients");
+            Depot.Bin.Creator messages = creator.newBin("messages");
+            Depot.Bin.Creator bounces = creator.newBin("bounces");
+
+            Depot.Index.Creator firstNameLast = recipients.newIndex("firstNameLast");
+            firstNameLast.setExtractor(new FieldExtractor());
+            firstNameLast.setNotNull(true);
+            firstNameLast.setUnique(true);
+
+            Depot.Join.Creator newJoin = creator.newJoin("messages");
+
+            newJoin.add(recipients.getName());
+            newJoin.add(messages.getName());
+            newJoin.add(bounces.getName());
+
+            newJoin.alternate(new String[] { "messages", "recipients", "bounces" });
+
+            depot = creator.create(file);
+        }
+
+        Recipient alan = new Recipient("alan@blogometer.com", "Alan", "Gutierrez");
+        Message hello = new Message("Hello, World!");
+        Bounce received = new Bounce(false);
+
+        Depot.Snapshot snapshot = depot.newSnapshot();
+
+        Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
+
+        Depot.Bag person = snapshot.getBin("recipients").add(alan);
+        Depot.Bag message = snapshot.getBin("messages").add(hello);
+        Depot.Bag bounce = snapshot.getBin("bounces").add(received);
+
+        Map select = new HashMap();
+
+        select.put("recipients", person.getKey());
+        select.put("messages", message.getKey());
+        select.put("bounces", bounce.getKey());
+
+        Map relink = new HashMap(select);
+
+        snapshot.getJoin("messages").link(select);
+
+        Long keyOfPerson = person.getKey();
+
+        select.clear();
+
+        select.put("recipients", person.getKey());
+        Iterator linked = snapshot.getJoin("messages").find(select);
+
+        assertTrue(linked.hasNext());
+        while (linked.hasNext())
+        {
+            Depot.Tuple tuple = (Depot.Tuple) linked.next();
+            assertEquals(alan, tuple.getBag(unmarshaller, "recipients").getObject());
+        }
+
+        snapshot.commit();
+
+        snapshot = depot.newSnapshot();
+
+        person = snapshot.getBin("recipients").get(unmarshaller, keyOfPerson);
+
+        select.clear();
+        select.put("recipients", person.getKey());
+        linked = snapshot.getJoin("messages").find(select);
+
+        Depot.Tuple tuple = null;
+        assertTrue(linked.hasNext());
+        while (linked.hasNext())
+        {
+            tuple = (Depot.Tuple) linked.next();
+            assertEquals(alan, tuple.getBag(unmarshaller, "recipients").getObject());
+        }
+
+        select.clear();
+
+        select.put("recipients", tuple.getBag(unmarshaller, "recipients").getKey());
+        select.put("messages", tuple.getBag(unmarshaller, "messages").getKey());
+        select.put("bounces", tuple.getBag(unmarshaller, "bounces").getKey());
+
+        snapshot.getJoin("messages").unlink(select);
+
+        select.clear();
+        select.put("recipients", person.getKey());
+        linked = snapshot.getJoin("messages").find(select);
+
+        assertFalse(linked.hasNext());
+
+        snapshot.commit();
+
+        snapshot = depot.newSnapshot();
+
+        person = snapshot.getBin("recipients").get(unmarshaller, keyOfPerson);
+
+        select.clear();
+        select.put("recipients", person.getKey());
+        linked = snapshot.getJoin("messages").find(select);
+
+        assertFalse(linked.hasNext());
+
+        snapshot.commit();
+
+        snapshot = depot.newSnapshot();
+
+        snapshot.getJoin("messages").link(relink);
+
+        snapshot.commit();
+
+        snapshot = depot.newSnapshot();
+
+        XStream xstream = new XStream();
+        ObjectOutputStream out = xstream.createObjectOutputStream(new PrettyPrintWriter(new OutputStreamWriter(System.out, "UTF-8")), "depot");
+        snapshot.dump(out);
+        out.close();
+
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        out = xstream.createObjectOutputStream(new PrettyPrintWriter(new OutputStreamWriter(bytes, "UTF-8")), "depot");
+        snapshot.dump(out);
+        out.close();
+
+        snapshot.rollback();
+
+        depot.close();
+
+        ObjectInputStream in = xstream.createObjectInputStream(new XppReader(new InputStreamReader(new ByteArrayInputStream(bytes.toByteArray()), "UTF-8")));
+
+        File recovered = newFile();
+        depot = new Depot.Loader().load(in, recovered);
+
+        snapshot = depot.newSnapshot();
+
+        select.put("recipients", person.getKey());
+        linked = snapshot.getJoin("messages").find(select);
+
+        assertTrue(linked.hasNext());
+        while (linked.hasNext())
+        {
+            tuple = (Depot.Tuple) linked.next();
+            assertEquals(alan, tuple.getBag(unmarshaller, "recipients").getObject());
+        }
     }
 }
 
