@@ -898,21 +898,6 @@ extends TestCase
         fail("Expected exception not thrown.");
     }
 
-    // public void testThought()
-    // {
-    // for (;;)
-    // {
-    // try
-    // {
-    // break;
-    // }
-    // finally
-    // {
-    // continue;
-    // }
-    // }
-    // }
-
     private final static String[] ALPHABET = new String[] { "alpha", "beta", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india", "juliet", "kilo", "lima", "mike", "november", "oscar", "papa", "quebec", "romeo", "sierra", "tango", "uniform", "victor", "whisky", "yankee", "x-ray", "zebra" };
 
     public void testBinCursor()
