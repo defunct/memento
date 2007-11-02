@@ -1053,12 +1053,14 @@ extends TestCase
         snapshot = depot.newSnapshot();
 
         XStream xstream = new XStream();
-        ObjectOutputStream out = xstream.createObjectOutputStream(new PrettyPrintWriter(new OutputStreamWriter(System.out, "UTF-8")), "depot");
-        snapshot.dump(out);
-        out.close();
+        // ObjectOutputStream out = xstream.createObjectOutputStream(new
+        // PrettyPrintWriter(new OutputStreamWriter(System.out, "UTF-8")),
+        // "depot");
+        // snapshot.dump(out);
+        // out.close();
 
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        out = xstream.createObjectOutputStream(new PrettyPrintWriter(new OutputStreamWriter(bytes, "UTF-8")), "depot");
+        ObjectOutputStream out = xstream.createObjectOutputStream(new PrettyPrintWriter(new OutputStreamWriter(bytes, "UTF-8")), "depot");
         snapshot.dump(out);
         out.close();
 
