@@ -8,15 +8,34 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.io.Reader;
+import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import junit.framework.TestCase;
+import nu.xom.Document;
+import nu.xom.Element;
+import nu.xom.ParsingException;
+import nu.xom.Serializer;
+
+import org.xmlpull.mxp1.MXParser;
+import org.xmlpull.v1.XmlPullParser;
+import org.xmlpull.v1.XmlPullParserException;
 
 import com.thoughtworks.xstream.XStream;
+import com.thoughtworks.xstream.converters.Converter;
+import com.thoughtworks.xstream.converters.MarshallingContext;
+import com.thoughtworks.xstream.converters.UnmarshallingContext;
+import com.thoughtworks.xstream.io.HierarchicalStreamReader;
+import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
 import com.thoughtworks.xstream.io.xml.PrettyPrintWriter;
+import com.thoughtworks.xstream.io.xml.XmlFriendlyReplacer;
 import com.thoughtworks.xstream.io.xml.XppReader;
 
 public class UsageTestCase
@@ -1084,6 +1103,137 @@ extends TestCase
             tuple = (Depot.Tuple) linked.next();
             assertEquals(alan, tuple.getBag(unmarshaller, "recipients").getObject());
         }
+    }
+
+    public static class ExposedXppReader
+    extends XppReader
+    {
+        private XmlPullParser parser;
+
+        public ExposedXppReader(Reader reader)
+        {
+            this(reader, new XmlFriendlyReplacer());
+        }
+
+        public ExposedXppReader(Reader reader, XmlFriendlyReplacer replacer)
+        {
+            super(reader, replacer);
+        }
+
+        protected XmlPullParser createParser()
+        {
+            parser = new MXParser();
+            try
+            {
+                parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true);
+            }
+            catch (XmlPullParserException e)
+            {
+                throw new Error(e);
+            }
+            return parser;
+        }
+
+        public XmlPullParser getParser()
+        {
+            return parser;
+        }
+    }
+
+    public final static class XOMConverter
+    implements Converter
+    {
+        private final Serializer serializer;
+
+        public XOMConverter(OutputStream out)
+        {
+            try
+            {
+                serializer = new Serializer(out, "UTF-8")
+                {
+                    public void write(Document document) throws IOException
+                    {
+                        write(document.getRootElement());
+                        flush();
+                    }
+                };
+            }
+            catch (UnsupportedEncodingException e)
+            {
+                throw new Error(e);
+            }
+        }
+
+        public boolean canConvert(Class type)
+        {
+            return type.equals(Document.class);
+        }
+
+        public void marshal(Object object, HierarchicalStreamWriter writer, MarshallingContext context)
+        {
+            writer.setValue("");
+            writer.flush();
+            try
+            {
+                serializer.write((Document) object);
+            }
+            catch (IOException e)
+            {
+                new ParsingException("Cannot write XML document.", e);
+            }
+            writer.flush();
+        }
+
+        public Object unmarshal(HierarchicalStreamReader reader, UnmarshallingContext context)
+        {
+            ExposedXppReader xReader = (ExposedXppReader) reader.underlyingReader();
+            XmlPullParser parser = xReader.getParser();
+            Document document = null;
+            try
+            {
+                System.out.println(parser.getName());
+                assert parser.nextTag() == XmlPullParser.START_TAG;
+                Element element = new Element(parser.getName(), parser.getNamespace());
+                for (int i = 0; i < parser.getAttributeCount(); i++)
+                {
+                    System.out.println(parser.getAttributeNamespace(i));
+                }
+                document = new Document(element);
+            }
+            catch (Exception e)
+            {
+                throw new Error("Cannot parse XML document.", e);
+            }
+            return document;
+        }
+    }
+
+    public void testXStream() throws UnsupportedEncodingException, IOException, ClassNotFoundException
+    {
+        List list = new ArrayList();
+        Element element = new Element("document", "http://foo.com/");
+        element.addNamespaceDeclaration("xhtml", "http://www.w3.org/1999/xhtml");
+        Document document = new Document(element);
+        list.add(document);
+
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+
+        XStream xstream = new XStream();
+        xstream.registerConverter(new XOMConverter(bytes));
+
+        ObjectOutputStream out = xstream.createObjectOutputStream(new PrettyPrintWriter(new OutputStreamWriter(bytes, "UTF-8")), "depot");
+        out.writeObject(list);
+        out.close();
+
+        System.out.println(bytes.toString());
+
+        ObjectInputStream in = xstream.createObjectInputStream(new ExposedXppReader(new InputStreamReader(new ByteArrayInputStream(bytes.toByteArray()), "UTF-8")));
+        list = (List) in.readObject();
+
+        document = (Document) list.get(0);
+        assertEquals("document", document.getRootElement().getLocalName());
+
+        new Serializer(System.out, "UTF-8").write(document);
     }
 }
 
