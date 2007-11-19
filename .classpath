@@ -14,5 +14,6 @@
 	<classpathentry combineaccessrules="false" kind="src" path="/strata"/>
 	<classpathentry kind="lib" path="/mix/lib/xstream/xstream-1.2.jar"/>
 	<classpathentry kind="lib" path="/mix/lib/xpp/xpp3_min-1.1.3.4.O.jar"/>
+	<classpathentry kind="lib" path="/mix/lib/xmlunit/xmlunit1.0.jar"/>
 	<classpathentry kind="output" path="ERRORS-IN-PATH"/>
 </classpath>

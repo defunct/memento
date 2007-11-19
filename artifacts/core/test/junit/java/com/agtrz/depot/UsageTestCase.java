@@ -18,12 +18,20 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import junit.framework.TestCase;
+import javax.xml.parsers.ParserConfigurationException;
+
+import nu.xom.Attribute;
+import nu.xom.Builder;
+import nu.xom.Comment;
 import nu.xom.Document;
 import nu.xom.Element;
 import nu.xom.ParsingException;
 import nu.xom.Serializer;
+import nu.xom.Text;
+import nu.xom.ValidityException;
 
+import org.custommonkey.xmlunit.XMLTestCase;
+import org.xml.sax.SAXException;
 import org.xmlpull.mxp1.MXParser;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
@@ -39,7 +47,7 @@ import com.thoughtworks.xstream.io.xml.XmlFriendlyReplacer;
 import com.thoughtworks.xstream.io.xml.XppReader;
 
 public class UsageTestCase
-extends TestCase
+extends XMLTestCase
 {
     private final static String RECIPIENTS = "recipients";
 
@@ -1184,6 +1192,132 @@ extends TestCase
             writer.flush();
         }
 
+        private Attribute.Type getAttributeType(String type)
+        {
+            if (type.equals("CDATA"))
+            {
+                return Attribute.Type.CDATA;
+            }
+            if (type.equals("ENTITIES"))
+            {
+                return Attribute.Type.ENTITIES;
+            }
+            if (type.equals("ENTITY"))
+            {
+                return Attribute.Type.ENTITY;
+            }
+            if (type.equals("ENUMERATION"))
+            {
+                return Attribute.Type.ENUMERATION;
+            }
+            if (type.equals("ID"))
+            {
+                return Attribute.Type.ID;
+            }
+            if (type.equals("IDREF"))
+            {
+                return Attribute.Type.IDREF;
+            }
+            if (type.equals("IDREFS"))
+            {
+                return Attribute.Type.IDREFS;
+            }
+            if (type.equals("NMTOKEN"))
+            {
+                return Attribute.Type.NMTOKEN;
+            }
+            if (type.equals("NMTOKENS"))
+            {
+                return Attribute.Type.NMTOKENS;
+            }
+            if (type.equals("NOTATION"))
+            {
+                return Attribute.Type.NOTATION;
+            }
+            if (type.equals("UNDECLARED"))
+            {
+                return Attribute.Type.UNDECLARED;
+            }
+            throw new IllegalStateException();
+        }
+
+        private Element readElement(XmlPullParser parser) throws XmlPullParserException
+        {
+            Element element = null;
+            if (parser.getNamespace().equals(""))
+            {
+                element = new Element(parser.getName());
+            }
+            else
+            {
+                String prefix = parser.getPrefix();
+                String name = parser.getName();
+                String namespace = parser.getNamespace();
+                if (prefix != null)
+                {
+                    name = prefix + ':' + name;
+                }
+                element = new Element(name, namespace);
+            }
+            int start = parser.getNamespaceCount(parser.getDepth() - 1);
+            int end = parser.getNamespaceCount(parser.getDepth());
+            for (int i = start; i < end; i++)
+            {
+                String prefix = parser.getNamespacePrefix(i);
+                String namespace = parser.getNamespaceUri(i);
+                if (prefix != null)
+                {
+                    element.addNamespaceDeclaration(prefix, namespace);
+                }
+            }
+            end = parser.getAttributeCount();
+            for (int i = 0; i < end; i++)
+            {
+                Attribute attribute = null;
+                String name = parser.getAttributeName(i);
+                String value = parser.getAttributeValue(i);
+                Attribute.Type type = getAttributeType(parser.getAttributeType(i));
+                if (parser.getAttributeNamespace(i).equals(""))
+                {
+                    attribute = new Attribute(name, value, type);
+                }
+                else
+                {
+                    String namespace = parser.getAttributeNamespace(i);
+                    attribute = new Attribute(namespace, name, value, type);
+                }
+                element.addAttribute(attribute);
+            }
+            return element;
+        }
+
+        private void next(Element element, XmlPullParser parser) throws XmlPullParserException, IOException
+        {
+            int type = 0;
+            while ((type = parser.nextToken()) != XmlPullParser.END_TAG)
+            {
+                switch (type)
+                {
+                    case XmlPullParser.START_TAG:
+                        Element child = readElement(parser);
+                        element.appendChild(child);
+                        next(child, parser);
+                        break;
+                    case XmlPullParser.TEXT:
+                        Text text = new Text(parser.getText());
+                        element.appendChild(text);
+                        break;
+                    case XmlPullParser.COMMENT:
+                        Comment comment = new Comment(parser.getText());
+                        element.appendChild(comment);
+                        break;
+                    default:
+                        throw new IllegalStateException();
+                }
+            }
+
+        }
+
         public Object unmarshal(HierarchicalStreamReader reader, UnmarshallingContext context)
         {
             ExposedXppReader xReader = (ExposedXppReader) reader.underlyingReader();
@@ -1191,14 +1325,10 @@ extends TestCase
             Document document = null;
             try
             {
-                System.out.println(parser.getName());
-                assert parser.nextTag() == XmlPullParser.START_TAG;
-                Element element = new Element(parser.getName(), parser.getNamespace());
-                for (int i = 0; i < parser.getAttributeCount(); i++)
-                {
-                    System.out.println(parser.getAttributeNamespace(i));
-                }
+                parser.nextTag();
+                Element element = readElement(parser);
                 document = new Document(element);
+                next(element, parser);
             }
             catch (Exception e)
             {
@@ -1208,13 +1338,13 @@ extends TestCase
         }
     }
 
-    public void testXStream() throws UnsupportedEncodingException, IOException, ClassNotFoundException
+    public void saveRestore(String file) throws ValidityException, ParsingException, IOException, ClassNotFoundException, SAXException, ParserConfigurationException
     {
+        Builder builder = new Builder();
+        Document control = builder.build(getClass().getResourceAsStream(file));
+
         List list = new ArrayList();
-        Element element = new Element("document", "http://foo.com/");
-        element.addNamespaceDeclaration("xhtml", "http://www.w3.org/1999/xhtml");
-        Document document = new Document(element);
-        list.add(document);
+        list.add(control);
 
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 
@@ -1230,10 +1360,23 @@ extends TestCase
         ObjectInputStream in = xstream.createObjectInputStream(new ExposedXppReader(new InputStreamReader(new ByteArrayInputStream(bytes.toByteArray()), "UTF-8")));
         list = (List) in.readObject();
 
-        document = (Document) list.get(0);
-        assertEquals("document", document.getRootElement().getLocalName());
+        Document actual = (Document) list.get(0);
 
-        new Serializer(System.out, "UTF-8").write(document);
+        assertXMLEqual(control.toXML(), actual.toXML());
+
+        new Serializer(System.out, "UTF-8").write(actual);
+    }
+
+    public void testXStream() throws UnsupportedEncodingException, IOException, ClassNotFoundException, ValidityException, ParsingException, SAXException, ParserConfigurationException
+    {
+        saveRestore("document.xml");
+        saveRestore("document-ns.xml");
+        saveRestore("text.xml");
+        saveRestore("child.xml");
+        saveRestore("child-text.xml");
+        saveRestore("children.xml");
+        saveRestore("mixed.xml");
+        saveRestore("comment.xml");
     }
 }
 
