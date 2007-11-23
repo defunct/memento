@@ -981,34 +981,39 @@ public class Depot
                         first[0] = record;
                     }
                 }
-                Record candidate = first[0];
-                for (;;)
+                Record candidate;
+                do
                 {
+                    candidate = first[0];
+                    for (;;)
+                    {
+                        if (candidate == null)
+                        {
+                            break;
+                        }
+                        if (!cursor.hasNext())
+                        {
+                            cursor.release();
+                            first[0] = null;
+                            break;
+                        }
+                        Record record = (Record) cursor.next();
+                        if (!first[0].key.equals(record.key))
+                        {
+                            first[0] = record;
+                            break;
+                        }
+                        if (isolated || snapshot.isVisible(record.version))
+                        {
+                            candidate = record;
+                        }
+                    }
                     if (candidate == null)
                     {
-                        break;
-                    }
-                    if (!cursor.hasNext())
-                    {
-                        cursor.release();
-                        first[0] = null;
-                        break;
-                    }
-                    Record record = (Record) cursor.next();
-                    if (!first[0].key.equals(record.key))
-                    {
-                        first[0] = record;
-                        break;
-                    }
-                    if (isolated || snapshot.isVisible(record.version))
-                    {
-                        candidate = record;
+                        return null;
                     }
                 }
-                if (candidate == null)
-                {
-                    return null;
-                }
+                while (candidate.address.equals(Bento.NULL_ADDRESS));
                 Bento.Block block = mutator.load(candidate.address);
                 Object object = unmarshaller.unmarshall(new ByteBufferInputStream(block.toByteBuffer(), false));
                 return new Bag(candidate.key, candidate.version, object);
@@ -1683,10 +1688,10 @@ public class Depot
 
         public Cursor find(Map mapOfKeys)
         {
-//            if (mapOfKeys.size() == 0)
-//            {
-//                throw new IllegalArgumentException();
-//            }
+            // if (mapOfKeys.size() == 0)
+            // {
+            // throw new IllegalArgumentException();
+            // }
             Iterator fields = mapOfKeys.keySet().iterator();
             while (fields.hasNext())
             {
