@@ -36,6 +36,8 @@ import org.xmlpull.mxp1.MXParser;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
+import EDU.oswego.cs.dl.util.concurrent.NullSync;
+
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.converters.Converter;
 import com.thoughtworks.xstream.converters.MarshallingContext;
@@ -143,7 +145,7 @@ extends XMLTestCase
         assertNull(recipient);
 
         Depot.Test test = Depot.newTest();
-        final Depot.Snapshot three = depot.newSnapshot(test);
+        final Depot.Snapshot three = depot.newSnapshot(test, new NullSync());
         recipient = three.getBin("recipients").add(bart);
 
         Long keyOfBart = recipient.getKey();
@@ -644,7 +646,7 @@ extends XMLTestCase
         one.getBin("recipients").add(alan);
 
         Depot.Test test = Depot.newTest();
-        final Depot.Snapshot two = depot.newSnapshot(test);
+        final Depot.Snapshot two = depot.newSnapshot(test, new NullSync());
         two.getBin("recipients").add(alan);
 
         new Thread(new Runnable()
@@ -740,7 +742,7 @@ extends XMLTestCase
         two.getBin("recipients").update(person.getKey(), alan2);
 
         Depot.Test test = Depot.newTest();
-        final Depot.Snapshot three = depot.newSnapshot(test);
+        final Depot.Snapshot three = depot.newSnapshot(test, new NullSync());
         person = three.getBin("recipients").get(unmarshaller, person.getKey());
         three.getBin("recipients").update(person.getKey(), alan2);
 
@@ -817,7 +819,7 @@ extends XMLTestCase
         two.getJoin("messages").link(select);
 
         Depot.Test test = Depot.newTest();
-        final Depot.Snapshot three = depot.newSnapshot(test);
+        final Depot.Snapshot three = depot.newSnapshot(test, new NullSync());
 
         person = three.getBin("recipients").get(unmarshaller, person.getKey());
         message = three.getBin("messages").get(unmarshaller, message.getKey());
@@ -1098,7 +1100,7 @@ extends XMLTestCase
         ObjectInputStream in = xstream.createObjectInputStream(new XppReader(new InputStreamReader(new ByteArrayInputStream(bytes.toByteArray()), "UTF-8")));
 
         File recovered = newFile();
-        depot = new Depot.Loader().load(in, recovered);
+        depot = new Depot.Loader().load(in, recovered, new NullSync());
 
         snapshot = depot.newSnapshot();
 

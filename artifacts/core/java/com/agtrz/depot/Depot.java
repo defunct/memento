@@ -64,13 +64,21 @@ public class Depot
 
     private final Map mapOfJoinSchemas;
 
-    public Depot(File file, Bento bento, Strata mutations, Map mapOfBinCommons, Map mapOfBinSchemas, Map mapOfJoinSchemas)
+    private final Sync sync;
+
+    public Depot(File file, Bento bento, Strata mutations, Map mapOfBinCommons, Map mapOfBinSchemas, Map mapOfJoinSchemas, Sync sync)
     {
         this.mapOfBinCommons = mapOfBinCommons;
         this.mapOfBinSchemas = mapOfBinSchemas;
         this.mapOfJoinSchemas = mapOfJoinSchemas;
         this.snapshots = mutations;
         this.bento = bento;
+        this.sync = sync;
+    }
+
+    public Sync getSync()
+    {
+        return sync;
     }
 
     private static boolean partial(Comparable[] partial, Comparable[] full)
@@ -127,7 +135,7 @@ public class Depot
         bento.close();
     }
 
-    public synchronized Snapshot newSnapshot(Test test)
+    public synchronized Snapshot newSnapshot(Test test, Sync sync)
     {
         Long version = new Long(System.currentTimeMillis());
         Snapshot.Record record = new Snapshot.Record(version, OPERATING);
@@ -151,12 +159,35 @@ public class Depot
 
         mutator.getJournal().commit();
 
-        return new Snapshot(snapshots, mapOfBinCommons, mapOfBinSchemas, mapOfJoinSchemas, bento, setOfCommitted, test, version);
+        return new Snapshot(snapshots, mapOfBinCommons, mapOfBinSchemas, mapOfJoinSchemas, bento, setOfCommitted, test, version, sync);
+    }
+
+    public Snapshot newSnapshot(Sync sync)
+    {
+        return newSnapshot(new Test(new NullSync(), new NullSync(), new NullSync()), sync);
     }
 
     public Snapshot newSnapshot()
     {
-        return newSnapshot(new Test(new NullSync(), new NullSync(), new NullSync()));
+        try
+        {
+            sync.acquire();
+        }
+        catch (InterruptedException e)
+        {
+            throw new Depot.Error("interrupted", 1, e);
+        }
+        return newSnapshot(new Test(new NullSync(), new NullSync(), new NullSync()), sync);
+    }
+
+    public Iterator getBinNames()
+    {
+        return Collections.unmodifiableSet(mapOfBinCommons.keySet()).iterator();
+    }
+
+    public Iterator getJoinNames()
+    {
+        return Collections.unmodifiableSet(mapOfJoinSchemas.keySet()).iterator();
     }
 
     public final static class Danger
@@ -201,6 +232,13 @@ public class Depot
         public Error(String message, int code)
         {
             super(message);
+            this.code = code;
+            this.mapOfProperties = new HashMap();
+        }
+
+        public Error(String message, int code, Throwable cause)
+        {
+            super(message, cause);
             this.code = code;
             this.mapOfProperties = new HashMap();
         }
@@ -1194,7 +1232,7 @@ public class Depot
 
     public final static class Loader
     {
-        public Depot load(ObjectInputStream in, File file)
+        public Depot load(ObjectInputStream in, File file, Sync sync)
         {
             Restoration.Schema schema;
             try
@@ -1209,7 +1247,7 @@ public class Depot
             {
                 throw new Danger("class.not.found", e, 400);
             }
-            Depot depot = schema.newDepot(file);
+            Depot depot = schema.newDepot(file, sync);
             Snapshot snapshot = depot.newSnapshot();
             for (;;)
             {
@@ -1270,6 +1308,11 @@ public class Depot
         }
 
         public Depot create(File file)
+        {
+            return create(file, new NullSync());
+        }
+
+        public Depot create(File file, Sync sync)
         {
             Bento.Creator newBento = new Bento.Creator();
             newBento.addStaticPage(HEADER_URI, Bento.ADDRESS_SIZE);
@@ -1401,13 +1444,18 @@ public class Depot
             mutator.getJournal().commit();
             bento.close();
 
-            return new Depot.Opener().open(file);
+            return new Depot.Opener().open(file, sync);
         }
     }
 
     public final static class Opener
     {
         public Depot open(File file)
+        {
+            return open(file, new NullSync());
+        }
+
+        public Depot open(File file, Sync sync)
         {
             Bento.Opener opener = new Bento.Opener(file);
             Bento bento = opener.open();
@@ -1470,7 +1518,7 @@ public class Depot
             }
             versions.release();
 
-            Snapshot snapshot = new Snapshot(mutations, mapOfBinCommons, mapOfBinSchemas, mapOfJoinSchemas, bento, setOfCommitted, new Test(new NullSync(), new NullSync(), new NullSync()), new Long(0L));
+            Snapshot snapshot = new Snapshot(mutations, mapOfBinCommons, mapOfBinSchemas, mapOfJoinSchemas, bento, setOfCommitted, new Test(new NullSync(), new NullSync(), new NullSync()), new Long(0L), new NullSync());
             Iterator failures = opener.getTemporaryBlocks().iterator();
             while (failures.hasNext())
             {
@@ -1495,7 +1543,7 @@ public class Depot
                 mutator.getJournal().commit();
             }
 
-            return new Depot(file, bento, mutations, mapOfBinCommons, mapOfBinSchemas, mapOfJoinSchemas);
+            return new Depot(file, bento, mutations, mapOfBinCommons, mapOfBinSchemas, mapOfJoinSchemas, sync);
         }
     }
 
@@ -3039,7 +3087,7 @@ public class Depot
                 }
             }
 
-            public Depot newDepot(File file)
+            public Depot newDepot(File file, Sync sync)
             {
                 EmptyDepot empty = new EmptyDepot(file);
 
@@ -3063,7 +3111,7 @@ public class Depot
                 }
 
                 Map mapOfBinCommons = newMapOfBinCommons(mapOfBinSchemas, mutator);
-                return new Depot(empty.file, empty.bento, empty.snapshots, mapOfBinCommons, mapOfBinSchemas, mapOfJoinSchemas);
+                return new Depot(empty.file, empty.bento, empty.snapshots, mapOfBinCommons, mapOfBinSchemas, mapOfJoinSchemas, sync);
             }
         }
 
@@ -3161,7 +3209,9 @@ public class Depot
 
         private boolean spent;
 
-        public Snapshot(Strata snapshots, Map mapOfBinCommons, Map mapOfBinSchemas, Map mapOfJoinSchemas, Bento bento, Set setOfCommitted, Test test, Long version)
+        private final Sync sync;
+
+        public Snapshot(Strata snapshots, Map mapOfBinCommons, Map mapOfBinSchemas, Map mapOfJoinSchemas, Bento bento, Set setOfCommitted, Test test, Long version, Sync sync)
         {
             this.snapshots = snapshots;
             this.mapOfBinCommons = mapOfBinCommons;
@@ -3175,6 +3225,7 @@ public class Depot
             this.setOfCommitted = setOfCommitted;
             this.oldest = (Long) setOfCommitted.iterator().next();
             this.mapOfJanitors = new HashMap();
+            this.sync = sync;
         }
 
         public Bin getBin(String name)
@@ -3340,6 +3391,8 @@ public class Depot
             query.remove(new Comparable[] { version }, Strata.ANY);
 
             test.journalComplete.release();
+
+            sync.release();
         }
 
         public void rollback()
@@ -3363,6 +3416,8 @@ public class Depot
                 Strata.Query query = snapshots.query(BentoStorage.txn(mutator));
 
                 query.remove(new Comparable[] { version }, Strata.ANY);
+
+                sync.release();
             }
         }
 
