@@ -20,7 +20,7 @@ public class Test
 
         public final Random random;
 
-        public final Map mapOfIdentifiers;
+        public final Map<Integer, ObjectAllocation> mapOfIdentifiers;
 
         public Depot storage;
 
@@ -34,7 +34,7 @@ public class Test
             this.random = new Random();
             this.storage = storage;
             this.mutator = storage.newSnapshot();
-            this.mapOfIdentifiers = new HashMap();
+            this.mapOfIdentifiers = new HashMap<Integer, ObjectAllocation>();
         }
 
         public void reopen()
@@ -53,22 +53,22 @@ public class Test
 
         public final Object object;
 
-        public final Map mapOfRelationships;
+        public final Map<String, Set<Object>> mapOfRelationships;
 
         public ObjectAllocation(String bagName, Long key, Object object)
         {
             this.bagName = bagName;
             this.key = key;
             this.object = object;
-            this.mapOfRelationships = new HashMap();
+            this.mapOfRelationships = new HashMap<String, Set<Object>>();
         }
 
         public void relate(String joinName, Long bag)
         {
-            Set setOfObjects = (Set) mapOfRelationships.get(joinName);
+            Set<Object> setOfObjects = mapOfRelationships.get(joinName);
             if (setOfObjects == null)
             {
-                setOfObjects = new HashSet();
+                setOfObjects = new HashSet<Object>();
                 mapOfRelationships.put(joinName, setOfObjects);
             }
             setOfObjects.add(bag);
@@ -170,7 +170,7 @@ public class Test
             ObjectAllocation left = (ObjectAllocation) env.mapOfIdentifiers.get(new Integer(objectCountOne));
             ObjectAllocation right = (ObjectAllocation) env.mapOfIdentifiers.get(new Integer(objectCountTwo));
 
-            Map mapOfKeys = new HashMap();
+            Map<String, Long> mapOfKeys = new HashMap<String, Long>();
 
             mapOfKeys.put(left.bagName, left.key);
             mapOfKeys.put(right.bagName, right.key);
@@ -200,14 +200,12 @@ public class Test
             Depot.Bin bin = environment.mutator.getBin(alloc.bagName);
             Depot.Bag keptObject = bin.get(unmarshaller, alloc.key);
             Assert.assertEquals(alloc.object, keptObject.getObject());
-            Iterator relationships = alloc.mapOfRelationships.entrySet().iterator();
-            while (relationships.hasNext())
+            for (Map.Entry<String, Set<Object>> entry : alloc.mapOfRelationships.entrySet())
             {
-                Map.Entry entry = (Map.Entry) relationships.next();
                 // String name = (String) entry.getKey();
-                Set setOfObjects = (Set) entry.getValue();
+                Set<Object> setOfObjects = entry.getValue();
                 int count = 0;
-                Iterator found = null; // keptObject.getLinked(name);
+                Iterator<Object> found = null; // keptObject.getLinked(name);
                 while (found.hasNext())
                 {
                     Depot.Bag[] records = (Depot.Bag[]) found.next();

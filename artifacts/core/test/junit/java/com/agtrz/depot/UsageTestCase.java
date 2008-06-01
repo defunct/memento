@@ -361,7 +361,7 @@ extends XMLTestCase
         Depot.Bag message = snapshot.getBin("messages").add(hello);
         Depot.Bag bounce = snapshot.getBin("bounces").add(received);
 
-        Map select = new HashMap();
+        Map<String, Long> select = new HashMap<String, Long>();
 
         select.put("recipients", person.getKey());
         select.put("messages", message.getKey());
@@ -374,7 +374,7 @@ extends XMLTestCase
         select.clear();
 
         select.put("recipients", person.getKey());
-        Iterator linked = snapshot.getJoin("messages").find(select);
+        Iterator<Depot.Tuple> linked = snapshot.getJoin("messages").find(select);
 
         assertTrue(linked.hasNext());
         while (linked.hasNext())
@@ -433,10 +433,10 @@ extends XMLTestCase
     {
         private static final long serialVersionUID = 20070403L;
 
-        public Comparable[] getFields(Object object)
+        public Comparable<?>[] getFields(Object object)
         {
             Recipient recipient = (Recipient) object;
-            return new Comparable[] { recipient.getLastName(), recipient.getFirstName() };
+            return new Comparable<?>[] { recipient.getLastName(), recipient.getFirstName() };
         }
     }
 
@@ -469,7 +469,7 @@ extends XMLTestCase
         assertEquals(alan, person.getObject());
 
         person = snapshot.getBin("recipients").add(angelo);
-        Iterator iterator = snapshot.getBin("recipients").find("lastNameFirst", new Comparable[] { "Silvestri" });
+        Iterator<Object> iterator = snapshot.getBin("recipients").find("lastNameFirst", new Comparable[] { "Silvestri" });
 
         assertTrue(iterator.hasNext());
         assertEquals(angelo, iterator.next());
@@ -810,7 +810,7 @@ extends XMLTestCase
         message = two.getBin("messages").get(unmarshaller, message.getKey());
         bounce = two.getBin("bounces").get(unmarshaller, bounce.getKey());
 
-        Map select = new HashMap();
+        Map<String, Long> select = new HashMap<String, Long>();
 
         select.put("recipients", person.getKey());
         select.put("messages", message.getKey());
@@ -891,7 +891,7 @@ extends XMLTestCase
         message = two.getBin("messages").get(unmarshaller, message.getKey());
         bounce = two.getBin("bounces").get(unmarshaller, bounce.getKey());
 
-        Map select = new HashMap();
+        Map<String, Long> select = new HashMap<String, Long>();
 
         select.put("recipients", person.getKey());
         select.put("messages", message.getKey());
@@ -1003,13 +1003,13 @@ extends XMLTestCase
         Depot.Bag message = snapshot.getBin("messages").add(hello);
         Depot.Bag bounce = snapshot.getBin("bounces").add(received);
 
-        Map select = new HashMap();
+        Map<String, Long> select = new HashMap<String, Long>();
 
         select.put("recipients", person.getKey());
         select.put("messages", message.getKey());
         select.put("bounces", bounce.getKey());
 
-        Map relink = new HashMap(select);
+        Map<String, Long> relink = new HashMap<String, Long>(select);
 
         snapshot.getJoin("messages").link(select);
 
@@ -1018,7 +1018,7 @@ extends XMLTestCase
         select.clear();
 
         select.put("recipients", person.getKey());
-        Iterator linked = snapshot.getJoin("messages").find(select);
+        Iterator<Depot.Tuple> linked = snapshot.getJoin("messages").find(select);
 
         assertTrue(linked.hasNext());
         while (linked.hasNext())
@@ -1174,6 +1174,7 @@ extends XMLTestCase
             }
         }
 
+        @SuppressWarnings("unchecked")
         public boolean canConvert(Class type)
         {
             return type.equals(Document.class);
@@ -1345,7 +1346,7 @@ extends XMLTestCase
         Builder builder = new Builder();
         Document control = builder.build(getClass().getResourceAsStream(file));
 
-        List list = new ArrayList();
+        List<Document> list = new ArrayList<Document>();
         list.add(control);
 
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
@@ -1360,13 +1361,19 @@ extends XMLTestCase
         System.out.println(bytes.toString());
 
         ObjectInputStream in = xstream.createObjectInputStream(new ExposedXppReader(new InputStreamReader(new ByteArrayInputStream(bytes.toByteArray()), "UTF-8")));
-        list = (List) in.readObject();
+        list = cast(in.readObject());
 
         Document actual = (Document) list.get(0);
 
         assertXMLEqual(control.toXML(), actual.toXML());
 
         new Serializer(System.out, "UTF-8").write(actual);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Document> cast(Object in) throws IOException, ClassNotFoundException
+    {
+        return (List<Document>) in;
     }
 
     public void testXStream() throws UnsupportedEncodingException, IOException, ClassNotFoundException, ValidityException, ParsingException, SAXException, ParserConfigurationException
