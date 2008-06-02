@@ -27,10 +27,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
-import EDU.oswego.cs.dl.util.concurrent.Latch;
-import EDU.oswego.cs.dl.util.concurrent.NullSync;
-import EDU.oswego.cs.dl.util.concurrent.Sync;
-
 import com.agtrz.pack.Pack;
 import com.agtrz.strata.ArrayListStorage;
 import com.agtrz.strata.Strata;
@@ -177,14 +173,7 @@ public class Depot
 
     public Snapshot newSnapshot()
     {
-        try
-        {
-            sync.acquire();
-        }
-        catch (InterruptedException e)
-        {
-            throw new Depot.Error("interrupted", 1, e);
-        }
+        sync.acquire();
         return newSnapshot(new Test(new NullSync(), new NullSync(), new NullSync()), sync);
     }
 
@@ -3484,6 +3473,54 @@ public class Depot
     {
         return new Test(new Latch(), new Latch(), new Latch());
     }
+    
+    public interface Sync
+    {
+        public void acquire();
+        
+        public void release();
+    }
+    
+    public final static class NullSync
+    implements Sync
+    {
+        public void acquire()
+        {
+        }
+        
+        public void release()
+        {
+        }
+    }
+    
+    public final static class Latch
+    implements Sync
+    {
+        private boolean unlatched;
+        
+        public synchronized void acquire()
+        {
+            while (!unlatched)
+            {
+                try
+                {
+                    wait();
+                }
+                catch (InterruptedException e)
+                {
+                }
+            }
+        }
+        
+        public void release()
+        {
+            if (!unlatched)
+            {
+                unlatched = true;
+                notifyAll();
+            }
+        }
+    }
 
     public final static class Test
     {
@@ -3503,26 +3540,12 @@ public class Depot
         private void changesWritten()
         {
             changesWritten.release();
-            try
-            {
-                registerMutation.acquire();
-            }
-            catch (InterruptedException e)
-            {
-                throw new RuntimeException(e);
-            }
+            registerMutation.acquire();
         }
 
         public void waitForChangesWritten()
         {
-            try
-            {
-                changesWritten.acquire();
-            }
-            catch (InterruptedException e)
-            {
-                throw new RuntimeException(e);
-            }
+            changesWritten.acquire();
         }
 
         public void registerMutation()
@@ -3532,14 +3555,7 @@ public class Depot
 
         public void waitForCompletion()
         {
-            try
-            {
-                journalComplete.acquire();
-            }
-            catch (InterruptedException e)
-            {
-                throw new RuntimeException(e);
-            }
+            journalComplete.acquire();
         }
     }
     
