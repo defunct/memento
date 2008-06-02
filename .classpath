@@ -1,18 +1,28 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <classpath>
-	<classpathentry excluding="**/.svn|**/.svn/**" kind="src" output="artifacts/core/target/classes" path="artifacts/core/java"/>
-	<classpathentry excluding="**/.svn|**/.svn/**" kind="src" output="artifacts/core/target/classes/" path="artifacts/core/resource"/>
-	<classpathentry excluding="**/.svn|**/.svn/**" kind="src" output="artifacts/core/test/junit/target/classes" path="artifacts/core/test/junit/resource"/>
-	<classpathentry excluding="**/.svn|**/.svn/**" kind="src" output="artifacts/core/test/junit/target/classes" path="artifacts/core/test/junit/java"/>
-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry kind="lib" path="/mix/lib/concurrent/concurrent.jar"/>
-	<classpathentry kind="lib" path="/mix/lib/junit/junit.jar"/>
-	<classpathentry kind="lib" path="/mix/lib/jaxen/jaxen-1.1.jar"/>
-	<classpathentry kind="lib" path="/mix/lib/xom/xom-1.1.jar"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/strata"/>
-	<classpathentry kind="lib" path="/mix/lib/xstream/xstream-1.2.jar"/>
-	<classpathentry kind="lib" path="/mix/lib/xpp/xpp3_min-1.1.3.4.O.jar"/>
-	<classpathentry kind="lib" path="/mix/lib/xmlunit/xmlunit1.0.jar"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/pack"/>
-	<classpathentry kind="output" path="ERRORS-IN-PATH"/>
+  <classpathentry kind="src" path="src/main/java"/>
+  <classpathentry kind="src" path="src/main/resources" excluding="**/*.java"/>
+  <classpathentry kind="src" path="src/test/java" output="target/test-classes"/>
+  <classpathentry kind="src" path="src/test/resources" output="target/test-classes" excluding="**/*.java"/>
+  <classpathentry kind="output" path="target/classes"/>
+  <classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+  <classpathentry kind="var" path="M2_REPO/junit/junit/4.4/junit-4.4.jar" sourcepath="M2_REPO/junit/junit/4.4/junit-4.4-sources.jar">
+    <attributes>
+      <attribute value="jar:file:/Users/alan/.m2/repository/junit/junit/4.4/junit-4.4-javadoc.jar!/" name="javadoc_location"/>
+    </attributes>
+  </classpathentry>
+  <classpathentry kind="var" path="M2_REPO/com/agtrz/pack/0.1/pack-0.1.jar" sourcepath="M2_REPO/com/agtrz/pack/0.1/pack-0.1-sources.jar">
+    <attributes>
+      <attribute value="jar:file:/Users/alan/.m2/repository/com/agtrz/pack/0.1/pack-0.1-javadoc.jar!/" name="javadoc_location"/>
+    </attributes>
+  </classpathentry>
+  <classpathentry kind="var" path="M2_REPO/com/agtrz/strata/0.1/strata-0.1.jar" sourcepath="M2_REPO/com/agtrz/strata/0.1/strata-0.1-sources.jar">
+    <attributes>
+      <attribute value="jar:file:/Users/alan/.m2/repository/com/agtrz/strata/0.1/strata-0.1-javadoc.jar!/" name="javadoc_location"/>
+    </attributes>
+  </classpathentry>
+  <classpathentry kind="var" path="M2_REPO/com/agtrz/swag-util/0.1/swag-util-0.1.jar" sourcepath="M2_REPO/com/agtrz/swag-util/0.1/swag-util-0.1-sources.jar">
+    <attributes>
+      <attribute value="jar:file:/Users/alan/.m2/repository/com/agtrz/swag-util/0.1/swag-util-0.1-javadoc.jar!/" name="javadoc_location"/>
+    </attributes>
+  </classpathentry>
 </classpath>
