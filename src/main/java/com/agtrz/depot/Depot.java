@@ -30,7 +30,7 @@ import java.util.TreeSet;
 import com.agtrz.pack.Pack;
 import com.agtrz.strata.ArrayListStorage;
 import com.agtrz.strata.Strata;
-import com.agtrz.strata.bento.BentoStorage;
+import com.agtrz.fossil.Fossil;
 
 public class Depot
 {
@@ -145,7 +145,7 @@ public class Depot
         Snapshot.Record record = new Snapshot.Record(version, OPERATING);
         Pack.Mutator mutator = pack.mutate();
 
-        Strata.Query query = snapshots.query(BentoStorage.txn(mutator));
+        Strata.Query query = snapshots.query(Fossil.txn(mutator));
 
         Set<Long> setOfCommitted = new TreeSet<Long>();
         Strata.Cursor versions = query.first();
@@ -313,7 +313,7 @@ public class Depot
             creator.setMaxDirtyTiers(5);
             creator.setSize(512);
 
-            BentoStorage.Schema newStorage = new BentoStorage.Schema();
+            Fossil.Schema newStorage = new Fossil.Schema();
 
             newStorage.setReader(new Reader());
             newStorage.setWriter(new Writer());
@@ -321,7 +321,7 @@ public class Depot
 
             creator.setStorage(newStorage);
 
-            Strata isolation = creator.newStrata(BentoStorage.txn(mutator));
+            Strata isolation = creator.newStrata(Fossil.txn(mutator));
 
             Bin.Janitor janitor = new Bin.Janitor(isolation, name);
 
@@ -344,8 +344,8 @@ public class Depot
             this.common = common;
             this.mapOfIndices = newIndexMap(snapshot, schema);
             this.schema = schema;
-            this.query = schema.getStrata().query(BentoStorage.txn(mutator));
-            this.isolation = isolation.query(BentoStorage.txn(mutator));
+            this.query = schema.getStrata().query(Fossil.txn(mutator));
+            this.isolation = isolation.query(Fossil.txn(mutator));
             this.mutator = mutator;
         }
 
@@ -713,7 +713,7 @@ public class Depot
 
         public Cursor first(Unmarshaller unmarshaller)
         {
-            return new Cursor(snapshot, mutator, isolation.first(), schema.getStrata().query(BentoStorage.txn(mutator)).first(), unmarshaller);
+            return new Cursor(snapshot, mutator, isolation.first(), schema.getStrata().query(Fossil.txn(mutator)).first(), unmarshaller);
         }
         
         
@@ -764,7 +764,7 @@ public class Depot
         }
 
         private final static class Writer
-        implements BentoStorage.Writer, Serializable
+        implements Fossil.Writer, Serializable
         {
             private static final long serialVersionUID = 20070208L;
 
@@ -778,7 +778,7 @@ public class Depot
         }
 
         private final static class Reader
-        implements BentoStorage.Reader, Serializable
+        implements Fossil.Reader, Serializable
         {
             private static final long serialVersionUID = 20070208L;
 
@@ -931,7 +931,7 @@ public class Depot
             public void rollback(Snapshot snapshot)
             {
                 Bin bin = snapshot.getBin(name);
-                Strata.Cursor cursor = isolation.query(BentoStorage.txn(bin.mutator)).first();
+                Strata.Cursor cursor = isolation.query(Fossil.txn(bin.mutator)).first();
                 while (cursor.hasNext())
                 {
                     Record record = (Record) cursor.next();
@@ -949,7 +949,7 @@ public class Depot
 
             public void dispose(Pack.Mutator mutator, boolean deallocate)
             {
-                Strata.Query query = isolation.query(BentoStorage.txn(mutator));
+                Strata.Query query = isolation.query(Fossil.txn(mutator));
                 if (deallocate)
                 {
                     Strata.Cursor cursor = query.first();
@@ -1118,7 +1118,7 @@ public class Depot
     private static Strata newJoinStrata(Pack.Mutator mutator, int size)
     {
 
-        BentoStorage.Schema newJoinStorage = new BentoStorage.Schema();
+        Fossil.Schema newJoinStorage = new Fossil.Schema();
         newJoinStorage.setWriter(new Join.Writer(size));
         newJoinStorage.setReader(new Join.Reader(size));
         newJoinStorage.setSize(SIZEOF_LONG * size + SIZEOF_LONG + SIZEOF_SHORT);
@@ -1130,7 +1130,7 @@ public class Depot
         newJoinStrata.setSize(512);
         newJoinStrata.setMaxDirtyTiers(1);
 
-        return newJoinStrata.newStrata(BentoStorage.txn(mutator));
+        return newJoinStrata.newStrata(Fossil.txn(mutator));
     }
 
     private static Join.Index newJoinIndex(Pack.Mutator mutator, Map<String, String> mapOfFields, String[] order)
@@ -1166,7 +1166,7 @@ public class Depot
             Bin.Schema binSchema = (Bin.Schema) entry.getValue();
 
             long identifer = 1L;
-            Strata.Query query = binSchema.getStrata().query(BentoStorage.txn(mutator));
+            Strata.Query query = binSchema.getStrata().query(Fossil.txn(mutator));
             Strata.Cursor last = query.first();
             // FIXME You can use hasPrevious when it is implemented.
             while (last.hasNext())
@@ -1197,7 +1197,7 @@ public class Depot
             Pack pack = newPack.create(file);
             Pack.Mutator mutator = pack.mutate();
 
-            BentoStorage.Schema newMutationStorage = new BentoStorage.Schema();
+            Fossil.Schema newMutationStorage = new Fossil.Schema();
 
             newMutationStorage.setWriter(new Snapshot.Writer());
             newMutationStorage.setReader(new Snapshot.Reader());
@@ -1209,7 +1209,7 @@ public class Depot
             newMutationStrata.setFieldExtractor(new Snapshot.Extractor());
             newMutationStrata.setSize(512);
 
-            Object txn = BentoStorage.txn(mutator);
+            Object txn = Fossil.txn(mutator);
             Strata mutations = newMutationStrata.newStrata(txn);
 
             Strata.Query query = mutations.query(txn);
@@ -1312,7 +1312,7 @@ public class Depot
             Pack bento = newBento.create(file);
             Pack.Mutator mutator = bento.mutate();
 
-            BentoStorage.Schema newMutationStorage = new BentoStorage.Schema();
+            Fossil.Schema newMutationStorage = new Fossil.Schema();
 
             newMutationStorage.setWriter(new Snapshot.Writer());
             newMutationStorage.setReader(new Snapshot.Reader());
@@ -1322,9 +1322,9 @@ public class Depot
 
             newMutationStrata.setStorage(newMutationStorage);
             newMutationStrata.setFieldExtractor(new Snapshot.Extractor());
-            newMutationStrata.setSize(512);
+            newMutationStrata.setSize(256);
 
-            Object txn = BentoStorage.txn(mutator);
+            Object txn = Fossil.txn(mutator);
             Strata mutations = newMutationStrata.newStrata(txn);
 
             Strata.Query query = mutations.query(txn);
@@ -1335,7 +1335,7 @@ public class Depot
             {
                 String name = (String) entry.getKey();
 
-                BentoStorage.Schema newBinStorage = new BentoStorage.Schema();
+                Fossil.Schema newBinStorage = new Fossil.Schema();
                 newBinStorage.setWriter(new Bin.Writer());
                 newBinStorage.setReader(new Bin.Reader());
                 newBinStorage.setSize(SIZEOF_LONG * 2 + Pack.ADDRESS_SIZE);
@@ -1347,7 +1347,7 @@ public class Depot
                 newBinStrata.setSize(512);
                 newBinStrata.setMaxDirtyTiers(1);
 
-                Strata strata = newBinStrata.newStrata(BentoStorage.txn(mutator));
+                Strata strata = newBinStrata.newStrata(Fossil.txn(mutator));
 
                 Bin.Creator newBin = (Bin.Creator) entry.getValue();
 
@@ -1356,7 +1356,7 @@ public class Depot
                 {
                     String nameOfIndex = (String) index.getKey();
 
-                    BentoStorage.Schema newIndexStorage = new BentoStorage.Schema();
+                    Fossil.Schema newIndexStorage = new Fossil.Schema();
                     newIndexStorage.setWriter(new Index.Writer());
                     newIndexStorage.setReader(new Index.Reader());
                     newIndexStorage.setSize(SIZEOF_LONG + SIZEOF_LONG + SIZEOF_SHORT);
@@ -1375,7 +1375,7 @@ public class Depot
                     newIndexStrata.setMaxDirtyTiers(1);
                     newIndexStrata.setCacheFields(true);
 
-                    Strata indexStrata = newIndexStrata.newStrata(BentoStorage.txn(mutator));
+                    Strata indexStrata = newIndexStrata.newStrata(Fossil.txn(mutator));
 
                     mapOfIndices.put(nameOfIndex, new Index.Schema(indexStrata, newIndex.extractor, newIndex.unique, newIndex.notNull, newIndex.unmarshaller));
                 }
@@ -1472,7 +1472,7 @@ public class Depot
                 Bin.Schema binSchema = (Bin.Schema) entry.getValue();
 
                 long identifer = 1L;
-                Strata.Query query = binSchema.getStrata().query(BentoStorage.txn(mutator));
+                Strata.Query query = binSchema.getStrata().query(Fossil.txn(mutator));
                 Strata.Cursor last = query.first();
                 // FIXME You can use hasPrevious when it is implemented.
                 while (last.hasNext())
@@ -1484,7 +1484,7 @@ public class Depot
 
                 mapOfBinCommons.put(entry.getKey(), new Bin.Common(identifer));
             }
-            Strata.Query query = mutations.query(BentoStorage.txn(mutator));
+            Strata.Query query = mutations.query(Fossil.txn(mutator));
 
             Set<Long> setOfCommitted = new TreeSet<Long>();
             Strata.Cursor versions = query.first();
@@ -1611,7 +1611,7 @@ public class Depot
                 creator.setMaxDirtyTiers(5);
                 creator.setSize(512);
 
-                BentoStorage.Schema newStorage = new BentoStorage.Schema();
+                Fossil.Schema newStorage = new Fossil.Schema();
 
                 newStorage.setReader(new Reader(schema.mapOfFields.size()));
                 newStorage.setWriter(new Writer(schema.mapOfFields.size()));
@@ -1619,7 +1619,7 @@ public class Depot
 
                 creator.setStorage(newStorage);
 
-                isolations[i] = creator.newStrata(BentoStorage.txn(mutator));
+                isolations[i] = creator.newStrata(Fossil.txn(mutator));
             }
 
             Janitor janitor = new Janitor(isolations, name);
@@ -1640,7 +1640,7 @@ public class Depot
             Strata.Query[] isolationQueries = new Strata.Query[isolations.length];
             for (int i = 0; i < isolations.length; i++)
             {
-                isolationQueries[i] = isolations[i].query(BentoStorage.txn(mutator));
+                isolationQueries[i] = isolations[i].query(Fossil.txn(mutator));
             }
 
             this.snapshot = snapshot;
@@ -1761,7 +1761,7 @@ public class Depot
                 }
             }
 
-            Strata.Query common = schema.indices[index].getStrata().query(BentoStorage.txn(mutator));
+            Strata.Query common = schema.indices[index].getStrata().query(Fossil.txn(mutator));
             Long[] keys = new Long[most];
             if (most == 0)
             {
@@ -1808,7 +1808,7 @@ public class Depot
         {
             for (int i = 0; i < schema.indices.length; i++)
             {
-                Strata.Query query = schema.indices[i].getStrata().query(BentoStorage.txn(mutator));
+                Strata.Query query = schema.indices[i].getStrata().query(Fossil.txn(mutator));
                 Strata.Cursor isolated = isolation[i].first();
                 while (isolated.hasNext())
                 {
@@ -1853,7 +1853,7 @@ public class Depot
         {
             for (int i = 0; i < schema.indices.length; i++)
             {
-                Strata.Query query = schema.indices[i].getStrata().query(BentoStorage.txn(mutator));
+                Strata.Query query = schema.indices[i].getStrata().query(Fossil.txn(mutator));
                 Strata.Cursor cursor = query.first();
                 Record previous = null;
                 while (cursor.hasNext() && previous == null)
@@ -1966,7 +1966,7 @@ public class Depot
         }
 
         private final static class Writer
-        implements BentoStorage.Writer, Serializable
+        implements Fossil.Writer, Serializable
         {
             private static final long serialVersionUID = 20070208L;
 
@@ -1991,7 +1991,7 @@ public class Depot
         }
 
         private final static class Reader
-        implements BentoStorage.Reader, Serializable
+        implements Fossil.Reader, Serializable
         {
             private static final long serialVersionUID = 20070208L;
 
@@ -2360,8 +2360,8 @@ public class Depot
                 Join join = snapshot.getJoin(name);
                 for (int i = 0; i < join.schema.indices.length; i++)
                 {
-                    Strata.Query query = join.schema.indices[i].getStrata().query(BentoStorage.txn(join.mutator));
-                    Strata.Cursor cursor = isolation[i].query(BentoStorage.txn(join.mutator)).first();
+                    Strata.Query query = join.schema.indices[i].getStrata().query(Fossil.txn(join.mutator));
+                    Strata.Cursor cursor = isolation[i].query(Fossil.txn(join.mutator)).first();
                     while (cursor.hasNext())
                     {
                         query.remove((Record) cursor.next());
@@ -2376,7 +2376,7 @@ public class Depot
             {
                 for (int i = 0; i < isolation.length; i++)
                 {
-                    isolation[i].query(BentoStorage.txn(mutator)).destroy();
+                    isolation[i].query(Fossil.txn(mutator)).destroy();
                 }
             }
         }
@@ -2755,7 +2755,7 @@ public class Depot
         }
 
         public final static class Writer
-        implements BentoStorage.Writer, Serializable
+        implements Fossil.Writer, Serializable
         {
             private static final long serialVersionUID = 20070208L;
 
@@ -2768,7 +2768,7 @@ public class Depot
         }
 
         public final static class Reader
-        implements BentoStorage.Reader, Serializable
+        implements Fossil.Reader, Serializable
         {
             private static final long serialVersionUID = 20070208L;
 
@@ -2828,7 +2828,7 @@ public class Depot
         }
 
         public final static class Transaction
-        implements BentoStorage.MutatorServer
+        implements Fossil.MutatorServer
         {
             public final Pack.Mutator mutator;
 
@@ -3082,7 +3082,7 @@ public class Depot
                 EmptyDepot empty = new EmptyDepot(file);
 
                 Pack.Mutator mutator = empty.pack.mutate();
-                Object txn = BentoStorage.txn(mutator);
+                Object txn = Fossil.txn(mutator);
 
                 Iterator<String> bins = new HashSet<String>(mapOfBinSchemas.keySet()).iterator();
                 while (bins.hasNext())
@@ -3334,7 +3334,7 @@ public class Depot
 
                 mutator.commit();
 
-                Strata.Query query = snapshots.query(BentoStorage.txn(mutator));
+                Strata.Query query = snapshots.query(Fossil.txn(mutator));
                 query.remove(new Comparable[] { version }, Strata.ANY);
 
                 test.journalComplete.release();
@@ -3352,7 +3352,7 @@ public class Depot
                 entry.getValue().dispose(mutator, false);
             }
 
-            Strata.Query query = snapshots.query(BentoStorage.txn(mutator));
+            Strata.Query query = snapshots.query(Fossil.txn(mutator));
 
             Record committed = new Record(version, COMMITTED);
             query.insert(committed);
@@ -3378,7 +3378,7 @@ public class Depot
                     entry.getValue().dispose(mutator, true);
                 }
 
-                Strata.Query query = snapshots.query(BentoStorage.txn(mutator));
+                Strata.Query query = snapshots.query(Fossil.txn(mutator));
 
                 query.remove(new Comparable[] { version }, Strata.ANY);
 
@@ -3430,7 +3430,7 @@ public class Depot
         }
 
         private final static class Writer
-        implements BentoStorage.Writer, Serializable
+        implements Fossil.Writer, Serializable
         {
             private static final long serialVersionUID = 20070409L;
 
@@ -3451,7 +3451,7 @@ public class Depot
         }
 
         private final static class Reader
-        implements BentoStorage.Reader, Serializable
+        implements Fossil.Reader, Serializable
         {
             private static final long serialVersionUID = 20070409L;
 

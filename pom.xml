@@ -67,12 +67,7 @@
         </dependency>
         <dependency>
             <groupId>com.agtrz</groupId>
-            <artifactId>pack</artifactId>
-            <version>0.1</version>
-        </dependency>
-        <dependency>
-            <groupId>com.agtrz</groupId>
-            <artifactId>strata</artifactId>
+            <artifactId>fossil</artifactId>
             <version>0.1</version>
         </dependency>
     </dependencies>
