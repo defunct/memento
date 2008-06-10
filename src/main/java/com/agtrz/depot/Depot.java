@@ -163,7 +163,7 @@ public class Depot
 
         mutator.commit();
 
-        return new Snapshot(snapshots, mapOfBinCommons, mapOfBinSchemas, mapOfJoinSchemas, pack, setOfCommitted, test, version, sync);
+        return new Snapshot(snapshots, mapOfBinCommons, mapOfBinSchemas, mapOfJoinSchemas, mutator, setOfCommitted, test, version, sync);
     }
 
     public Snapshot newSnapshot(Sync sync)
@@ -1442,8 +1442,8 @@ public class Depot
         public Depot open(File file, Sync sync)
         {
             Pack.Opener opener = new Pack.Opener();
-            Pack bento = opener.open(file);
-            Pack.Mutator mutator = bento.mutate();
+            Pack pack = opener.open(file);
+            Pack.Mutator mutator = pack.mutate();
             ByteBuffer block = mutator.read(mutator.getStaticPageAddress(HEADER_URI));
             long addressOfBags = block.getLong();
             Strata mutations = null;
@@ -1498,10 +1498,10 @@ public class Depot
             }
             versions.release();
 
-            Snapshot snapshot = new Snapshot(mutations, mapOfBinCommons, mapOfBinSchemas, mapOfJoinSchemas, bento, setOfCommitted, new Test(new NullSync(), new NullSync(), new NullSync()), new Long(0L), new NullSync());
+            Snapshot snapshot = new Snapshot(mutations, mapOfBinCommons, mapOfBinSchemas, mapOfJoinSchemas, pack.mutate(), setOfCommitted, new Test(new NullSync(), new NullSync(), new NullSync()), new Long(0L), new NullSync());
             for (long address : opener.getTemporaryBlocks())
             {
-                mutator = bento.mutate();
+                mutator = pack.mutate();
                 block = mutator.read(address);
                 Janitor janitor = null;
                 try
@@ -1521,7 +1521,7 @@ public class Depot
                 mutator.commit();
             }
 
-            return new Depot(file, bento, mutations, mapOfBinCommons, mapOfBinSchemas, mapOfJoinSchemas, sync);
+            return new Depot(file, pack, mutations, mapOfBinCommons, mapOfBinSchemas, mapOfJoinSchemas, sync);
         }
 
         @SuppressWarnings("unchecked")
@@ -3185,7 +3185,7 @@ public class Depot
 
         private final Set<Long> setOfCommitted;
 
-        private final Pack pack;
+        private final Pack.Mutator mutator;
 
         private final Map<String, Bin> mapOfBins;
 
@@ -3201,13 +3201,13 @@ public class Depot
 
         private final Sync sync;
 
-        public Snapshot(Strata snapshots, Map<String, Bin.Common> mapOfBinCommons, Map<String, Bin.Schema> mapOfBinSchemas, Map<String, Join.Schema> mapOfJoinSchemas, Pack pack, Set<Long> setOfCommitted, Test test, Long version, Sync sync)
+        public Snapshot(Strata snapshots, Map<String, Bin.Common> mapOfBinCommons, Map<String, Bin.Schema> mapOfBinSchemas, Map<String, Join.Schema> mapOfJoinSchemas, Pack.Mutator mutator, Set<Long> setOfCommitted, Test test, Long version, Sync sync)
         {
             this.snapshots = snapshots;
             this.mapOfBinCommons = mapOfBinCommons;
             this.mapOfBinSchemas = mapOfBinSchemas;
             this.mapOfJoinSchemas = mapOfJoinSchemas;
-            this.pack = pack;
+            this.mutator = mutator;
             this.mapOfBins = new HashMap<String, Bin>();
             this.mapOfJoins = new HashMap<String, Join>();
             this.version = version;
@@ -3226,7 +3226,7 @@ public class Depot
                 Bin.Common binCommon = (Bin.Common) mapOfBinCommons.get(name);
                 Bin.Schema binSchema = (Bin.Schema) mapOfBinSchemas.get(name);
                 // FIXME Why a new mutator every time? WRONG!
-                bin = new Bin(this, pack.mutate(), name, binCommon, binSchema, mapOfJanitors);
+                bin = new Bin(this, mutator, name, binCommon, binSchema, mapOfJanitors);
                 mapOfBins.put(name, bin);
             }
             return bin;
@@ -3238,7 +3238,7 @@ public class Depot
             if (join == null)
             {
                 Join.Schema schema = (Join.Schema) mapOfJoinSchemas.get(joinName);
-                join = new Join(this, pack.mutate(), schema, joinName, mapOfJanitors);
+                join = new Join(this, mutator, schema, joinName, mapOfJanitors);
                 mapOfJoins.put(joinName, join);
             }
             return join;
@@ -3322,8 +3322,6 @@ public class Depot
             {
                 test.changesWritten();
 
-                Pack.Mutator mutator = pack.mutate();
-
                 for (Map.Entry<Long, Janitor> entry : mapOfJanitors.entrySet())
                 {
                     entry.getValue().rollback(this);
@@ -3343,8 +3341,6 @@ public class Depot
             }
 
             test.changesWritten();
-
-            Pack.Mutator mutator = pack.mutate();
 
             for (Map.Entry<Long, Janitor> entry : mapOfJanitors.entrySet())
             {
@@ -3370,8 +3366,7 @@ public class Depot
             if (!spent)
             {
                 spent = true;
-                Pack.Mutator mutator = pack.mutate();
-
+                mutator.commit();
                 for (Map.Entry<Long, Janitor> entry : mapOfJanitors.entrySet())
                 {
                     mutator.free(entry.getKey());
