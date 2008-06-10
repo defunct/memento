@@ -311,7 +311,7 @@ public class Depot
 
             creator.setFieldExtractor(new Extractor());
             creator.setMaxDirtyTiers(5);
-            creator.setSize(512);
+            creator.setSize(240);
 
             Fossil.Schema newStorage = new Fossil.Schema();
 
@@ -1127,7 +1127,7 @@ public class Depot
 
         newJoinStrata.setStorage(newJoinStorage);
         newJoinStrata.setFieldExtractor(new Join.Extractor());
-        newJoinStrata.setSize(512);
+        newJoinStrata.setSize(180);
         newJoinStrata.setMaxDirtyTiers(1);
 
         return newJoinStrata.newStrata(Fossil.txn(mutator));
@@ -1344,7 +1344,7 @@ public class Depot
 
                 newBinStrata.setStorage(newBinStorage);
                 newBinStrata.setFieldExtractor(new Bin.Extractor());
-                newBinStrata.setSize(512);
+                newBinStrata.setSize(220);
                 newBinStrata.setMaxDirtyTiers(1);
 
                 Strata strata = newBinStrata.newStrata(Fossil.txn(mutator));
