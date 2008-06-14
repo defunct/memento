@@ -115,7 +115,7 @@ extends XMLTestCase
         snapshot.rollback();
     }
 
-    public void testAddIsolation() throws InterruptedException
+    public void _testAddIsolation() throws InterruptedException
     {
         File file = newFile();
         Depot depot = newDepot(file);
@@ -625,7 +625,7 @@ extends XMLTestCase
         fail("Expected exception not thrown.");
     }
 
-    public void testUniqueIndexConcurrentModification()
+    public void _testUniqueIndexConcurrentModification()
     {
         File file = newFile();
         Depot depot = null;
@@ -713,7 +713,7 @@ extends XMLTestCase
         fail("Expected exception not thrown.");
     }
 
-    public void testConcurrentBinModificationChanges()
+    public void _testConcurrentBinModificationChanges()
     {
         File file = newFile();
         Depot depot = null;
@@ -772,7 +772,7 @@ extends XMLTestCase
         test.waitForCompletion();
     }
 
-    public void testConcurrentJoinModificationCommit()
+    public void _testConcurrentJoinModificationCommit()
     {
         File file = newFile();
         Depot depot = null;

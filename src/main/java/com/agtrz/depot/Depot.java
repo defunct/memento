@@ -27,10 +27,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import com.agtrz.fossil.Fossil;
 import com.agtrz.pack.Pack;
 import com.agtrz.strata.ArrayListStorage;
 import com.agtrz.strata.Strata;
-import com.agtrz.fossil.Fossil;
 
 public class Depot
 {
@@ -311,7 +311,7 @@ public class Depot
 
             creator.setFieldExtractor(new Extractor());
             creator.setMaxDirtyTiers(5);
-            creator.setSize(240);
+            creator.setSize(220);
 
             Fossil.Schema newStorage = new Fossil.Schema();
 
@@ -1117,7 +1117,6 @@ public class Depot
 
     private static Strata newJoinStrata(Pack.Mutator mutator, int size)
     {
-
         Fossil.Schema newJoinStorage = new Fossil.Schema();
         newJoinStorage.setWriter(new Join.Writer(size));
         newJoinStorage.setReader(new Join.Reader(size));
@@ -1371,7 +1370,7 @@ public class Depot
 
                     newIndexStrata.setStorage(newIndexStorage);
                     newIndexStrata.setFieldExtractor(new Index.Extractor());
-                    newIndexStrata.setSize(512);
+                    newIndexStrata.setSize(256);
                     newIndexStrata.setMaxDirtyTiers(1);
                     newIndexStrata.setCacheFields(true);
 
@@ -1609,7 +1608,7 @@ public class Depot
 
                 creator.setFieldExtractor(new Extractor());
                 creator.setMaxDirtyTiers(5);
-                creator.setSize(512);
+                creator.setSize(180);
 
                 Fossil.Schema newStorage = new Fossil.Schema();
 
@@ -2171,6 +2170,7 @@ public class Depot
                 if (!cursor.hasNext())
                 {
                     atEnd = true;
+                    cursor.release();
                     return false;
                 }
                 record = (Record) cursor.next();
@@ -2379,6 +2379,97 @@ public class Depot
                     isolation[i].query(Fossil.txn(mutator)).destroy();
                 }
             }
+        }
+    }
+    
+    public final static class Pair<A, B>
+    {
+        int count;
+
+        private A first;
+        
+        private B second;
+        
+        public Pair()
+        {
+        }
+        
+        @SuppressWarnings("unchecked")
+        public void add(Object object)
+        {
+            if (count == 0)
+            {
+                first = (A) object;
+            }
+            else if (count == 1)
+            {
+                second = (B) object;
+            }
+            else
+            {
+                throw new IllegalStateException();
+            }
+        }
+        
+        public A getFirst()
+        {
+            return first;
+        }
+        
+        public B getSecond()
+        {
+            return second;
+        }
+    }
+
+    public final static class Trio<A, B, C>
+    {
+        int count;
+
+        private A first;
+        
+        private B second;
+        
+        private C third;
+        
+        public Trio()
+        {
+        }
+        
+        @SuppressWarnings("unchecked")
+        public void add(Object object)
+        {
+            if (count == 0)
+            {
+                first = (A) object;
+            }
+            else if (count == 1)
+            {
+                second = (B) object;
+            }
+            else if (count == 2)
+            {
+                third = (C) object;
+            }
+            else
+            {
+                throw new IllegalStateException();
+            }
+        }
+        
+        public A getFirst()
+        {
+            return first;
+        }
+        
+        public B getSecond()
+        {
+            return second;
+        }
+        
+        public C getThird()
+        {
+            return third;
         }
     }
 
@@ -3218,6 +3309,7 @@ public class Depot
             this.sync = sync;
         }
 
+        // FIXME Why name bins? Why not just store objects?
         public Bin getBin(String name)
         {
             Bin bin = (Bin) mapOfBins.get(name);
