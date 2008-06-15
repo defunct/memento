@@ -64,6 +64,40 @@ extends XMLTestCase
             throw new RuntimeException(e);
         }
     }
+    
+    public void _testAutoCreation()
+    {
+        File file = newFile();
+        Depot.Creator creator = new Depot.Creator();
+        Depot depot = creator.create(file);
+        
+        Depot.Snapshot snapshot = depot.newSnapshot();
+        Recipient alan = new Recipient("alan@blogometer.com", "Alan", "Gutierrez");
+        snapshot.save(alan);
+        snapshot.commit();
+        
+        depot.createIndex(new Depot.Indexer<Recipient>() 
+        {
+            private static final long serialVersionUID = 20080614L;
+
+            public String[] getNames()
+            {
+                return new String[] { "email" };
+            }
+
+            public Comparable<?>[] extract(Recipient recipient)
+            {
+                return new Comparable<?>[] { recipient.getEmail() };
+            }
+        });
+        depot.createIndex(new Depot.BeanIndexer<Recipient>("lastName", "firstName"));
+        
+        snapshot = depot.newSnapshot();
+        
+        Depot.Query<Recipient> query = new Depot.Query<Recipient>(snapshot);
+        query.equalTo("email", "alan@blogometer.com");
+        alan = query.getSingleObject();
+    }
 
     private Depot newDepot(File file)
     {

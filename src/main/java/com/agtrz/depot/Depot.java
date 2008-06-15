@@ -14,6 +14,11 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -137,6 +142,11 @@ public class Depot
     public void close()
     {
         pack.close();
+    }
+
+    public <T> void createIndex(Indexer<T> indexer)
+    {
+        
     }
 
     public synchronized Snapshot newSnapshot(Test test, Sync sync)
@@ -1181,6 +1191,52 @@ public class Depot
         return mapOfBinCommons;
     }
 
+    /**
+     * References a generic type.
+     * 
+     * @author crazybob@google.com (Bob Lee)
+     */
+    public static abstract class TypeReference<T>
+    {
+
+        private final Type type;
+
+        private volatile Constructor<?> constructor;
+
+        protected TypeReference()
+        {
+            Type superclass = getClass().getGenericSuperclass();
+            if (superclass instanceof Class)
+            {
+                throw new RuntimeException("Missing type parameter.");
+            }
+            this.type = ((ParameterizedType) superclass).getActualTypeArguments()[0];
+        }
+
+        /**
+         * Instantiates a new instance of {@code T} using the default, no-arg
+         * constructor.
+         */
+        @SuppressWarnings("unchecked")
+        public T newInstance() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException
+        {
+            if (constructor == null)
+            {
+                Class<?> rawType = type instanceof Class<?> ? (Class<?>) type : (Class<?>) ((ParameterizedType) type).getRawType();
+                constructor = rawType.getConstructor();
+            }
+            return (T) constructor.newInstance();
+        }
+
+        /**
+         * Gets the referenced type.
+         */
+        public Type getType()
+        {
+            return this.type;
+        }
+    }
+
     private final static class EmptyDepot
     {
         public final File file;
@@ -1206,7 +1262,7 @@ public class Depot
 
             newMutationStrata.setStorage(newMutationStorage);
             newMutationStrata.setFieldExtractor(new Snapshot.Extractor());
-            newMutationStrata.setSize(512);
+            newMutationStrata.setSize(256);
 
             Object txn = Fossil.txn(mutator);
             Strata mutations = newMutationStrata.newStrata(txn);
@@ -2528,6 +2584,113 @@ public class Depot
         }
     }
 
+    public interface Indexer<T>
+    extends Serializable
+    {
+        public String[] getNames();
+
+        public Comparable<?>[] extract(T type);
+    }
+    
+
+    public static class BeanIndexer<T>
+    implements Indexer<T>
+    {
+        private static final long serialVersionUID = 20080614L;
+
+        private Class<?> rawType;
+        
+        private String[] fields;
+
+        private transient Method[] getters;
+        
+        public BeanIndexer(String... fields)
+        {
+            Type superclass = getClass().getGenericSuperclass();
+            if (superclass instanceof Class)
+            {
+                throw new RuntimeException("Missing type parameter.");
+            }
+            Type type = ((ParameterizedType) superclass).getActualTypeArguments()[0];
+            Class<?> rawType = type instanceof Class<?> ? (Class<?>) type : (Class<?>) ((ParameterizedType) type).getRawType();
+
+            this.rawType = rawType;
+            this.fields = fields;
+            this.getters = getGetters(rawType, fields);
+        }
+        
+        public String[] getNames()
+        {
+            return fields;
+        }
+
+        private static Method[] getGetters(Class<?> rawType, String[] fields)
+        {
+            BeanInfo info;
+            try
+            {
+                info = Introspector.getBeanInfo(rawType);
+            }
+            catch (IntrospectionException e)
+            {
+                throw new Danger("Introspection.", e, 100);
+            }
+            Method[] getters = new Method[fields.length];
+            for (int i = 0; i < getters.length; i++)
+            {
+                for (int j = 0; j < info.getPropertyDescriptors().length; j++)
+                {
+                    PropertyDescriptor property = info.getPropertyDescriptors()[j];
+                    if (property.getName().equals(fields[i]))
+                    {
+                        getters[i] = property.getReadMethod();
+                        break;
+                    }
+                }
+            }
+            for (int i = 0; i < getters.length; i++)
+            {
+                if (getters[i] == null)
+                {
+                    throw new Danger("Cannot find proeprty: " + fields[i], 300);
+                }
+            }
+            return getters;
+        }
+        
+        public Comparable<?>[] extract(T type)
+        {
+            Comparable<?>[] index = new Comparable<?>[getters.length];
+            for (int i = 0; i < getters.length; i++)
+            {
+                try
+                {
+                    Comparable<?> comparable = (Comparable<?>) getters[i].invoke(type);
+                    index[i] = comparable;
+                }
+                catch (Exception e)
+                {
+                    throw new Danger("Unable to get property: " + fields[i], e, 300);
+                }
+            }
+            return index;
+        }
+
+        private void writeObject(ObjectOutputStream stream) throws IOException
+        {
+            stream.writeObject(rawType);
+            stream.writeObject(fields);
+        }
+        
+         private void readObject(java.io.ObjectInputStream stream)
+             throws IOException, ClassNotFoundException
+         {
+             rawType = (Class<?>) stream.readObject();
+             fields = (String[]) stream.readObject();
+             getters = getGetters(rawType, fields);
+         }
+    }
+
     public interface FieldExtractor
     extends Serializable
     {
@@ -3135,6 +3298,52 @@ public class Depot
         }
 
     }
+    
+    interface Criteria
+    {
+        public boolean met(Object object);
+    }
+    
+    final static class Equals
+    implements Criteria
+    {
+        private final Object expected;
+        
+        public Equals(Object object)
+        {
+            this.expected = object;
+        }
+
+        public boolean met(Object object)
+        {
+            return expected.equals(object);
+        }
+    }
+    
+    public final static class Query<T>
+    extends TypeReference<T>
+    {
+        private final Snapshot snapshot;
+        
+        private final List<Criteria> and;
+        
+        public Query(Snapshot snapshot)
+        {
+            this.snapshot = snapshot;
+            this.and = new ArrayList<Criteria>();
+        }
+        
+        public void equalTo(String property,Object value)
+        {
+            and.add(new Equals(value));
+        }
+        
+        public T getSingleObject()
+        {
+            snapshot.getBin(getType().toString());
+            return null;
+        }
+    }
 
     public final static class Restoration
     {
@@ -3334,6 +3543,11 @@ public class Depot
                 mapOfJoins.put(joinName, join);
             }
             return join;
+        }
+        
+        public <T> void save(T object)
+        {
+            
         }
 
         public Long getVersion()
