@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
+import com.agtrz.depot.serializable.Person;
+
 import junit.framework.Assert;
 
 public class Test

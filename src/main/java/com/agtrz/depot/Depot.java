@@ -31,8 +31,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.WeakHashMap;
 
 import com.agtrz.fossil.Fossil;
+import com.agtrz.pack.ByteBufferOutputStream;
 import com.agtrz.pack.Pack;
 import com.agtrz.strata.ArrayListStorage;
 import com.agtrz.strata.Strata;
@@ -59,6 +61,8 @@ public class Depot
 
     private final Pack pack;
 
+    private final Schema schema;
+    
     private final Strata snapshots;
 
     private final Map<String, Bin.Common> mapOfBinCommons;
@@ -69,13 +73,14 @@ public class Depot
 
     private final Sync sync;
 
-    public Depot(File file, Pack pack, Strata mutations, Map<String, Bin.Common> mapOfBinCommons, Map<String, Bin.Schema> mapOfBinSchemas, Map<String, Join.Schema> mapOfJoinSchemas, Sync sync)
+    public Depot(File file, Pack pack, Schema schema, Strata mutations, Map<String, Bin.Common> mapOfBinCommons, Map<String, Bin.Schema> mapOfBinSchemas, Map<String, Join.Schema> mapOfJoinSchemas, Sync sync)
     {
         this.mapOfBinCommons = mapOfBinCommons;
         this.mapOfBinSchemas = mapOfBinSchemas;
         this.mapOfJoinSchemas = mapOfJoinSchemas;
         this.snapshots = mutations;
         this.pack = pack;
+        this.schema = schema;
         this.sync = sync;
     }
 
@@ -173,7 +178,7 @@ public class Depot
 
         mutator.commit();
 
-        return new Snapshot(snapshots, mapOfBinCommons, mapOfBinSchemas, mapOfJoinSchemas, mutator, setOfCommitted, test, version, sync);
+        return new Snapshot(snapshots, schema, mapOfBinCommons, mapOfBinSchemas, mapOfJoinSchemas, mutator, setOfCommitted, test, version, sync);
     }
 
     public Snapshot newSnapshot(Sync sync)
@@ -226,6 +231,95 @@ public class Depot
             return this;
         }
     }
+    
+    final static class Schema
+    {
+        private final Pack pack;
+        
+        private final Map<Class<?>, Bin.Schema> mapOfBinSchemas;
+        
+        private final Map<Long, Bin.Header> mapOfBinHeaders;
+            
+        private final Marshaller marshaller;
+        
+        private final Unmarshaller unmarshaller;
+        
+        public Schema(Pack pack)
+        {
+            this.pack = pack;
+            this.mapOfBinSchemas = new HashMap<Class<?>, Bin.Schema>();
+            this.mapOfBinHeaders = new HashMap<Long, Bin.Header>();
+            this.marshaller = new SerializationMarshaller();
+            this.unmarshaller = new SerializationUnmarshaller();
+        }
+        
+        public Marshaller getMarshaller()
+        {
+            return marshaller;
+        }
+        
+        public Unmarshaller getUnmarshaller()
+        {
+            return unmarshaller;
+        }
+
+        public synchronized Bin.Schema getBinSchema(Class<?> klass)
+        {
+            try
+            {
+                return tryGetBinSchema(klass);
+            }
+            catch (IOException e)
+            {
+                throw new Danger("Hello.", e, 100);
+            }
+        }
+        
+        public Bin.Schema tryGetBinSchema(Class<?> klass) throws IOException
+        {
+            Bin.Schema schema = mapOfBinSchemas.get(klass);
+            if (schema == null)
+            {
+                Pack.Mutator mutator = pack.mutate();
+                Strata strata = new Bin.Tree().create(mutator).getStrata();
+                
+                Bin.Header header = new Bin.Header(strata);
+                
+                PackOutputStream allocator = new PackOutputStream(mutator);
+                
+                ObjectOutputStream out = new ObjectOutputStream(allocator);
+                out.writeObject(header);
+                out.close();
+                
+                long address = allocator.allocate();
+                
+                for (Map.Entry<Long, Bin.Header> entry : mapOfBinHeaders.entrySet())
+                {
+                    if (entry.getValue().getNext() == 0L)
+                    {
+                        entry.getValue().setNext(address);
+
+                        ByteBuffer bytes = mutator.read(entry.getKey());
+
+                        out = new ObjectOutputStream(new ByteBufferOutputStream(bytes));
+                        out.writeObject(entry.getValue());
+                        out.close();
+                        
+                        bytes.flip();
+                        
+                        mutator.write(entry.getKey(), bytes);
+                        
+                        break;
+                    }
+                }
+                
+                schema = new Bin.Schema(this, strata, new HashMap<String, Index.Schema>());
+                mapOfBinSchemas.put(klass, schema);
+            }
+
+            return schema;
+        }
+    }
 
     public final static class Error
     extends RuntimeException
@@ -262,6 +356,8 @@ public class Depot
         }
     }
 
+    private final static int SWAG_RECORD_LENGTH = 3 * SIZEOF_LONG;
+    
     public static class Bag
     implements Serializable
     {
@@ -299,7 +395,7 @@ public class Depot
     // FIXME Vacuum.
     public final static class Bin
     {
-        private final String name;
+        private final Class<?> type;
 
         private final Pack.Mutator mutator;
 
@@ -315,25 +411,11 @@ public class Depot
 
         private final Strata.Query isolation;
 
-        public Bin(Snapshot snapshot, Pack.Mutator mutator, String name, Common common, Schema schema, Map<Long, Depot.Janitor> mapOfJanitors)
+        public Bin(Snapshot snapshot, Class<?> type, Pack.Mutator mutator, String name, Common common, Schema schema, Map<Long, Depot.Janitor> mapOfJanitors)
         {
-            Strata.Schema creator = new Strata.Schema();
-
-            creator.setFieldExtractor(new Extractor());
-            creator.setMaxDirtyTiers(5);
-            creator.setSize(220);
-
-            Fossil.Schema newStorage = new Fossil.Schema();
-
-            newStorage.setReader(new Reader());
-            newStorage.setWriter(new Writer());
-            newStorage.setSize(SIZEOF_LONG * 2 + Pack.ADDRESS_SIZE);
-
-            creator.setStorage(newStorage);
-
-            Strata isolation = creator.newStrata(Fossil.txn(mutator));
-
-            Bin.Janitor janitor = new Bin.Janitor(isolation, name);
+            query = schema.getStrata().query(Fossil.txn(mutator));
+            isolation = new Tree().create(mutator);
+            Bin.Janitor janitor = new Bin.Janitor(isolation, type);
 
             PackOutputStream allocation = new PackOutputStream(mutator);
             try
@@ -350,12 +432,10 @@ public class Depot
             mapOfJanitors.put(address, janitor);
 
             this.snapshot = snapshot;
-            this.name = name;
+            this.type = type;
             this.common = common;
             this.mapOfIndices = newIndexMap(snapshot, schema);
             this.schema = schema;
-            this.query = schema.getStrata().query(Fossil.txn(mutator));
-            this.isolation = isolation.query(Fossil.txn(mutator));
             this.mutator = mutator;
         }
 
@@ -372,9 +452,9 @@ public class Depot
             return mapOfIndices;
         }
 
-        public String getName()
+        public Class<?> getType()
         {
-            return name;
+            return type;
         }
 
         public void load(Marshaller marshaller, Iterator<Bag> iterator)
@@ -425,7 +505,7 @@ public class Depot
         {
             PackOutputStream allocation = new PackOutputStream(mutator);
 
-            schema.marshaller.marshall(allocation, bag.getObject());
+            schema.schema.marshaller.marshall(allocation, bag.getObject());
 
             long address = allocation.allocate();
             Record record = new Record(bag.getKey(), bag.getVersion(), address);
@@ -490,7 +570,7 @@ public class Depot
 
             Bag bag = new Bag(key, snapshot.getVersion(), object);
             PackOutputStream allocation = new PackOutputStream(mutator);
-            schema.marshaller.marshall(allocation, object);
+            schema.schema.marshaller.marshall(allocation, object);
             long address = allocation.allocate();
             isolation.insert(new Record(bag.getKey(), bag.getVersion(), address));
 
@@ -605,7 +685,7 @@ public class Depot
 
         public Bag get(Long key)
         {
-            return get(schema.unmarshaller, key);
+            return get(schema.schema.unmarshaller, key);
         }
 
         public Bag get(Unmarshaller unmarshaller, Long key)
@@ -718,7 +798,7 @@ public class Depot
 
         public Cursor first()
         {
-            return first(schema.unmarshaller);
+            return first(schema.schema.unmarshaller);
         }
 
         public Cursor first(Unmarshaller unmarshaller)
@@ -797,34 +877,53 @@ public class Depot
                 return new Record(in.getLong(), in.getLong(), in.getLong());
             }
         }
+        
+        public final static class Header
+        implements Serializable
+        {
+            private static final long serialVersionUID = 20070208L;
+            
+            private final Strata strata;
+            
+            private long next;
+
+            public Header(Strata strata)
+            {
+                this.strata = strata;
+            }
+            
+            public Strata getStrata()
+            {
+                return strata;
+            }
+            
+            public long getNext()
+            {
+                return next;
+            }
+
+            public void setNext(long next)
+            {
+                this.next = next;
+            }
+        }
 
         private final static class Schema
         implements Serializable
         {
             private static final long serialVersionUID = 20070408L;
 
-            public final Object strata;
+            public final Depot.Schema schema;
+            
+            public final Strata strata;
 
             public final Map<String, Index.Schema> mapOfIndexSchemas;
 
-            public final Unmarshaller unmarshaller;
-
-            public final Marshaller marshaller;
-
-            public Schema(Strata strata, Map<String, Index.Schema> mapOfIndexSchemas, Unmarshaller unmarshaller, Marshaller marshaller)
+            public Schema(Depot.Schema schema, Strata strata, Map<String, Index.Schema> mapOfIndexSchemas)
             {
+                this.schema = schema;
                 this.strata = strata;
                 this.mapOfIndexSchemas = mapOfIndexSchemas;
-                this.unmarshaller = unmarshaller;
-                this.marshaller = marshaller;
-            }
-
-            private Schema(Strata.Schema strata, Map<String, Index.Schema> mapOfIndexSchemas, Unmarshaller unmarshaller, Marshaller marshaller)
-            {
-                this.strata = strata;
-                this.mapOfIndexSchemas = mapOfIndexSchemas;
-                this.unmarshaller = unmarshaller;
-                this.marshaller = marshaller;
             }
 
             public Strata getStrata()
@@ -855,16 +954,6 @@ public class Depot
                 }
                 return mapOfIndexSchemas;
             }
-
-            public Schema toStrata(Object txn)
-            {
-                return new Schema(((Strata.Schema) strata).newStrata(txn), newMapOfIndexStratas(mapOfIndexSchemas, txn), unmarshaller, marshaller);
-            }
-
-            public Schema toSchema()
-            {
-                return new Schema(getStrata().getSchema(), newMapOfIndexSchemas(mapOfIndexSchemas), unmarshaller, marshaller);
-            }
         }
 
         public final static class Common
@@ -879,6 +968,29 @@ public class Depot
             public synchronized Long nextIdentifier()
             {
                 return new Long(identifier++);
+            }
+        }
+
+        public static class Tree
+        {
+            public Strata.Query create(Pack.Mutator mutator)
+            {
+                Fossil.Schema newFossil = new Fossil.Schema();
+                newFossil.setWriter(new Writer());
+                newFossil.setReader(new Reader());
+                newFossil.setSize(SWAG_RECORD_LENGTH);
+
+                int pageSize = mutator.getSchema().getPageSize();
+                int size = (pageSize - Pack.BLOCK_PAGE_HEADER_SIZE - Fossil.FOSSIL_LEAF_HEADER_SIZE) / SWAG_RECORD_LENGTH;
+                
+                Strata.Schema newStrata = new Strata.Schema();
+
+                newStrata.setStorage(newFossil);
+                newStrata.setFieldExtractor(new Extractor());
+                newStrata.setSize(size / 2);
+                newStrata.setMaxDirtyTiers(1);
+
+                return newStrata.newQuery(Fossil.txn(mutator));
             }
         }
 
@@ -930,17 +1042,17 @@ public class Depot
 
             private final Strata isolation;
 
-            private final String name;
+            private final Class<?> type;
 
-            public Janitor(Strata isolation, String name)
+            public Janitor(Strata.Query isolation, Class<?> type)
             {
-                this.isolation = isolation;
-                this.name = name;
+                this.isolation = isolation.getStrata();
+                this.type = type;
             }
 
             public void rollback(Snapshot snapshot)
             {
-                Bin bin = snapshot.getBin(name);
+                Bin bin = snapshot.getBin(type);
                 Strata.Cursor cursor = isolation.query(Fossil.txn(bin.mutator)).first();
                 while (cursor.hasNext())
                 {
@@ -1222,7 +1334,7 @@ public class Depot
         {
             if (constructor == null)
             {
-                Class<?> rawType = type instanceof Class<?> ? (Class<?>) type : (Class<?>) ((ParameterizedType) type).getRawType();
+                Class<?> rawType = getRawType();
                 constructor = rawType.getConstructor();
             }
             return (T) constructor.newInstance();
@@ -1234,6 +1346,18 @@ public class Depot
         public Type getType()
         {
             return this.type;
+        }
+        
+        /** 
+         * Gets the class or the raw type of a parameterized type.
+         * 
+         * @return A class.
+         */
+        public Class<?> getRawType()
+        {
+            return type instanceof Class<?>
+                 ? (Class<?>) type
+                 : (Class<?>) ((ParameterizedType) type).getRawType();
         }
     }
 
@@ -1435,7 +1559,7 @@ public class Depot
                     mapOfIndices.put(nameOfIndex, new Index.Schema(indexStrata, newIndex.extractor, newIndex.unique, newIndex.notNull, newIndex.unmarshaller));
                 }
 
-                mapOfBins.put(name, new Bin.Schema(strata, mapOfIndices, newBin.unmarshaller, newBin.marshaller));
+//                mapOfBins.put(name, new Bin.Schema(strata, mapOfIndices, newBin.unmarshaller, newBin.marshaller));
             }
 
             Map<String, Join.Schema> mapOfJoins = new HashMap<String, Join.Schema>();
@@ -1473,12 +1597,12 @@ public class Depot
 
             long addressOfBins = allocation.allocate();
 
-            ByteBuffer block = mutator.read(mutator.getStaticPageAddress(HEADER_URI));
+            ByteBuffer block = mutator.read(mutator.getSchema().getStaticPageAddress(HEADER_URI));
 
             block.putLong(addressOfBins);
             block.flip();
 
-            mutator.write(mutator.getStaticPageAddress(HEADER_URI), block);
+            mutator.write(mutator.getSchema().getStaticPageAddress(HEADER_URI), block);
             
             mutator.commit();
             bento.close();
@@ -1499,7 +1623,7 @@ public class Depot
             Pack.Opener opener = new Pack.Opener();
             Pack pack = opener.open(file);
             Pack.Mutator mutator = pack.mutate();
-            ByteBuffer block = mutator.read(mutator.getStaticPageAddress(HEADER_URI));
+            ByteBuffer block = mutator.read(mutator.getSchema().getStaticPageAddress(HEADER_URI));
             long addressOfBags = block.getLong();
             Strata mutations = null;
             Map<String, Bin.Schema> mapOfBinSchemas = null;
@@ -1553,7 +1677,7 @@ public class Depot
             }
             versions.release();
 
-            Snapshot snapshot = new Snapshot(mutations, mapOfBinCommons, mapOfBinSchemas, mapOfJoinSchemas, pack.mutate(), setOfCommitted, new Test(new NullSync(), new NullSync(), new NullSync()), new Long(0L), new NullSync());
+            Snapshot snapshot = new Snapshot(mutations, new Schema(pack), mapOfBinCommons, mapOfBinSchemas, mapOfJoinSchemas, pack.mutate(), setOfCommitted, new Test(new NullSync(), new NullSync(), new NullSync()), new Long(0L), new NullSync());
             for (long address : opener.getTemporaryBlocks())
             {
                 mutator = pack.mutate();
@@ -1576,7 +1700,7 @@ public class Depot
                 mutator.commit();
             }
 
-            return new Depot(file, pack, mutations, mapOfBinCommons, mapOfBinSchemas, mapOfJoinSchemas, sync);
+            return new Depot(file, pack, new Schema(pack), mutations, mapOfBinCommons, mapOfBinSchemas, mapOfJoinSchemas, sync);
         }
 
         @SuppressWarnings("unchecked")
@@ -1592,6 +1716,7 @@ public class Depot
         }
     }
 
+    // FIXME Return an address instead.
     public interface Marshaller
     {
         public void marshall(OutputStream out, Object object);
@@ -3401,7 +3526,7 @@ public class Depot
                 }
 
                 Map<String, Bin.Common> mapOfBinCommons = newMapOfBinCommons(mapOfBinSchemas, mutator);
-                return new Depot(empty.file, empty.pack, empty.snapshots, mapOfBinCommons, mapOfBinSchemas, mapOfJoinSchemas, sync);
+                return new Depot(empty.file, empty.pack, new Depot.Schema(empty.pack), empty.snapshots, mapOfBinCommons, mapOfBinSchemas, mapOfJoinSchemas, sync);
             }
         }
 
@@ -3487,9 +3612,11 @@ public class Depot
 
         private final Pack.Mutator mutator;
 
-        private final Map<String, Bin> mapOfBins;
-
+        private final Map<Class<?>, Bin> mapOfBins;
+        
         private final Map<String, Join> mapOfJoins;
+        
+        private final WeakHashMap<Object, Bag> mapOfBoxes;
 
         private final Long version;
 
@@ -3500,8 +3627,10 @@ public class Depot
         private boolean spent;
 
         private final Sync sync;
+        
+        private final Schema schema;
 
-        public Snapshot(Strata snapshots, Map<String, Bin.Common> mapOfBinCommons, Map<String, Bin.Schema> mapOfBinSchemas, Map<String, Join.Schema> mapOfJoinSchemas, Pack.Mutator mutator, Set<Long> setOfCommitted, Test test, Long version, Sync sync)
+        public Snapshot(Strata snapshots, Schema schema, Map<String, Bin.Common> mapOfBinCommons, Map<String, Bin.Schema> mapOfBinSchemas, Map<String, Join.Schema> mapOfJoinSchemas, Pack.Mutator mutator, Set<Long> setOfCommitted, Test test, Long version, Sync sync)
         {
             this.snapshots = snapshots;
             this.mapOfBinCommons = mapOfBinCommons;
@@ -3509,6 +3638,7 @@ public class Depot
             this.mapOfJoinSchemas = mapOfJoinSchemas;
             this.mutator = mutator;
             this.mapOfBins = new HashMap<String, Bin>();
+            this.mapOfSwags = new HashMap<Class<?>, Swag>();
             this.mapOfJoins = new HashMap<String, Join>();
             this.version = version;
             this.test = test;
@@ -3516,21 +3646,8 @@ public class Depot
             this.oldest = (Long) setOfCommitted.iterator().next();
             this.mapOfJanitors = new HashMap<Long, Janitor>();
             this.sync = sync;
-        }
-
-        // FIXME Why name bins? Why not just store objects?
-        public Bin getBin(String name)
-        {
-            Bin bin = (Bin) mapOfBins.get(name);
-            if (bin == null)
-            {
-                Bin.Common binCommon = (Bin.Common) mapOfBinCommons.get(name);
-                Bin.Schema binSchema = (Bin.Schema) mapOfBinSchemas.get(name);
-                // FIXME Why a new mutator every time? WRONG!
-                bin = new Bin(this, mutator, name, binCommon, binSchema, mapOfJanitors);
-                mapOfBins.put(name, bin);
-            }
-            return bin;
+            this.schema = schema;
+            this.mapOfIds = new WeakHashMap<Object, Box>();
         }
 
         public Join getJoin(String joinName)
@@ -3545,9 +3662,65 @@ public class Depot
             return join;
         }
         
-        public <T> void save(T object)
+        public Bin getBin(Class<?> klass)
         {
+            Bin swag = mapOfBins.get(klass);
+
+            if (swag == null)
+            {
+                Swag.Schema newSwag = schema.getSwagSchema(klass);
+                swag = newSwag.newSwag(this, mutator);
+                mapOfSwags.put(klass, swag);
+            }
             
+            return swag;
+        }
+
+        public <T> void add(T object)
+        {
+            Box id = getSwag(object.getClass()).add(object);
+            
+            mapOfIds.put(object, id);
+        }
+        
+        public <T> void update(long key, T object)
+        {
+            Box id = getSwag(object.getClass()).update(key, object);
+            mapOfIds.put(object, id);
+        }
+        
+        public void delete(Class<?> klass, long key)
+        {
+            getSwag(klass).delete(key);
+        }
+        
+        @SuppressWarnings("unchecked")
+        public <T> T load(Class<T> klass, long key)
+        {
+            assert key > 0;
+            
+            Swag swag = getSwag(klass);
+            
+            Box id = swag.get(key);
+            
+            if (id == null)
+            {
+                return null;
+            }
+            
+            mapOfIds.put(id.getObject(), id);
+            
+            return (T) id.getObject();
+        }
+        
+        public long getId(Object object)
+        {
+            Box id = mapOfIds.get(object);
+            if (id == null)
+            {
+                return 0L;
+            }
+            return id.getKey();
         }
 
         public Long getVersion()
@@ -3601,6 +3774,11 @@ public class Depot
             }
 
             spent = true;
+            
+            for (Swag swag : mapOfSwags.values())
+            {
+                swag.flush();
+            }
 
             for (Bin bin : mapOfBins.values())
             {
@@ -3614,6 +3792,11 @@ public class Depot
 
             try
             {
+                for (Swag swag : mapOfSwags.values())
+                {
+                    swag.commit();
+                }
+
                 for (Bin bin : mapOfBins.values())
                 {
                     bin.commit();

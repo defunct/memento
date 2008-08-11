@@ -1,5 +1,5 @@
 /* Copyright Alan Gutierrez 2006 */
-package com.agtrz.depot;
+package com.agtrz.depot.serializable;
 
 import java.io.Serializable;
 
@@ -12,6 +12,8 @@ implements Serializable
 
     private String lastName;
 
+    private String email;
+    
     public String getFirstName()
     {
         return firstName;
@@ -30,6 +32,16 @@ implements Serializable
     public void setLastName(String lastName)
     {
         this.lastName = lastName;
+    }
+    
+    public String getEmail()
+    {
+        return email;
+    }
+    
+    public void setEmail(String email)
+    {
+        this.email = email;
     }
 
     public boolean equals(Object object)
