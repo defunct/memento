@@ -33,11 +33,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.WeakHashMap;
 
-import com.agtrz.fossil.Fossil;
-import com.agtrz.pack.ByteBufferOutputStream;
-import com.agtrz.pack.Pack;
-import com.agtrz.strata.ArrayListStorage;
-import com.agtrz.strata.Strata;
+import com.goodworkalan.pack.Pack;
 
 public class Depot
 {

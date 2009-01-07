@@ -3,12 +3,12 @@
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.agtrz</groupId>
-    <artifactId>depot</artifactId>
+    <groupId>com.goodworkalan</groupId>
+    <artifactId>memento</artifactId>
     <packaging>jar</packaging>
-    <version>0.1</version>
+    <version>0.1.X</version>
 
-    <name>depot</name>
+    <name>memento</name>
     <description>An object database</description>
 
     <organization>
@@ -66,9 +66,19 @@
             <version>1.3</version>
         </dependency>
         <dependency>
-            <groupId>com.agtrz</groupId>
+            <groupId>com.goodworkalan</groupId>
+            <artifactId>pack</artifactId>
+            <version>0.1.X</version>
+        </dependency>
+        <dependency>
+            <groupId>com.goodworkalan</groupId>
+            <artifactId>strata</artifactId>
+            <version>0.1.X</version>
+        </dependency>
+        <dependency>
+            <groupId>com.goodworkalan</groupId>
             <artifactId>fossil</artifactId>
-            <version>0.1</version>
+            <version>0.1.X</version>
         </dependency>
     </dependencies>
 
