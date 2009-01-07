@@ -11,6 +11,7 @@ import java.util.Random;
 import java.util.Set;
 
 import com.agtrz.depot.serializable.Person;
+import com.goodworkalan.memento.Bag;
 
 import junit.framework.Assert;
 
@@ -143,7 +144,7 @@ public class Test
         {
             Depot.Bin bin = environment.mutator.getBin(bagName);
             Object object = newObject.get();
-            Depot.Bag bag = bin.add(object);
+            Bag bag = bin.add(object);
             environment.mapOfIdentifiers.put(new Integer(environment.objectCount++), new ObjectAllocation(bagName, bag.getKey(), object));
         }
     }
@@ -200,7 +201,7 @@ public class Test
             Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
             ObjectAllocation alloc = (ObjectAllocation) environment.mapOfIdentifiers.get(new Integer(objectNumber));
             Depot.Bin bin = environment.mutator.getBin(alloc.bagName);
-            Depot.Bag keptObject = bin.get(unmarshaller, alloc.key);
+            Bag keptObject = bin.get(unmarshaller, alloc.key);
             Assert.assertEquals(alloc.object, keptObject.getObject());
             for (Map.Entry<String, Set<Object>> entry : alloc.mapOfRelationships.entrySet())
             {
@@ -210,7 +211,7 @@ public class Test
                 Iterator<Object> found = null; // keptObject.getLinked(name);
                 while (found.hasNext())
                 {
-                    Depot.Bag[] records = (Depot.Bag[]) found.next();
+                    Bag[] records = (Bag[]) found.next();
                     if (!records[0].getObject().equals(keptObject.getObject()))
                     {
                         break;
@@ -240,7 +241,7 @@ public class Test
             Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
             ObjectAllocation alloc = (ObjectAllocation) environment.mapOfIdentifiers.get(new Integer(objectCount));
             Depot.Bin bag = environment.mutator.getBin(alloc.bagName);
-            Depot.Bag keptObject = bag.get(unmarshaller, alloc.key);
+            Bag keptObject = bag.get(unmarshaller, alloc.key);
             Assert.assertNull(keptObject);
             environment.mapOfIdentifiers.remove(new Integer(objectCount));
         }

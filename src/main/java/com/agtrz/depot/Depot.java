@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.WeakHashMap;
 
+import com.goodworkalan.memento.Bag;
 import com.goodworkalan.pack.Pack;
 
 public class Depot
@@ -354,40 +355,6 @@ public class Depot
 
     private final static int SWAG_RECORD_LENGTH = 3 * SIZEOF_LONG;
     
-    public static class Bag
-    implements Serializable
-    {
-        private static final long serialVersionUID = 20070210L;
-
-        private final Long key;
-
-        private final Long version;
-
-        private final Object object;
-
-        public Bag(Long key, Long version, Object object)
-        {
-            this.key = key;
-            this.version = version;
-            this.object = object;
-        }
-
-        public Long getKey()
-        {
-            return key;
-        }
-
-        public Object getObject()
-        {
-            return object;
-        }
-
-        public Long getVersion()
-        {
-            return version;
-        }
-    }
-
     // FIXME Vacuum.
     public final static class Bin
     {
@@ -3390,16 +3357,16 @@ public class Depot
                 return count < limit && cursor.hasNext();
             }
 
-            public Depot.Bag nextBag()
+            public Bag nextBag()
             {
-                Depot.Bag bag = cursor.nextBag();
+                Bag bag = cursor.nextBag();
                 count++;
                 return bag;
             }
 
             public Object next()
             {
-                Depot.Bag bag = nextBag();
+                Bag bag = nextBag();
                 if (!hasNext())
                 {
                     cursor.release();
