@@ -206,7 +206,7 @@ public class Test
         {
             Unmarshaller unmarshaller = new SerializationUnmarshaller();
             ObjectAllocation alloc = (ObjectAllocation) environment.mapOfIdentifiers.get(new Integer(objectNumber));
-            Depot.Bin bin = environment.mutator.getBin(alloc.bagName);
+            Bin bin = environment.mutator.getBin(alloc.bagName);
             Bag keptObject = bin.get(unmarshaller, alloc.key);
             Assert.assertEquals(alloc.object, keptObject.getObject());
             for (Map.Entry<String, Set<Object>> entry : alloc.mapOfRelationships.entrySet())
@@ -246,7 +246,7 @@ public class Test
         {
             Unmarshaller unmarshaller = new SerializationUnmarshaller();
             ObjectAllocation alloc = (ObjectAllocation) environment.mapOfIdentifiers.get(new Integer(objectCount));
-            Depot.Bin bag = environment.mutator.getBin(alloc.bagName);
+            Bin bag = environment.mutator.getBin(alloc.bagName);
             Bag keptObject = bag.get(unmarshaller, alloc.key);
             Assert.assertNull(keptObject);
             environment.mapOfIdentifiers.remove(new Integer(objectCount));

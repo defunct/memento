@@ -5,7 +5,7 @@ public class JoinAdvancer
 {
     private final Strata.Cursor cursor;
 
-    private Join.Record record;
+    private JoinRecord record;
 
     private boolean atEnd;
 
@@ -14,7 +14,7 @@ public class JoinAdvancer
         this.cursor = cursor;
     }
 
-    public Join.Record getRecord()
+    public JoinRecord getRecord()
     {
         return record;
     }

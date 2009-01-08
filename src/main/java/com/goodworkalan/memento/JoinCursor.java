@@ -7,9 +7,9 @@ import java.util.Map;
 public class JoinCursor
 implements Iterator<Tuple>
 {
-    private final Join.Advancer stored;
+    private final JoinAdvancer stored;
 
-    private final Join.Advancer isolated;
+    private final JoinAdvancer isolated;
 
     private final Snapshot snapshot;
 
@@ -17,15 +17,15 @@ implements Iterator<Tuple>
 
     private final Join.Schema schema;
 
-    private Join.Record nextStored;
+    private JoinRecord nextStored;
 
-    private Join.Record nextIsolated;
+    private JoinRecord nextIsolated;
 
-    private Join.Record next;
+    private JoinRecord next;
 
     private final Map<String, Long> mapToScan;
 
-    private final Join.Index index;
+    private final JoinIndex index;
 
     public Cursor(Snapshot snapshot, Long[] keys, Map<String, Long> mapToScan, Strata.Cursor storedCursor, Strata.Cursor isolatedCursor, Join.Schema schema, Join.Index index)
     {
@@ -87,9 +87,9 @@ implements Iterator<Tuple>
         return candidate;
     }
 
-    private Join.Record nextRecord()
+    private JoinRecord nextRecord()
     {
-        Join.Record next = null;
+        JoinRecord next = null;
         if (nextIsolated != null || nextStored != null)
         {
             if (nextIsolated == null)

@@ -1,11 +1,7 @@
 package com.goodworkalan.memento;
 
-import java.io.Serializable;
 
-public interface Indexer<T>
-extends Serializable
+public interface Indexer<T, F>
 {
-    public String[] getNames();
-
-    public Comparable<?>[] extract(T type);
+    public F index(T object);
 }
