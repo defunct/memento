@@ -39,10 +39,10 @@ public class DepotTestCase
     @Test public void saveSingleObject()
     {
         File file = newFile();
-        Depot.Creator creator = new Depot.Creator();
+        Creator creator = new Creator();
         Depot depot = creator.create(file);
         Person person = newPerson("Alan", "Gutierrez", "alan@blogometer.com");
-        Depot.Snapshot snapshot = depot.newSnapshot();
+        Snapshot snapshot = depot.newSnapshot();
         snapshot.add(person);
         long id = snapshot.getId(person);
         snapshot.commit();
@@ -55,10 +55,10 @@ public class DepotTestCase
     @Test public void update()
     {
         File file = newFile();
-        Depot.Creator creator = new Depot.Creator();
+        Creator creator = new Creator();
         Depot depot = creator.create(file);
         Person person = newPerson("Alan", "Gutierrez", "alan@blogometer.com");
-        Depot.Snapshot snapshot = depot.newSnapshot();
+        Snapshot snapshot = depot.newSnapshot();
         snapshot.add(person);
         long id = snapshot.getId(person);
         snapshot.commit();
@@ -79,19 +79,19 @@ public class DepotTestCase
     @Test public void delete()
     {
         File file = newFile();
-        Depot.Creator creator = new Depot.Creator();
+        Creator creator = new Creator();
         Depot depot = creator.create(file);
 
         Person alan = newPerson("Alan", "Gutierrez", "alan@blogometer.com");
 
-        Depot.Snapshot one = depot.newSnapshot();
+        Snapshot one = depot.newSnapshot();
 
         one.add(alan);
         long key = one.getId(alan);
 
         one.commit();
 
-        Depot.Snapshot two = depot.newSnapshot();
+        Snapshot two = depot.newSnapshot();
         Person person = two.load(Person.class, key);
 
         assertNotNull(person);
@@ -99,13 +99,13 @@ public class DepotTestCase
 
         person.setEmail("alan@kiloblog.com");
 
-        Depot.Snapshot three = depot.newSnapshot();
+        Snapshot three = depot.newSnapshot();
         three.update(key, person);
         person = three.load(Person.class, key);
 
         assertEquals("alan@kiloblog.com", person.getEmail());
 
-        Depot.Snapshot four = depot.newSnapshot();
+        Snapshot four = depot.newSnapshot();
         Person previous = four.load(Person.class, key);
 
         assertNotNull(previous);
@@ -120,13 +120,13 @@ public class DepotTestCase
 
         four.rollback();
 
-        Depot.Snapshot five = depot.newSnapshot();
+        Snapshot five = depot.newSnapshot();
         person = five.load(Person.class, key);
         
         assertNotNull(person);
         assertEquals("alan@kiloblog.com",  person.getEmail());
 
-        Depot.Snapshot six = depot.newSnapshot();
+        Snapshot six = depot.newSnapshot();
         six.delete(Person.class, key);
 
         Person next = five.load(Person.class, key);
@@ -143,7 +143,7 @@ public class DepotTestCase
 
         five.rollback();
 
-        Depot.Snapshot seven = depot.newSnapshot();
+        Snapshot seven = depot.newSnapshot();
         Person gone = seven.load(Person.class, key);
 
         assertNull(gone);

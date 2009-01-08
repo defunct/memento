@@ -27,7 +27,7 @@ public class Test
 
         public Depot storage;
 
-        public Depot.Snapshot mutator;
+        public Snapshot mutator;
 
         public int objectCount;
 
@@ -43,7 +43,7 @@ public class Test
         public void reopen()
         {
             this.storage.close();
-            this.storage = new Depot.Opener().open(file);
+            this.storage = new Opener().open(file);
             this.mutator = storage.newSnapshot();
         }
     }
@@ -169,7 +169,7 @@ public class Test
 
         public void operate(Environment env)
         {
-            Depot.Join join = env.mutator.getJoin(joinName);
+            Join join = env.mutator.getJoin(joinName);
             ObjectAllocation left = (ObjectAllocation) env.mapOfIdentifiers.get(new Integer(objectCountOne));
             ObjectAllocation right = (ObjectAllocation) env.mapOfIdentifiers.get(new Integer(objectCountTwo));
 
@@ -198,7 +198,7 @@ public class Test
 
         public void operate(Environment environment)
         {
-            Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
+            Unmarshaller unmarshaller = new SerializationUnmarshaller();
             ObjectAllocation alloc = (ObjectAllocation) environment.mapOfIdentifiers.get(new Integer(objectNumber));
             Depot.Bin bin = environment.mutator.getBin(alloc.bagName);
             Bag keptObject = bin.get(unmarshaller, alloc.key);
@@ -238,7 +238,7 @@ public class Test
 
         public void operate(Environment environment)
         {
-            Depot.Unmarshaller unmarshaller = new Depot.SerializationUnmarshaller();
+            Unmarshaller unmarshaller = new SerializationUnmarshaller();
             ObjectAllocation alloc = (ObjectAllocation) environment.mapOfIdentifiers.get(new Integer(objectCount));
             Depot.Bin bag = environment.mutator.getBin(alloc.bagName);
             Bag keptObject = bag.get(unmarshaller, alloc.key);
