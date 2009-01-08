@@ -2,12 +2,12 @@ package com.goodworkalan.memento;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 
 public class Store
 {
-    public <Child, Parent> void corral(Class<Child> superClass, Class<Parent> subClass)
+    public <Item> BinBuilder<Item> store(Class<Item> itemClass)
     {
+        return new BinBuilder<Item>(itemClass);
     }
     
     public <Item> long add(Item item)

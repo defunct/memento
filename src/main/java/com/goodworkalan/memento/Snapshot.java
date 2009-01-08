@@ -17,7 +17,7 @@ import com.goodworkalan.strata.Tree;
 
 public final class Snapshot
 {
-    private final Tree<Record, Mutator> snapshots;
+    private final Tree<SnapshotRecord, Mutator> snapshots;
 
     private final Map<String, BinCommon> mapOfBinCommons;
 
@@ -31,7 +31,7 @@ public final class Snapshot
 
     private final Mutator mutator;
 
-    private final Map<String, Bin> mapOfBins;
+    private final Map<Class<?>, Bin> mapOfBins;
     
     private final Map<String, Join> mapOfJoins;
     
@@ -48,8 +48,12 @@ public final class Snapshot
     private final Sync sync;
     
     private final Schema schema;
+    
+    private final WeakIdentityLookup outstandingKeys;
+    
+    private final WeakHashMap<Long, Object> outstandingValues; 
 
-    public Snapshot(Tree<Record, Mutator> snapshots,
+    public Snapshot(Tree<SnapshotRecord, Mutator> snapshots,
                     Schema schema,
                     Map<String, BinCommon> mapOfBinCommons,
                     Map<String, BinSchema> mapOfBinSchemas,
@@ -65,7 +69,7 @@ public final class Snapshot
         this.mapOfBinSchemas = mapOfBinSchemas;
         this.mapOfJoinSchemas = mapOfJoinSchemas;
         this.mutator = mutator;
-        this.mapOfBins = new HashMap<String, Bin>();
+        this.mapOfBins = new HashMap<Class<?>, Bin>();
 //        this.mapOfSwags = new HashMap<Class<?>, Swag>();
         this.mapOfJoins = new HashMap<String, Join>();
         this.version = version;
@@ -75,7 +79,40 @@ public final class Snapshot
         this.mapOfJanitors = new HashMap<Long, Janitor>();
         this.sync = sync;
         this.schema = schema;
-        this.mapOfIds = new WeakHashMap<Object, Box>();
+        this.outstandingKeys = new WeakIdentityLookup();
+        this.outstandingValues = new WeakHashMap<Long, Object>();
+    }
+    
+    public <Item> Class<?> classFor(Item item) 
+    {
+        return item.getClass();
+    }
+    
+    public long id(Object item)
+    {
+        return outstandingKeys.get(item);
+    }
+    
+    @SuppressWarnings("unchecked")
+    private <Item> Bin<Item> toBin(Class<Item> itemClass, Bin<?> bin)
+    {
+        return (Bin<Item>) bin;
+    }
+    
+    public <Item> Bin<Item> bin(Class<Item> itemClass)
+    {
+        // FIXME Populate a snapshot with all bins, no lazy construct.
+        Bin<?> bin = mapOfBins.get(itemClass);
+        if (bin == null)
+        {
+            throw new IllegalStateException();
+        }
+        return toBin(itemClass, bin);
+    }
+    
+    public <Item> Item get(Class<Item> itemClass, long id)
+    {
+        return bin(itemClass).get(id);
     }
 
     public Join getJoin(String joinName)
@@ -83,7 +120,7 @@ public final class Snapshot
         Join join = (Join) mapOfJoins.get(joinName);
         if (join == null)
         {
-            Join.Schema schema = (Join.Schema) mapOfJoinSchemas.get(joinName);
+            JoinSchema schema = (JoinSchema) mapOfJoinSchemas.get(joinName);
             join = new Join(this, mutator, schema, joinName, mapOfJanitors);
             mapOfJoins.put(joinName, join);
         }

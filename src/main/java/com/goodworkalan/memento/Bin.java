@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 
 import com.goodworkalan.fossil.Fossil;
 import com.goodworkalan.pack.Mutator;
@@ -19,7 +20,7 @@ import com.goodworkalan.strata.Strata;
 import com.goodworkalan.strata.Transaction;
 
 // FIXME Vacuum.
-public final class Bin
+public final class Bin<Item>
 {
     private final Class<?> type;
 
@@ -36,6 +37,10 @@ public final class Bin
     private final Query<BinRecord> query;
 
     private final Transaction<BinRecord, Mutator> isolation;
+    
+    private final WeakIdentityLookup outstandingKeys;
+    
+    private final WeakHashMap<Long, Box<Item>> outstandingValues; 
 
     public Bin(Snapshot snapshot, Class<?> type, Mutator mutator, String name, BinCommon common, BinSchema schema, Map<Long, Janitor> mapOfJanitors)
     {
@@ -63,6 +68,9 @@ public final class Bin
         this.mapOfIndices = newIndexMap(snapshot, schema);
         this.schema = schema;
         this.mutator = mutator;
+        
+        this.outstandingKeys = new WeakIdentityLookup();
+        this.outstandingValues = new WeakHashMap<Long, Box<Item>>();
     }
 
     private static Map<String, Index> newIndexMap(Snapshot snapshot, BinSchema schema)
@@ -272,11 +280,11 @@ public final class Bin
         return candidate;
     }
 
-    private Bag unmarshall(Unmarshaller unmarshaller, BinRecord record)
+    private Box<Item> unmarshall(ItemIO<Item> io, BinRecord record)
     {
         ByteBuffer block = mutator.read(record.address);
-        Object object = unmarshaller.unmarshall(new ByteBufferInputStream(block));
-        return new Bag(record.key, record.version, object);
+        Item item = io.read(new ByteBufferInputStream(block));
+        return new Box<Item>(record.key, record.version, item);
     }
 
     private BinRecord getRecord(Long key)
@@ -309,15 +317,43 @@ public final class Bin
         return null;
     }
 
-    public Bag get(Long key)
-    {
-        return get(schema.schema.unmarshaller, key);
+    public Item get(long key)
+    { 
+        Box<Item> box = box(key);
+        if (box == null)
+        {
+            return null;
+        }
+        return box.getItem();
     }
 
-    public Bag get(Unmarshaller unmarshaller, Long key)
+    public long key(Item item)
+    {
+        Long key = outstandingKeys.get(item);
+        if (key == null)
+        {
+            throw new UnsupportedOperationException();
+        }
+        return key;
+    }
+
+    public Box<Item> box(long key)
+    {
+        Box<Item> box = outstandingValues.get(key);
+        if (box == null)
+        {
+            /* FIXME */ ItemIO<Item> io = null;
+            box = get(io, key);
+            outstandingValues.put(box.getKey(), box);
+            outstandingKeys.put(box.getItem(), box.getKey());
+        }
+        return box;
+    }
+
+    public Box<Item> get(ItemIO<Item> io, Long key)
     {
         BinRecord record = getRecord(key);
-        return record == null ? null : unmarshall(unmarshaller, record);
+        return record == null ? null : unmarshall(io, record);
     }
 
     Bag get(Unmarshaller unmarshaller, Long key, Long version)

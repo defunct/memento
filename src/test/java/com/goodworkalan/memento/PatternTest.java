@@ -15,26 +15,31 @@ public class PatternTest
 
         Store store = new Store();
         
-        store.corral(Employee.class, Person.class);
+        store
+            .store(Person.class)
+                .subclass(Employee.class)
+                .io(SerializationIO.getInstance(Person.class))
+                .index("email", new Indexer<Person, String>()
+                {
+                    public String index(Person object)
+                    {
+                        return object.getEmail();
+                    }
+                })
+                .index("lastNameFirst", new Indexer<Person, Ordered>()
+                {
+                    public Ordered index(Person object)
+                    {
+                        return new Ordered(object.getLastName(), object.getFirstName());
+                    }
+                });
         
         store.add(person);
         
         // FIXME Serialize? What's the point? If the code changes, it 
         // changes, and the serialized objects will disappear, especially
         // if they are inline.
-        store.bin(Person.class).createIndex(new Indexer<Person, String>()
-        {
-            public String index(Person object)
-            {
-                return object.getEmail();
-            }
-        }, "email").createIndex(new Indexer<Person, Ordered>()
-        {
-            public Ordered index(Person object)
-            {
-                return new Ordered(object.getLastName(), object.getFirstName());
-            }
-        }, "lastNameFirst");
+        store.bin(Person.class);
         
         person.setFirstName("Alan");
         store.update(person);

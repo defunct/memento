@@ -3,8 +3,6 @@ package com.goodworkalan.memento;
 import java.io.Serializable;
 import java.util.Map;
 
-import com.goodworkalan.memento.Join.Schema;
-
 public class JoinSchema
 implements Serializable
 {
