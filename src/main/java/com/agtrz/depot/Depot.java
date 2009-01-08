@@ -34,6 +34,7 @@ import java.util.TreeSet;
 import java.util.WeakHashMap;
 
 import com.goodworkalan.memento.Bag;
+import com.goodworkalan.memento.Janitor;
 import com.goodworkalan.pack.Pack;
 
 public class Depot
@@ -374,7 +375,7 @@ public class Depot
 
         private final Strata.Query isolation;
 
-        public Bin(Snapshot snapshot, Class<?> type, Pack.Mutator mutator, String name, Common common, Schema schema, Map<Long, Depot.Janitor> mapOfJanitors)
+        public Bin(Snapshot snapshot, Class<?> type, Pack.Mutator mutator, String name, Common common, Schema schema, Map<Long, Janitor> mapOfJanitors)
         {
             query = schema.getStrata().query(Fossil.txn(mutator));
             isolation = new Tree().create(mutator);
@@ -999,7 +1000,7 @@ public class Depot
         }
 
         public final static class Janitor
-        implements Depot.Janitor
+        implements Janitor
         {
             private static final long serialVersionUID = 20070826L;
 
@@ -1190,14 +1191,6 @@ public class Depot
                 common.release();
             }
         }
-    }
-
-    public interface Janitor
-    extends Serializable
-    {
-        public void rollback(Snapshot snapshot);
-
-        public void dispose(Pack.Mutator mutator, boolean deallocate);
     }
 
     private static Strata newJoinStrata(Pack.Mutator mutator, int size)
@@ -1742,7 +1735,7 @@ public class Depot
 
         private final Strata.Query[] isolation;
 
-        public Join(Snapshot snapshot, Pack.Mutator mutator, Schema schema, String name, Map<Long, Depot.Janitor> mapOfJanitors)
+        public Join(Snapshot snapshot, Pack.Mutator mutator, Schema schema, String name, Map<Long, Janitor> mapOfJanitors)
         {
             Strata[] isolations = new Strata[schema.indices.length];
 
@@ -2485,7 +2478,7 @@ public class Depot
         }
 
         public final static class Janitor
-        implements Depot.Janitor
+        implements Janitor
         {
             private static final long serialVersionUID = 20070826L;
 
@@ -3569,7 +3562,7 @@ public class Depot
 
         private final Map<String, Join.Schema> mapOfJoinSchemas;
 
-        private final Map<Long, Depot.Janitor> mapOfJanitors;
+        private final Map<Long, Janitor> mapOfJanitors;
 
         private final Set<Long> setOfCommitted;
 
