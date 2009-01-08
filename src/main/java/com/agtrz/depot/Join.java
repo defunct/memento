@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.goodworkalan.memento.Snapshot;
 import com.goodworkalan.pack.Pack;
 
 public final class Join

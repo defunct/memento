@@ -2,7 +2,6 @@ package com.goodworkalan.memento;
 
 import java.io.Serializable;
 
-import com.agtrz.depot.Snapshot;
 import com.goodworkalan.pack.Mutator;
 
 public interface Janitor

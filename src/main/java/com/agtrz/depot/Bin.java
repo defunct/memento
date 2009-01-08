@@ -14,6 +14,7 @@ import com.goodworkalan.fossil.Fossil;
 import com.goodworkalan.fossil.RecordIO;
 import com.goodworkalan.memento.Bag;
 import com.goodworkalan.memento.Janitor;
+import com.goodworkalan.memento.Snapshot;
 import com.goodworkalan.memento.Unmarshaller;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;

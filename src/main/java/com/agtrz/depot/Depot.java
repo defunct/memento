@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import com.goodworkalan.memento.Janitor;
+import com.goodworkalan.memento.Snapshot;
 import com.goodworkalan.pack.Pack;
 
 public class Depot
@@ -142,7 +143,7 @@ public class Depot
         Strata.Cursor versions = query.first();
         while (versions.hasNext())
         {
-            Snapshot.Record mutation = (Snapshot.Record) versions.next();
+            Snapshot.Record mutation = (com.goodworkalan.memento.Record) versions.next();
             if (mutation.state.equals(COMMITTED))
             {
                 setOfCommitted.add(mutation.version);

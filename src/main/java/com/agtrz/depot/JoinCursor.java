@@ -3,6 +3,8 @@ package com.agtrz.depot;
 import java.util.Iterator;
 import java.util.Map;
 
+import com.goodworkalan.memento.Snapshot;
+
 public class JoinCursor
 implements Iterator<Tuple>
 {

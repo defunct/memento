@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import com.goodworkalan.memento.Snapshot;
 import com.goodworkalan.pack.Pack;
 
 public final class Creator

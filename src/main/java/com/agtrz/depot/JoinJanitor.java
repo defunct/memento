@@ -1,5 +1,6 @@
 package com.agtrz.depot;
 
+import com.goodworkalan.memento.Snapshot;
 import com.goodworkalan.pack.Pack;
 
 public class JoinJanitor

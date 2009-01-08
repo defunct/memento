@@ -1,4 +1,4 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
@@ -9,8 +9,18 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
-import com.goodworkalan.memento.Bag;
-import com.goodworkalan.memento.Janitor;
+import com.agtrz.depot.Bin;
+import com.agtrz.depot.BinCommon;
+import com.agtrz.depot.BinSchema;
+import com.agtrz.depot.Danger;
+import com.agtrz.depot.Error;
+import com.agtrz.depot.JoinSchema;
+import com.agtrz.depot.Restoration;
+import com.agtrz.depot.Sync;
+import com.agtrz.depot.Test;
+import com.agtrz.depot.Tuple;
+import com.agtrz.depot.Restoration.Join;
+import com.agtrz.depot.Restoration.Schema;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
 import com.goodworkalan.strata.Tree;
@@ -313,7 +323,7 @@ public final class Snapshot
             }
             else
             {
-                Snapshot.Record record = (Snapshot.Record) object;
+                Snapshot.Record record = (com.goodworkalan.memento.Record) object;
                 bytes.putLong(record.version.longValue());
                 bytes.putInt(record.state.intValue());
             }

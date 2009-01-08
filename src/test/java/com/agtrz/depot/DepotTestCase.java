@@ -10,6 +10,7 @@ import java.io.IOException;
 import org.junit.Test;
 
 import com.agtrz.depot.serializable.Person;
+import com.goodworkalan.memento.Snapshot;
 
 public class DepotTestCase
 {

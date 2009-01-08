@@ -5,6 +5,7 @@ import java.nio.ByteBuffer;
 import java.util.Iterator;
 
 import com.goodworkalan.memento.Bag;
+import com.goodworkalan.memento.Snapshot;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
 import com.goodworkalan.strata.Strata;

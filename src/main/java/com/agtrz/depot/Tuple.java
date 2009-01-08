@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.goodworkalan.memento.Bag;
+import com.goodworkalan.memento.Snapshot;
 import com.goodworkalan.memento.Unmarshaller;
 
 public final class Tuple
