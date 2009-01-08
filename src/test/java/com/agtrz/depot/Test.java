@@ -13,6 +13,7 @@ import java.util.Set;
 import com.agtrz.depot.serializable.Person;
 import com.goodworkalan.memento.Bag;
 import com.goodworkalan.memento.Bin;
+import com.goodworkalan.memento.Depot;
 import com.goodworkalan.memento.Opener;
 import com.goodworkalan.memento.SerializationUnmarshaller;
 import com.goodworkalan.memento.Snapshot;

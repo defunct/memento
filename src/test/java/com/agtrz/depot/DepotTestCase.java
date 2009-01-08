@@ -11,6 +11,7 @@ import org.junit.Test;
 
 import com.agtrz.depot.serializable.Person;
 import com.goodworkalan.memento.Creator;
+import com.goodworkalan.memento.Depot;
 import com.goodworkalan.memento.Snapshot;
 
 public class DepotTestCase

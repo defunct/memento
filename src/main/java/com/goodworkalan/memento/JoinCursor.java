@@ -3,7 +3,6 @@ package com.goodworkalan.memento;
 import java.util.Iterator;
 import java.util.Map;
 
-import com.agtrz.depot.Depot;
 
 public class JoinCursor
 implements Iterator<Tuple>

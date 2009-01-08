@@ -13,7 +13,6 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import com.agtrz.depot.ByteBufferInputStream;
-import com.agtrz.depot.Depot;
 import com.agtrz.depot.Test;
 import com.goodworkalan.pack.Pack;
 

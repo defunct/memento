@@ -1,5 +1,5 @@
 /* Copyright Alan Gutierrez 2006 */
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
 import java.io.File;
 import java.net.URI;
@@ -12,15 +12,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
-import com.goodworkalan.memento.Bin;
-import com.goodworkalan.memento.Index;
-import com.goodworkalan.memento.Indexer;
-import com.goodworkalan.memento.Janitor;
-import com.goodworkalan.memento.Join;
-import com.goodworkalan.memento.Latch;
-import com.goodworkalan.memento.NullSync;
-import com.goodworkalan.memento.Snapshot;
-import com.goodworkalan.memento.Sync;
+import com.agtrz.depot.Test;
 import com.goodworkalan.pack.Pack;
 
 public class Depot

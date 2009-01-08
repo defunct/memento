@@ -1,14 +1,12 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
-import static com.agtrz.depot.Depot.COMMITTED;
-import static com.agtrz.depot.Depot.HEADER_URI;
-import static com.agtrz.depot.Depot.SIZEOF_INT;
-import static com.agtrz.depot.Depot.SIZEOF_LONG;
+import static com.goodworkalan.memento.Depot.COMMITTED;
+import static com.goodworkalan.memento.Depot.HEADER_URI;
+import static com.goodworkalan.memento.Depot.SIZEOF_INT;
+import static com.goodworkalan.memento.Depot.SIZEOF_LONG;
 
 import java.io.File;
 
-import com.goodworkalan.memento.Creator;
-import com.goodworkalan.memento.Snapshot;
 import com.goodworkalan.pack.Pack;
 
 final class EmptyDepot

@@ -1,4 +1,4 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
@@ -6,16 +6,7 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.agtrz.depot.Depot.Index;
-import com.goodworkalan.memento.Bin;
-import com.goodworkalan.memento.BinHeader;
-import com.goodworkalan.memento.BinSchema;
-import com.goodworkalan.memento.BinTree;
-import com.goodworkalan.memento.Danger;
-import com.goodworkalan.memento.Marshaller;
-import com.goodworkalan.memento.SerializationMarshaller;
-import com.goodworkalan.memento.SerializationUnmarshaller;
-import com.goodworkalan.memento.Unmarshaller;
+import com.goodworkalan.memento.Depot.Index;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
 
