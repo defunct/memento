@@ -1,9 +1,11 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+
+import com.agtrz.depot.Danger;
 
 
 public final class SerializationMarshaller

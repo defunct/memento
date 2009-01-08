@@ -7,6 +7,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.agtrz.depot.Depot.Index;
+import com.goodworkalan.memento.Marshaller;
+import com.goodworkalan.memento.SerializationMarshaller;
+import com.goodworkalan.memento.SerializationUnmarshaller;
 import com.goodworkalan.memento.Unmarshaller;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;

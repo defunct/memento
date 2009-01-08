@@ -1,11 +1,11 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 
-import com.goodworkalan.memento.Unmarshaller;
+import com.agtrz.depot.Danger;
 
 
 public final class SerializationUnmarshaller
