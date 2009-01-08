@@ -9,9 +9,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
-import com.agtrz.depot.Bin;
-import com.agtrz.depot.BinCommon;
-import com.agtrz.depot.BinSchema;
 import com.agtrz.depot.Danger;
 import com.agtrz.depot.Error;
 import com.agtrz.depot.Test;

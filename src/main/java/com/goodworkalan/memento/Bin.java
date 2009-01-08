@@ -1,8 +1,7 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -10,20 +9,14 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
+import com.agtrz.depot.ByteBufferInputStream;
+import com.agtrz.depot.Danger;
 import com.goodworkalan.fossil.Fossil;
-import com.goodworkalan.fossil.RecordIO;
-import com.goodworkalan.memento.Bag;
-import com.goodworkalan.memento.Index;
-import com.goodworkalan.memento.IndexCursor;
-import com.goodworkalan.memento.IndexSchema;
-import com.goodworkalan.memento.Janitor;
-import com.goodworkalan.memento.Marshaller;
-import com.goodworkalan.memento.Snapshot;
-import com.goodworkalan.memento.Unmarshaller;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
 import com.goodworkalan.strata.Cursor;
 import com.goodworkalan.strata.Query;
+import com.goodworkalan.strata.Record;
 import com.goodworkalan.strata.Strata;
 import com.goodworkalan.strata.Transaction;
 

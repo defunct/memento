@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import com.goodworkalan.memento.Bin;
 import com.goodworkalan.memento.Janitor;
 import com.goodworkalan.memento.Join;
 import com.goodworkalan.memento.NullSync;
@@ -56,7 +57,7 @@ public final class Opener
         Map<String, Bin.Common> mapOfBinCommons = new HashMap<String, Bin.Common>();
         for (Map.Entry<String, Bin.Schema> entry : mapOfBinSchemas.entrySet())
         {
-            Bin.Schema binSchema = (Bin.Schema) entry.getValue();
+            Bin.Schema binSchema = (com.goodworkalan.memento.Schema) entry.getValue();
 
             long identifer = 1L;
             Strata.Query query = binSchema.getStrata().query(Fossil.txn(mutator));
@@ -64,7 +65,7 @@ public final class Opener
             // FIXME You can use hasPrevious when it is implemented.
             while (last.hasNext())
             {
-                Bin.Record record = (Bin.Record) last.next();
+                Bin.Record record = (com.goodworkalan.memento.Record) last.next();
                 identifer = record.key + 1;
             }
             last.release();

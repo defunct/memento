@@ -4,7 +4,6 @@ import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
 
-import com.agtrz.depot.Bin;
 import com.agtrz.depot.Depot;
 import com.agtrz.depot.Error;
 import com.goodworkalan.pack.Mutator;

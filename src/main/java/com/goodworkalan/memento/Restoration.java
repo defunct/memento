@@ -7,8 +7,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 
-import com.agtrz.depot.BinCommon;
-import com.agtrz.depot.BinSchema;
 import com.agtrz.depot.Depot;
 import com.agtrz.depot.DepotSchema;
 import com.agtrz.depot.EmptyDepot;

@@ -1,10 +1,10 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.goodworkalan.memento.IndexSchema;
+import com.agtrz.depot.DepotSchema;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.strata.Tree;
 

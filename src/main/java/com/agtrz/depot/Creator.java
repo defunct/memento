@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import com.goodworkalan.memento.Bin;
 import com.goodworkalan.memento.Index;
 import com.goodworkalan.memento.Join;
 import com.goodworkalan.memento.NullSync;
@@ -98,7 +99,7 @@ public final class Creator
 
                 Strata strata = newBinStrata.newStrata(Fossil.txn(mutator));
 
-                Bin.Creator newBin = (Bin.Creator) entry.getValue();
+                Bin.Creator newBin = (com.goodworkalan.memento.Creator) entry.getValue();
 
                 Map<String, Index.Schema> mapOfIndices = new HashMap<String, Index.Schema>();
                 for (Map.Entry<String, Index.Creator> index : newBin.mapOfIndices.entrySet())

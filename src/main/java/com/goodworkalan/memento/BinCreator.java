@@ -1,13 +1,8 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import com.goodworkalan.memento.IndexCreator;
-import com.goodworkalan.memento.Marshaller;
-import com.goodworkalan.memento.SerializationMarshaller;
-import com.goodworkalan.memento.SerializationUnmarshaller;
-import com.goodworkalan.memento.Unmarshaller;
 
 public class BinCreator
 {
