@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import com.goodworkalan.memento.Janitor;
+import com.goodworkalan.memento.Join;
 import com.goodworkalan.memento.Snapshot;
 import com.goodworkalan.pack.Pack;
 

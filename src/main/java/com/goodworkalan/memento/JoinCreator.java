@@ -1,4 +1,4 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -22,7 +22,7 @@ public class JoinCreator
         this.listOfAlternates = new ArrayList<String[]>();
     }
 
-    public Join.Creator add(String fieldName, String binName)
+    public com.goodworkalan.memento.Creator add(String fieldName, String binName)
     {
         if (!setOfBinNames.contains(binName))
         {
@@ -36,7 +36,7 @@ public class JoinCreator
         return this;
     }
 
-    public Join.Creator add(String binName)
+    public com.goodworkalan.memento.Creator add(String binName)
     {
         return add(binName, binName);
     }

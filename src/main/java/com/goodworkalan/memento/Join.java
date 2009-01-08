@@ -1,4 +1,4 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
 import static com.agtrz.depot.Depot.CONCURRENT_MODIFICATION_ERROR;
 import static com.agtrz.depot.Depot.SIZEOF_LONG;
@@ -17,7 +17,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.goodworkalan.memento.Snapshot;
+import com.agtrz.depot.Danger;
+import com.agtrz.depot.Depot;
+import com.agtrz.depot.Error;
+import com.agtrz.depot.PackOutputStream;
 import com.goodworkalan.pack.Pack;
 
 public final class Join
@@ -135,7 +138,7 @@ public final class Join
         Strata.Cursor cursor = isolation[0].find(keys);
         if (cursor.hasNext())
         {
-            final Join.Record record = (Join.Record) cursor.next();
+            final Join.Record record = (com.goodworkalan.memento.Record) cursor.next();
             cursor.release();
             if (Depot.compare(record.keys, keys) == 0)
             {
@@ -219,7 +222,7 @@ public final class Join
             Strata.Cursor isolated = isolation[i].first();
             while (isolated.hasNext())
             {
-                Join.Record record = (Join.Record) isolated.next();
+                Join.Record record = (com.goodworkalan.memento.Record) isolated.next();
                 List<Object> listOfKeys = new ArrayList<Object>();
                 for (int j = 0; j < record.keys.length; j++)
                 {
@@ -243,7 +246,7 @@ public final class Join
             Strata.Cursor isolated = isolation[i].first();
             while (isolated.hasNext())
             {
-                query.insert((Join.Record) isolated.next());
+                query.insert((com.goodworkalan.memento.Record) isolated.next());
             }
             isolated.release();
             query.flush();
@@ -252,11 +255,11 @@ public final class Join
             isolated = isolation[i].first();
             while (copacetic && isolated.hasNext())
             {
-                Join.Record record = (Join.Record) isolated.next();
+                Join.Record record = (com.goodworkalan.memento.Record) isolated.next();
                 Strata.Cursor cursor = query.find(record.keys);
                 while (copacetic && cursor.hasNext())
                 {
-                    Join.Record candidate = (Join.Record) cursor.next();
+                    Join.Record candidate = (com.goodworkalan.memento.Record) cursor.next();
                     if (Depot.compare(candidate.keys, record.keys) != 0)
                     {
                         break;
@@ -289,7 +292,7 @@ public final class Join
             Join.Record previous = null;
             while (cursor.hasNext() && previous == null)
             {
-                Join.Record record = (Join.Record) cursor.next();
+                Join.Record record = (com.goodworkalan.memento.Record) cursor.next();
                 if (snapshot.isVisible(record.version))
                 {
                     previous = record;
@@ -302,7 +305,7 @@ public final class Join
                 Join.Record found = null;
                 while (cursor.hasNext() && found == null)
                 {
-                    Join.Record record = (Join.Record) cursor.next();
+                    Join.Record record = (com.goodworkalan.memento.Record) cursor.next();
                     if (snapshot.isVisible(record.version))
                     {
                         found = record;
@@ -317,7 +320,7 @@ public final class Join
                 Join.Record next = null;
                 while (cursor.hasNext() && next == null)
                 {
-                    Join.Record record = (Join.Record) cursor.next();
+                    Join.Record record = (com.goodworkalan.memento.Record) cursor.next();
                     if (snapshot.isVisible(record.version))
                     {
                         next = record;

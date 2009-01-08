@@ -1,8 +1,8 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
 import java.io.Serializable;
 
-import com.agtrz.depot.Join.Index;
+import com.goodworkalan.memento.Join.Index;
 
 public class JoinIndex
 final static class Index

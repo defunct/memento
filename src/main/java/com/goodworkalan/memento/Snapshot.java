@@ -14,7 +14,6 @@ import com.agtrz.depot.BinCommon;
 import com.agtrz.depot.BinSchema;
 import com.agtrz.depot.Danger;
 import com.agtrz.depot.Error;
-import com.agtrz.depot.JoinSchema;
 import com.agtrz.depot.Restoration;
 import com.agtrz.depot.Sync;
 import com.agtrz.depot.Test;

@@ -1,9 +1,10 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
 import java.util.Iterator;
 import java.util.Map;
 
-import com.goodworkalan.memento.Snapshot;
+import com.agtrz.depot.Depot;
+import com.agtrz.depot.Tuple;
 
 public class JoinCursor
 implements Iterator<Tuple>

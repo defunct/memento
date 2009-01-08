@@ -1,6 +1,5 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
-import com.goodworkalan.memento.Snapshot;
 import com.goodworkalan.pack.Pack;
 
 public class JoinJanitor
@@ -28,7 +27,7 @@ implements Janitor
             Strata.Cursor cursor = isolation[i].query(Fossil.txn(join.mutator)).first();
             while (cursor.hasNext())
             {
-                query.remove((Join.Record) cursor.next());
+                query.remove((com.goodworkalan.memento.Record) cursor.next());
             }
             cursor.release();
             query.flush();

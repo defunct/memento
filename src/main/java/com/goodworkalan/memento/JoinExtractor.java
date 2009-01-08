@@ -1,6 +1,7 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
 import java.io.Serializable;
+
 
 public class JoinExtractor
 implements Strata.FieldExtractor, Serializable
@@ -9,6 +10,6 @@ implements Strata.FieldExtractor, Serializable
 
     public Comparable<?>[] getFields(Object txn, Object object)
     {
-        return ((Join.Record) object).keys;
+        return ((com.goodworkalan.memento.Record) object).keys;
     }
 }

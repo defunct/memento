@@ -1,4 +1,5 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
+
 
 public class JoinAdvancer
 {
@@ -31,7 +32,7 @@ public class JoinAdvancer
             cursor.release();
             return false;
         }
-        record = (Join.Record) cursor.next();
+        record = (com.goodworkalan.memento.Record) cursor.next();
         return true;
     }
 

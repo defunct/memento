@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import com.goodworkalan.memento.Join;
 import com.goodworkalan.memento.Snapshot;
 import com.goodworkalan.pack.Pack;
 
@@ -132,7 +133,7 @@ public final class Creator
             for (Map.Entry<String, Join.Creator> join : mapOfJoinCreators.entrySet())
             {
                 String joinName = (String) join.getKey();
-                Join.Creator newJoin = (Join.Creator) join.getValue();
+                Join.Creator newJoin = (com.goodworkalan.memento.Creator) join.getValue();
 
                 Join.Index[] indexes = new Join.Index[newJoin.listOfAlternates.size() + 1];
 

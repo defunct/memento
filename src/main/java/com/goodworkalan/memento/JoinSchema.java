@@ -1,9 +1,9 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
 import java.io.Serializable;
 import java.util.Map;
 
-import com.agtrz.depot.Join.Schema;
+import com.goodworkalan.memento.Join.Schema;
 
 public class JoinSchema
 implements Serializable
