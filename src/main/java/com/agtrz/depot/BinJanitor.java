@@ -2,6 +2,7 @@ package com.agtrz.depot;
 
 import java.util.Iterator;
 
+import com.goodworkalan.memento.Index;
 import com.goodworkalan.memento.Janitor;
 import com.goodworkalan.memento.Snapshot;
 import com.goodworkalan.pack.Mutator;

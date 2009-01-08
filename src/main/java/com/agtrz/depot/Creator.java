@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import com.goodworkalan.memento.Index;
 import com.goodworkalan.memento.Join;
 import com.goodworkalan.memento.NullSync;
 import com.goodworkalan.memento.Snapshot;
@@ -110,7 +111,7 @@ public final class Creator
                     newIndexStorage.setSize(Depot.SIZEOF_LONG + Depot.SIZEOF_LONG + Depot.SIZEOF_SHORT);
 
                     Strata.Schema newIndexStrata = new Strata.Schema();
-                    Index.Creator newIndex = (Index.Creator) index.getValue();
+                    Index.Creator newIndex = (com.goodworkalan.memento.Creator) index.getValue();
 
                     if (newIndex.unmarshaller == null)
                     {

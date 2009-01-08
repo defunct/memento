@@ -3,6 +3,7 @@ package com.agtrz.depot;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.goodworkalan.memento.IndexCreator;
 import com.goodworkalan.memento.Marshaller;
 import com.goodworkalan.memento.SerializationMarshaller;
 import com.goodworkalan.memento.SerializationUnmarshaller;

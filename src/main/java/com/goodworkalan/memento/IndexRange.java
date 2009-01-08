@@ -1,8 +1,7 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
 import java.util.Iterator;
 
-import com.goodworkalan.memento.Bag;
 
 public class IndexRange
 implements Iterator<Object>

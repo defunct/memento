@@ -1,6 +1,7 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
-import com.goodworkalan.memento.Bag;
+import com.agtrz.depot.Bin;
+import com.agtrz.depot.BinRecord;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
 
