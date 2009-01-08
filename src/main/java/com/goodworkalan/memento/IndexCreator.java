@@ -1,7 +1,5 @@
 package com.goodworkalan.memento;
 
-import com.agtrz.depot.BeanExtractor;
-import com.agtrz.depot.FieldExtractor;
 
 public class IndexCreator
 {

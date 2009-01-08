@@ -2,7 +2,6 @@ package com.goodworkalan.memento;
 
 import java.io.Serializable;
 
-import com.agtrz.depot.FieldExtractor;
 import com.goodworkalan.strata.Schema;
 import com.goodworkalan.strata.Strata;
 import com.goodworkalan.strata.Tree;

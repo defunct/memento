@@ -1,4 +1,4 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
 import java.beans.BeanInfo;
 import java.beans.IntrospectionException;
@@ -10,8 +10,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
-import com.goodworkalan.memento.Danger;
-import com.goodworkalan.memento.Indexer;
 
 
 public class BeanIndexer<T>

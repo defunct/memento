@@ -1,12 +1,10 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
 import java.beans.BeanInfo;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
 
-import com.goodworkalan.memento.Danger;
-import com.goodworkalan.memento.Error;
 
 
 public final class BeanExtractor
