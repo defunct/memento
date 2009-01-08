@@ -15,7 +15,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import com.agtrz.depot.Depot;
-import com.agtrz.depot.Opener;
 import com.agtrz.depot.PackOutputStream;
 import com.goodworkalan.pack.Pack;
 

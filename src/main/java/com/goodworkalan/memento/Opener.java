@@ -1,4 +1,4 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
 import static com.agtrz.depot.Depot.COMMITTED;
 import static com.agtrz.depot.Depot.HEADER_URI;
@@ -12,13 +12,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
-import com.goodworkalan.memento.Bin;
-import com.goodworkalan.memento.Danger;
-import com.goodworkalan.memento.Janitor;
-import com.goodworkalan.memento.Join;
-import com.goodworkalan.memento.NullSync;
-import com.goodworkalan.memento.Snapshot;
-import com.goodworkalan.memento.Sync;
+import com.agtrz.depot.ByteBufferInputStream;
+import com.agtrz.depot.Depot;
+import com.agtrz.depot.Test;
 import com.goodworkalan.pack.Pack;
 
 public final class Opener
