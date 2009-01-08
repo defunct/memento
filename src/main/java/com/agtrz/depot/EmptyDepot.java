@@ -7,6 +7,7 @@ import static com.agtrz.depot.Depot.SIZEOF_LONG;
 
 import java.io.File;
 
+import com.goodworkalan.memento.Creator;
 import com.goodworkalan.memento.Snapshot;
 import com.goodworkalan.pack.Pack;
 

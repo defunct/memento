@@ -1,4 +1,4 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
 import static com.agtrz.depot.Depot.COMMITTED;
 import static com.agtrz.depot.Depot.HEADER_URI;
@@ -14,13 +14,9 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import com.goodworkalan.memento.Bin;
-import com.goodworkalan.memento.Danger;
-import com.goodworkalan.memento.Index;
-import com.goodworkalan.memento.Join;
-import com.goodworkalan.memento.NullSync;
-import com.goodworkalan.memento.Snapshot;
-import com.goodworkalan.memento.Sync;
+import com.agtrz.depot.Depot;
+import com.agtrz.depot.Opener;
+import com.agtrz.depot.PackOutputStream;
 import com.goodworkalan.pack.Pack;
 
 public final class Creator
