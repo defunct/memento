@@ -13,11 +13,11 @@ import com.goodworkalan.memento.Restoration.Join;
 import com.goodworkalan.memento.Restoration.Schema;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
-import com.goodworkalan.strata.Tree;
+import com.goodworkalan.strata.Strata;
 
 public final class Snapshot
 {
-    private final Tree<SnapshotRecord, Mutator> snapshots;
+    private final Strata<SnapshotRecord, Mutator> snapshots;
 
     private final Map<String, BinCommon> mapOfBinCommons;
 

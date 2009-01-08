@@ -1,11 +1,5 @@
 package com.goodworkalan.memento;
 
-import static com.agtrz.depot.Depot.COMMITTED;
-import static com.agtrz.depot.Depot.HEADER_URI;
-import static com.agtrz.depot.Depot.SIZEOF_INT;
-import static com.agtrz.depot.Depot.SIZEOF_LONG;
-import static com.agtrz.depot.Depot.SIZEOF_SHORT;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
