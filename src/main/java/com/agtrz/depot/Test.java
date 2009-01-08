@@ -1,5 +1,7 @@
 package com.agtrz.depot;
 
+import com.goodworkalan.memento.Sync;
+
 public final class Test
 {
     private Sync registerMutation;

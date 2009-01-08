@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 
 import com.goodworkalan.memento.Snapshot;
+import com.goodworkalan.memento.Sync;
 
 
 public final class Loader

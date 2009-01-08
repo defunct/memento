@@ -9,6 +9,7 @@ import java.util.Map;
 
 import com.goodworkalan.memento.JoinSchema;
 import com.goodworkalan.memento.Snapshot;
+import com.goodworkalan.memento.Sync;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
 

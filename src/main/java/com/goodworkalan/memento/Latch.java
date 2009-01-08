@@ -1,4 +1,5 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
+
 
 
 public final class Latch

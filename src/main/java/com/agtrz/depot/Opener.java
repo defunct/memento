@@ -14,7 +14,9 @@ import java.util.TreeSet;
 
 import com.goodworkalan.memento.Janitor;
 import com.goodworkalan.memento.Join;
+import com.goodworkalan.memento.NullSync;
 import com.goodworkalan.memento.Snapshot;
+import com.goodworkalan.memento.Sync;
 import com.goodworkalan.pack.Pack;
 
 public final class Opener

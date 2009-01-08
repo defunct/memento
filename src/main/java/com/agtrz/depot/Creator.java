@@ -15,7 +15,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import com.goodworkalan.memento.Join;
+import com.goodworkalan.memento.NullSync;
 import com.goodworkalan.memento.Snapshot;
+import com.goodworkalan.memento.Sync;
 import com.goodworkalan.pack.Pack;
 
 public final class Creator
