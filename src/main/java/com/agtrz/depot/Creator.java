@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import com.goodworkalan.memento.Bin;
+import com.goodworkalan.memento.Danger;
 import com.goodworkalan.memento.Index;
 import com.goodworkalan.memento.Join;
 import com.goodworkalan.memento.NullSync;

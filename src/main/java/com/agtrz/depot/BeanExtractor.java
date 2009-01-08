@@ -5,6 +5,9 @@ import java.beans.IntrospectionException;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
 
+import com.goodworkalan.memento.Danger;
+import com.goodworkalan.memento.Error;
+
 
 public final class BeanExtractor
 implements FieldExtractor

@@ -5,7 +5,6 @@ import java.nio.ByteBuffer;
 import java.util.Iterator;
 
 import com.agtrz.depot.Depot;
-import com.agtrz.depot.Error;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
 import com.goodworkalan.strata.Strata;

@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 
-import com.agtrz.depot.Danger;
 
 
 public final class SerializationUnmarshaller

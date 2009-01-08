@@ -5,7 +5,6 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 
-import com.agtrz.depot.Danger;
 
 
 public final class SerializationMarshaller

@@ -9,8 +9,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
-import com.agtrz.depot.Danger;
-import com.agtrz.depot.Error;
 import com.agtrz.depot.Test;
 import com.goodworkalan.memento.Restoration.Join;
 import com.goodworkalan.memento.Restoration.Schema;

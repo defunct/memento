@@ -11,6 +11,7 @@ import com.goodworkalan.memento.Bin;
 import com.goodworkalan.memento.BinHeader;
 import com.goodworkalan.memento.BinSchema;
 import com.goodworkalan.memento.BinTree;
+import com.goodworkalan.memento.Danger;
 import com.goodworkalan.memento.Marshaller;
 import com.goodworkalan.memento.SerializationMarshaller;
 import com.goodworkalan.memento.SerializationUnmarshaller;
