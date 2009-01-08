@@ -1,6 +1,6 @@
 package com.goodworkalan.memento;
 
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 public class BagTest
 {
