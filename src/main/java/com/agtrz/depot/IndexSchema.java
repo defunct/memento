@@ -2,6 +2,7 @@ package com.agtrz.depot;
 
 import java.io.Serializable;
 
+import com.goodworkalan.memento.Unmarshaller;
 import com.goodworkalan.strata.Schema;
 import com.goodworkalan.strata.Strata;
 import com.goodworkalan.strata.Tree;

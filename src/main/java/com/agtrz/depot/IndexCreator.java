@@ -1,5 +1,7 @@
 package com.agtrz.depot;
 
+import com.goodworkalan.memento.Unmarshaller;
+
 public class IndexCreator
 {
     private Unmarshaller unmarshaller;

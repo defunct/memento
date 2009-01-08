@@ -5,6 +5,8 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 
+import com.goodworkalan.memento.Unmarshaller;
+
 
 public final class SerializationUnmarshaller
 implements Unmarshaller, Serializable

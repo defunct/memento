@@ -3,6 +3,8 @@ package com.agtrz.depot;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.goodworkalan.memento.Unmarshaller;
+
 public class BinCreator
 {
     private final String name;
