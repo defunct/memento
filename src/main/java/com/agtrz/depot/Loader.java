@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 
+import com.goodworkalan.memento.Restoration;
 import com.goodworkalan.memento.Snapshot;
 import com.goodworkalan.memento.Sync;
 

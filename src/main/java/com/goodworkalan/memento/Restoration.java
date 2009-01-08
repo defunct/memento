@@ -1,4 +1,4 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
 import java.io.File;
 import java.io.Serializable;
@@ -7,9 +7,11 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 
-import com.goodworkalan.memento.JoinSchema;
-import com.goodworkalan.memento.Snapshot;
-import com.goodworkalan.memento.Sync;
+import com.agtrz.depot.BinCommon;
+import com.agtrz.depot.BinSchema;
+import com.agtrz.depot.Depot;
+import com.agtrz.depot.DepotSchema;
+import com.agtrz.depot.EmptyDepot;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
 
