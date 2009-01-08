@@ -1,6 +1,5 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
-import com.goodworkalan.memento.Sync;
 
 public final class Test
 {

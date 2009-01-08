@@ -1,15 +1,10 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
 import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 
-import com.goodworkalan.memento.Danger;
-import com.goodworkalan.memento.Depot;
-import com.goodworkalan.memento.Restoration;
-import com.goodworkalan.memento.Snapshot;
-import com.goodworkalan.memento.Sync;
 
 
 public final class Loader
