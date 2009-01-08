@@ -17,7 +17,6 @@ import com.agtrz.depot.Error;
 import com.agtrz.depot.Restoration;
 import com.agtrz.depot.Sync;
 import com.agtrz.depot.Test;
-import com.agtrz.depot.Tuple;
 import com.agtrz.depot.Restoration.Join;
 import com.agtrz.depot.Restoration.Schema;
 import com.goodworkalan.pack.Mutator;

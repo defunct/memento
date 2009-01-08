@@ -1,12 +1,8 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import com.goodworkalan.memento.Bag;
-import com.goodworkalan.memento.Join;
-import com.goodworkalan.memento.Snapshot;
-import com.goodworkalan.memento.Unmarshaller;
 
 public final class Tuple
 {

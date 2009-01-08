@@ -4,7 +4,6 @@ import java.util.Iterator;
 import java.util.Map;
 
 import com.agtrz.depot.Depot;
-import com.agtrz.depot.Tuple;
 
 public class JoinCursor
 implements Iterator<Tuple>
