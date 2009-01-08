@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.agtrz.depot.PackOutputStream;
 import com.goodworkalan.pack.Pack;
 
 public final class Join

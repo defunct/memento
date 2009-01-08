@@ -1,4 +1,4 @@
-package com.agtrz.depot;
+package com.goodworkalan.memento;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;

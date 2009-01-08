@@ -9,7 +9,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-import com.agtrz.depot.ByteBufferInputStream;
 import com.goodworkalan.fossil.Fossil;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;

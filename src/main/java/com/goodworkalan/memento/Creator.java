@@ -14,7 +14,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import com.agtrz.depot.PackOutputStream;
 import com.goodworkalan.pack.Pack;
 
 public final class Creator
