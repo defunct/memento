@@ -10,22 +10,19 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
-import com.goodworkalan.fossil.Fossil;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
 import com.goodworkalan.strata.Cursor;
 import com.goodworkalan.strata.Query;
-import com.goodworkalan.strata.Record;
-import com.goodworkalan.strata.Strata;
 import com.goodworkalan.strata.Transaction;
 
 // FIXME Vacuum.
 public final class Bin<Item>
 {
-    private final Class<?> type;
+    final Mutator mutator;
 
-     final Mutator mutator;
-
+    private final Class<Item> itemClass;
+    
     private final Snapshot snapshot;
 
     private final BinCommon common;
@@ -48,7 +45,7 @@ public final class Bin<Item>
     {
         query = schema.getStrata().query(mutator);
         isolation = new BinTree().create(mutator);
-        BinJanitor janitor = new BinJanitor(isolation, type);
+        BinJanitor<Item> janitor = new BinJanitor<Item>(isolation, itemClass);
 
         PackOutputStream allocation = new PackOutputStream(mutator);
         try
@@ -65,12 +62,13 @@ public final class Bin<Item>
         mapOfJanitors.put(address, janitor);
 
         this.snapshot = snapshot;
-        this.type = type;
         this.common = common;
         this.mapOfIndices = newIndexMap(snapshot, schema);
         this.schema = schema;
         this.mutator = mutator;
         
+        this.itemClass = itemClass;
+
         this.outstandingKeys = new WeakIdentityLookup();
         this.outstandingValues = new WeakHashMap<Long, Box<Item>>();
     }
@@ -88,9 +86,9 @@ public final class Bin<Item>
         return mapOfIndices;
     }
 
-    public Class<?> getType()
+    public Class<Item> getItemClass()
     {
-        return type;
+        return itemClass;
     }
 
     public void load(Marshaller marshaller, Iterator<Bag> iterator)
@@ -119,7 +117,7 @@ public final class Bin<Item>
                 catch (Error e)
                 {
                     e.put("index", entry.getKey());
-                    isolation.remove(record);
+                    isolation.remove(isolation.extract(record));
                     mutator.free(record.address);
                     throw e;
                 }
@@ -127,7 +125,7 @@ public final class Bin<Item>
         }
     }
 
-    private void restore(long key, Item object)
+    public void restore(long key, Item object)
     {
         Box<Item> box = new Box<Item>(key, snapshot.getVersion(), object);
         insert(box);
@@ -156,7 +154,7 @@ public final class Bin<Item>
             catch (Error e)
             {
                 e.put("index", entry.getKey());
-                isolation.remove(record);
+                isolation.remove(isolation.extract(record));
                 mutator.free(record.address);
                 throw e;
             }
@@ -393,10 +391,10 @@ public final class Bin<Item>
         return record == null ? null : unmarshall(io, record);
     }
 
-    Bag get(Unmarshaller unmarshaller, Long key, Long version)
+    Box<Item> get(ItemIO<Item> io, Long key, Long version)
     {
         BinRecord record = getRecord(key, version);
-        return record == null ? null : unmarshall(unmarshaller, record);
+        return record == null ? null : unmarshall(io, record);
     }
 
     // FIXME Call this somewhere somehow.
@@ -456,7 +454,7 @@ public final class Bin<Item>
 
         if (!copacetic)
         {
-            throw new Error("Concurrent modification.", CONCURRENT_MODIFICATION_ERROR);
+            throw new Error("Concurrent modification.", Depot.CONCURRENT_MODIFICATION_ERROR);
         }
 
         Iterator<Index> indices = mapOfIndices.values().iterator();

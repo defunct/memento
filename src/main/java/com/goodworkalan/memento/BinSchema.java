@@ -20,7 +20,7 @@ implements Serializable
     
     public final ItemIO<Item> io;
 
-    public BinSchema(DepotSchema schema, Strata<BinRecord, Mutator> strata, Map<String, IndexSchema> mapOfIndexSchemas, ItemIO<Item> io)
+    public BinSchema(DepotSchema schema, Strata<BinRecord, Long, Mutator> strata, Map<String, IndexSchema> mapOfIndexSchemas, ItemIO<Item> io)
     {
         this.schema = schema;
         this.strata = strata;
@@ -28,7 +28,7 @@ implements Serializable
         this.io = io;
     }
 
-    public Strata<BinRecord, Mutator> getStrata()
+    public Strata<BinRecord, Long, Mutator> getStrata()
     {
         return strata;
     }

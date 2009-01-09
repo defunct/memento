@@ -13,11 +13,11 @@ implements Janitor
 {
     private static final long serialVersionUID = 20070826L;
 
-    private final Strata<BinRecord, Mutator> isolation;
+    private final Strata<BinRecord, Long, Mutator> isolation;
 
     private final Class<Item> itemClass;
 
-    public BinJanitor(Transaction<BinRecord, Mutator> isolation, Class<Item> itemClass)
+    public BinJanitor(Transaction<BinRecord, Long, Mutator> isolation, Class<Item> itemClass)
     {
         this.isolation = isolation.getStrata();
         this.itemClass = itemClass;
@@ -36,7 +36,7 @@ implements Janitor
                 Index index = (Index) indices.next();
                 index.remove(bin.mutator, bin, record.key, record.version);
             }
-            bin.query.remove(record);
+            bin.query.remove(bin.query.extract(record));
         }
         cursor.release();
         bin.query.flush();
@@ -44,7 +44,7 @@ implements Janitor
 
     public void dispose(Mutator mutator, boolean deallocate)
     {
-        Query<BinRecord> query = isolation.query(mutator);
+        Query<BinRecord, Long> query = isolation.query(mutator);
         if (deallocate)
         {
             Cursor<BinRecord> cursor = query.first();

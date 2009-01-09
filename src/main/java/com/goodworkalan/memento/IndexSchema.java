@@ -1,56 +1,31 @@
 package com.goodworkalan.memento;
 
-import java.io.Serializable;
-
-import com.goodworkalan.strata.Schema;
+import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.strata.Strata;
-import com.goodworkalan.strata.Tree;
 
-public class IndexSchema
-implements Serializable
+public class IndexSchema<Item, Fields>
 {
-    private static final long serialVersionUID = 20070610L;
+    public final Indexer<Item, Fields> extractor;
 
-    public final FieldExtractor extractor;
-
-    public final Object strata;
+    public final Strata<IndexRecord, Ordered, Mutator> strata;
 
     public final boolean unique;
 
     public final boolean notNull;
 
-    public final Unmarshaller unmarshaller;
+    public final ItemIO<Item> io;
 
-    public IndexSchema(Strata strata, FieldExtractor extractor, boolean unique, boolean notNull, Unmarshaller unmarshaller)
+    public IndexSchema(Strata<IndexRecord, Ordered, Mutator> strata, Indexer<Item, Fields> extractor, boolean unique, boolean notNull, ItemIO<Item> io)
     {
         this.extractor = extractor;
         this.strata = strata;
         this.unique = unique;
         this.notNull = notNull;
-        this.unmarshaller = unmarshaller;
+        this.io = io;
     }
 
-    private IndexSchema(Schema<IndexRecord, IndexTransaction> strata, FieldExtractor extractor, boolean unique, boolean notNull, Unmarshaller unmarshaller)
+    public Strata<IndexRecord, Ordered, Mutator> getStrata()
     {
-        this.extractor = extractor;
-        this.strata = strata;
-        this.unique = unique;
-        this.notNull = notNull;
-        this.unmarshaller = unmarshaller;
-    }
-
-    public Strata getStrata()
-    {
-        return (Strata) strata;
-    }
-
-    public Tree<IndexRecord, IndexTransaction> toStrata(Object txn)
-    {
-        return new Schema<IndexRecord, IndexTransaction>(((Schema) strata).newStrata(txn), extractor, unique, notNull, unmarshaller);
-    }
-
-    public Schema<IndexRecord, IndexTransaction> toSchema()
-    {
-        return new Schema(getStrata().getSchema(), extractor, unique, notNull, unmarshaller);
+        return strata;
     }
 }

@@ -2,14 +2,14 @@ package com.goodworkalan.memento;
 
 import com.goodworkalan.fossil.Fossil;
 import com.goodworkalan.pack.Mutator;
-import com.goodworkalan.pack.Schema;
+import com.goodworkalan.strata.Schema;
 import com.goodworkalan.strata.Transaction;
 
 public class BinTree
 {
-    public Transaction<BinRecord, Mutator> create(Mutator mutator)
+    public Transaction<BinRecord, Long, Mutator> create(Mutator mutator)
     {
-        Schema<BinRecord, Mutator> newFossil;
+        Schema<BinRecord, Long, Mutator> newFossil;
         newFossil = Fossil.newFossilSchema(new BinRecordIO());
 
         // FIXME Base on page size.

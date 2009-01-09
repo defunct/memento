@@ -6,53 +6,55 @@ import java.util.Iterator;
 
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
+import com.goodworkalan.strata.Query;
+import com.goodworkalan.strata.Schema;
 import com.goodworkalan.strata.Strata;
+import com.goodworkalan.strata.Stratas;
 
 // FIXME Vacuum.
-public final static class Index
+public final class Index<Item, Fields>
 {
-    private final IndexSchema schema;
+    private final IndexSchema<Item,Fields> schema;
 
-    private final Strata<IndexRecord, Mutator> isolation;
+    private final Query<IndexRecord, Ordered> isolation;
 
-    public Index(IndexSchema schema)
+    public Index(IndexSchema<Item, Fields> schema)
     {
         this.schema = schema;
         this.isolation = newIsolation();
     }
 
-    private static Strata<IndexRecord, Mutator> newIsolation()
+    private static Query<IndexRecord, Ordered> newIsolation()
     {
-        com.goodworkalan.strata.Schema<T, X>Strata.newInMemorySchema();
-        Strata.Schema creator = new Strata.Schema();
+        Schema<IndexRecord, Ordered, Object> newStrata = Stratas.newInMemorySchema();
 
-        creator.setCacheFields(true);
-        creator.setFieldExtractor(new Extractor());
-        creator.setStorage(new ArrayListStorage.Schema());
+        newStrata.setFieldCaching(true);
+        newStrata.setExtractor(new IndexExtractor<Object>());
 
-        return creator.newStrata(null);
+        return newStrata.newTransaction(null);
     }
 
-    public void add(Snapshot snapshot, Mutator mutator, Bin bin, Bag bag)
+    public void add(Snapshot snapshot, Mutator mutator, Bin<Item> bin, Box<Item> box)
     {
         IndexTransaction txn = new IndexTransaction(mutator, bin, schema);
-        Comparable<?>[] fields = schema.extractor.getFields(bag.getObject());
-        if (schema.notNull && Depot.hasNulls(fields))
-        {
-            throw new Error("Not null violation.", Depot.NOT_NULL_VIOLATION_ERROR);
-        }
-        if (schema.unique && (schema.notNull || !hasNulls(fields)))
+        Fields fields = schema.extractor.index(box.getItem());
+        // Need to push not null into indexer. 
+//        if (schema.notNull && Depot.hasNulls(fields))
+//        {
+//            throw new Error("Not null violation.", Depot.NOT_NULL_VIOLATION_ERROR);
+//        }
+        if (schema.unique)// && (schema.notNull || !hasNulls(fields)))
         {
             Iterator<Object> found = find(snapshot, mutator, bin, fields, true);
             if (found.hasNext())
             {
                 found.next(); // Release locks.
-                throw new Error("Unique index constraint violation.", UNIQUE_CONSTRAINT_VIOLATION_ERROR).put("bin", bin.getName());
+                throw new Error("Unique index constraint violation.", Depot.UNIQUE_CONSTRAINT_VIOLATION_ERROR).put("bin", bin.getName());
             }
         }
-        Strata.Query query = isolation.query(txn);
-        Record record = new Record(bag.getKey(), bag.getVersion());
-        query.insert(record);
+        Query query = isolation.query(mutator);
+        IndexRecord record = new IndexRecord(bag.getKey(), bag.getVersion());
+        query.add(record);
         query.flush();
     }
 

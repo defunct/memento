@@ -1,40 +1,37 @@
 package com.goodworkalan.memento;
 
-import com.goodworkalan.pack.Mutator;
-import com.goodworkalan.pack.Pack;
-
-public final static class IndexTransaction
+public final class IndexTransaction<Item, Fields, X>
 {
-    public final Mutator mutator;
+    public final X mutator;
 
-    public final Bin bin;
+    public final Bin<Item> bin;
 
-    public final IndexSchema schema;
+    public final IndexSchema<Item, Fields> schema;
 
-    public IndexTransaction(Mutator mutator, Bin bin, IndexSchema schema)
+    public IndexTransaction(X mutator, Bin<Item> bin, IndexSchema<Item, Fields> schema)
     {
         this.mutator = mutator;
         this.bin = bin;
         this.schema = schema;
     }
 
-    public Mutator getMutator()
+    public X getMutator()
     {
         return mutator;
     }
 
-    public Comparable<?>[] getFields(Long key, Long version)
+    public Fields index(long key, long version)
     {
-        return schema.extractor.getFields(bin.get(schema.unmarshaller, key, version).getObject());
+        return schema.extractor.index(bin.get(schema.io, key, version).getItem());
     }
 
-    public Bag getBag(BinRecord record)
+    public Box<Item> getBag(BinRecord record)
     {
-        return bin.get(schema.unmarshaller, record.key);
+        return bin.get(schema.io, record.key);
     }
 
     public boolean isDeleted(BinRecord record)
     {
-        return record.version != bin.get(schema.unmarshaller, record.key).getVersion();
+        return record.version != bin.get(schema.io, record.key).getVersion();
     }
 }
