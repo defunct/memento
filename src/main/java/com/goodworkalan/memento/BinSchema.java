@@ -14,7 +14,7 @@ implements Serializable
 
     public final DepotSchema schema;
     
-    public final Strata<BinRecord, Mutator> strata;
+    public final Strata<BinRecord, Long, Mutator> strata;
 
     public final Map<String, IndexSchema> mapOfIndexSchemas;
     

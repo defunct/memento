@@ -1,19 +1,14 @@
 package com.goodworkalan.memento;
 
-import java.io.Serializable;
-
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.strata.Extractor;
-import com.goodworkalan.strata.Record;
 
 public class BinExtractor
-implements Extractor<BinRecord, Mutator>, Serializable
+implements Extractor<BinRecord, Long, Mutator>
 {
-    private static final long serialVersionUID = 20070408L;
-
-    public void extract(Mutator txn, BinRecord object, Record record)
+    public Long extract(Mutator txn, BinRecord record)
     {
-        record.fields(object.key);
+        return record.key;
     }
 }
 

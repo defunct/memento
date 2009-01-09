@@ -34,15 +34,17 @@ public final class Bin<Item>
 
     final Map<String, Index> mapOfIndices;
 
-    private final Query<BinRecord> query;
+    final Query<BinRecord, Long> query;
 
-    private final Transaction<BinRecord, Mutator> isolation;
+    private final Transaction<BinRecord, Long, Mutator> isolation;
     
     private final WeakIdentityLookup outstandingKeys;
     
     private final WeakHashMap<Long, Box<Item>> outstandingValues; 
 
-    public Bin(Snapshot snapshot, Class<Item> itemClass, Mutator mutator, String name, BinCommon common, BinSchema<Item> schema, Map<Long, Janitor> mapOfJanitors)
+    public Bin(Snapshot snapshot, Class<Item> itemClass, Mutator mutator,
+               String name, BinCommon common, BinSchema<Item> schema,
+               Map<Long, Janitor> mapOfJanitors)
     {
         query = schema.getStrata().query(mutator);
         isolation = new BinTree().create(mutator);

@@ -8,24 +8,24 @@ import com.goodworkalan.strata.Query;
 import com.goodworkalan.strata.Strata;
 import com.goodworkalan.strata.Transaction;
 
-public final class BinJanitor
+public final class BinJanitor<Item>
 implements Janitor
 {
     private static final long serialVersionUID = 20070826L;
 
     private final Strata<BinRecord, Mutator> isolation;
 
-    private final Class<?> type;
+    private final Class<Item> itemClass;
 
-    public BinJanitor(Transaction<BinRecord, Mutator> isolation, Class<?> type)
+    public BinJanitor(Transaction<BinRecord, Mutator> isolation, Class<Item> itemClass)
     {
         this.isolation = isolation.getStrata();
-        this.type = type;
+        this.itemClass = itemClass;
     }
 
     public void rollback(Snapshot snapshot)
     {
-        Bin bin = snapshot.getBin(type);
+        Bin<Item> bin = snapshot.bin(itemClass);
         Cursor<BinRecord> cursor = isolation.query(bin.mutator).first();
         while (cursor.hasNext())
         {
