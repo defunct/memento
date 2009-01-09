@@ -204,6 +204,18 @@ public final class Bin<Item>
         
         return update(key, item).getKey();
     }
+    
+    public long replace(Item then, Item now)
+    {
+        Long key = outstandingKeys.get(then);
+        
+        if (key == null)
+        {
+            throw new Danger("error", 401);
+        }
+        
+        return update(key, now).getKey();
+    }
 
     public Box<Item> update(long key, Item item)
     {

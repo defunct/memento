@@ -4,36 +4,31 @@ import java.beans.BeanInfo;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
 
 
-public class BeanIndexer<T>
-implements Indexer<T>
+public class BeanIndexer<Item>
+implements Indexer<Item, Ordered>
 {
-    private static final long serialVersionUID = 20080614L;
+    private final String[] fields;
 
-    private Class<?> rawType;
+    private final Method[] getters;
     
-    private String[] fields;
-
-    private transient Method[] getters;
-    
-    public BeanIndexer(String... fields)
+    public BeanIndexer(String...fields)
     {
         Type superclass = getClass().getGenericSuperclass();
+
         if (superclass instanceof Class)
         {
             throw new RuntimeException("Missing type parameter.");
         }
+        
         Type type = ((ParameterizedType) superclass).getActualTypeArguments()[0];
         Class<?> rawType = type instanceof Class<?> ? (Class<?>) type : (Class<?>) ((ParameterizedType) type).getRawType();
 
-        this.rawType = rawType;
         this.fields = fields;
         this.getters = getGetters(rawType, fields);
     }
@@ -77,35 +72,21 @@ implements Indexer<T>
         return getters;
     }
     
-    public Comparable<?>[] extract(T type)
+    @SuppressWarnings("unchecked")
+    public Ordered index(Item item)
     {
-        Comparable<?>[] index = new Comparable<?>[getters.length];
+        Comparable[] comparables = new Comparable[getters.length];
         for (int i = 0; i < getters.length; i++)
         {
             try
             {
-                Comparable<?> comparable = (Comparable<?>) getters[i].invoke(type);
-                index[i] = comparable;
+                comparables[i] = (Comparable) getters[i].invoke(item);
             }
             catch (Exception e)
             {
                 throw new Danger("Unable to get property: " + fields[i], e, 300);
             }
         }
-        return index;
+        return new Ordered(comparables);
     }
-
-    private void writeObject(ObjectOutputStream stream) throws IOException
-    {
-        stream.writeObject(rawType);
-        stream.writeObject(fields);
-    }
-    
-     private void readObject(java.io.ObjectInputStream stream)
-         throws IOException, ClassNotFoundException
-     {
-         rawType = (Class<?>) stream.readObject();
-         fields = (String[]) stream.readObject();
-         getters = getGetters(rawType, fields);
-     }
 }
