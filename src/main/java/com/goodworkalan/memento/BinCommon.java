@@ -1,8 +1,8 @@
 package com.goodworkalan.memento;
 
-public class BinCommon
+class BinCommon
 {
-    private long identifier;
+    long identifier;
 
     public BinCommon(long identifier)
     {

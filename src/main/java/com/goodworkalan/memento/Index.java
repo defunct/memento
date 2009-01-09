@@ -7,14 +7,13 @@ import java.util.Iterator;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
 import com.goodworkalan.strata.Strata;
-import com.goodworkalan.strata.Tree;
 
 // FIXME Vacuum.
 public final static class Index
 {
     private final IndexSchema schema;
 
-    private final Tree<IndexRecord, Mutator> isolation;
+    private final Strata<IndexRecord, Mutator> isolation;
 
     public Index(IndexSchema schema)
     {
@@ -22,7 +21,7 @@ public final static class Index
         this.isolation = newIsolation();
     }
 
-    private static Tree<IndexRecord, Mutator> newIsolation()
+    private static Strata<IndexRecord, Mutator> newIsolation()
     {
         com.goodworkalan.strata.Schema<T, X>Strata.newInMemorySchema();
         Strata.Schema creator = new Strata.Schema();
@@ -57,7 +56,7 @@ public final static class Index
         query.flush();
     }
 
-    public void update(Snapshot snapshot, Pack.Mutator mutator, Bin bin, Bag bag, Long previous)
+    public void update(Snapshot snapshot, Mutator mutator, Bin bin, Bag bag, Long previous)
     {
         Transaction txn = new Transaction(mutator, bin, schema);
         Strata.Query query = isolation.query(txn);

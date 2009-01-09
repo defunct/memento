@@ -30,7 +30,7 @@ public final class Bin<Item>
 
     private final BinCommon common;
 
-    private final BinSchema schema;
+    private final BinSchema<Item> schema;
 
     final Map<String, Index> mapOfIndices;
 
@@ -42,7 +42,7 @@ public final class Bin<Item>
     
     private final WeakHashMap<Long, Box<Item>> outstandingValues; 
 
-    public Bin(Snapshot snapshot, Class<?> type, Mutator mutator, String name, BinCommon common, BinSchema schema, Map<Long, Janitor> mapOfJanitors)
+    public Bin(Snapshot snapshot, Class<Item> itemClass, Mutator mutator, String name, BinCommon common, BinSchema<Item> schema, Map<Long, Janitor> mapOfJanitors)
     {
         query = schema.getStrata().query(mutator);
         isolation = new BinTree().create(mutator);
@@ -73,7 +73,7 @@ public final class Bin<Item>
         this.outstandingValues = new WeakHashMap<Long, Box<Item>>();
     }
 
-    private static Map<String, Index> newIndexMap(Snapshot snapshot, BinSchema schema)
+    private static <Item> Map<String, Index> newIndexMap(Snapshot snapshot, BinSchema<Item> schema)
     {
         Map<String, Index> mapOfIndices = new HashMap<String, Index>();
         Iterator<Map.Entry<String, IndexSchema>> entries = schema.mapOfIndexSchemas.entrySet().iterator();
@@ -125,31 +125,31 @@ public final class Bin<Item>
         }
     }
 
-    private void restore(Long key, Object object)
+    private void restore(long key, Item object)
     {
-        Bag bag = new Bag(key, snapshot.getVersion(), object);
-        insert(bag);
-        if (common.identifier <= key.intValue())
+        Box<Item> box = new Box<Item>(key, snapshot.getVersion(), object);
+        insert(box);
+        if (common.identifier <= key)
         {
-            common.identifier = key.intValue() + 1;
+            common.identifier = key + 1;
         }
     }
 
-    private void insert(Bag bag)
+    private void insert(Box<Item> box)
     {
         PackOutputStream allocation = new PackOutputStream(mutator);
 
-        schema.schema.marshaller.marshall(allocation, bag.getObject());
-
+        schema.io.write(allocation, box.getItem());
+ 
         long address = allocation.allocate();
-        BinRecord record = new BinRecord(bag.getKey(), bag.getVersion(), address);
+        BinRecord record = new BinRecord(box.getKey(), box.getVersion(), address);
         isolation.add(record);
 
         for (Map.Entry<String, Index> entry : mapOfIndices.entrySet())
         {
             try
             {
-                ((Index) entry.getValue()).add(snapshot, mutator, this, bag);
+                entry.getValue().add(snapshot, mutator, this, bag);
             }
             catch (Error e)
             {
@@ -161,13 +161,13 @@ public final class Bin<Item>
         }
     }
 
-    public Bag add(Object object)
+    public long add(Item item)
     {
-        Bag bag = new Bag(common.nextIdentifier(), snapshot.getVersion(), object);
+        Box<Item> box = new Box<Item>(common.nextIdentifier(), snapshot.getVersion(), item);
+        
+        insert(box);
 
-        insert(bag);
-
-        return bag;
+        return box.getKey();
     }
 
     private static boolean isDeleted(BinRecord record)
@@ -175,9 +175,9 @@ public final class Bin<Item>
         return record.address == Pack.NULL_ADDRESS;
     }
 
-    private BinRecord update(Long key)
+    private BinRecord record(Long key)
     {
-        BinRecord record = isolation.remove(new Comparable[] { key });
+        BinRecord record = isolation.remove(key);
         if (record != null)
         {
             mutator.free(record.address);
@@ -192,21 +192,34 @@ public final class Bin<Item>
         }
         return record;
     }
-
-    public Bag update(Long key, Object object)
+    
+    public long update(Item item)
     {
-        Record record = update(key);
+        Long key = outstandingKeys.get(item);
+
+        if (key == null)
+        {
+            throw new Danger("update.bag.does.not.exist", 401);
+        }
+        
+        return update(key, item).getKey();
+    }
+
+    public Box<Item> update(long key, Item item)
+    {
+        BinRecord record = record(key);
 
         if (record == null)
         {
             throw new Danger("update.bag.does.not.exist", 401);
         }
 
-        Bag bag = new Bag(key, snapshot.getVersion(), object);
         PackOutputStream allocation = new PackOutputStream(mutator);
-        schema.schema.marshaller.marshall(allocation, object);
+        schema.io.write(allocation, item);
         long address = allocation.allocate();
-        isolation.insert(new Record(bag.getKey(), bag.getVersion(), address));
+        
+        Box<Item> box = new Box<Item>(key, snapshot.getVersion(), item);
+        isolation.add(new BinRecord(box.getKey(), box.getVersion(), address));
 
         Iterator<Index> indices = mapOfIndices.values().iterator();
         while (indices.hasNext())
@@ -215,12 +228,22 @@ public final class Bin<Item>
             index.update(snapshot, mutator, this, bag, record.version);
         }
 
-        return bag;
+        return box;
     }
 
-    public void delete(Long key)
+    public void delete(Item item)
     {
-        Record record = update(key);
+        long key = key(item);
+        if (key == 0L)
+        {
+            throw new IllegalArgumentException();
+        }
+        delete(key);
+    }
+
+    public void delete(long key)
+    {
+        BinRecord record = record(key);
 
         if (record == null)
         {
@@ -229,7 +252,7 @@ public final class Bin<Item>
 
         if (record.version != snapshot.getVersion())
         {
-            isolation.insert(new Record(key, snapshot.getVersion(), Pack.NULL_ADDRESS));
+            isolation.add(new BinRecord(key, snapshot.getVersion(), Pack.NULL_ADDRESS));
         }
     }
 
@@ -366,10 +389,10 @@ public final class Bin<Item>
     void copacetic()
     {
         Set<Long> seen = new HashSet<Long>();
-        Strata.Cursor isolated = isolation.first();
+        Cursor<BinRecord> isolated = isolation.first();
         while (isolated.hasNext())
         {
-            Record record = (Record) isolated.next();
+            BinRecord record = isolated.next();
             if (seen.contains(record))
             {
                 throw new Danger("Duplicate key in isolation.", 0);
@@ -462,8 +485,8 @@ public final class Bin<Item>
         return first(schema.schema.unmarshaller);
     }
 
-    public Cursor first(Unmarshaller unmarshaller)
+    public BinCursor first(Unmarshaller unmarshaller)
     {
-        return new Cursor(snapshot, mutator, isolation.first(), schema.getStrata().query(Fossil.txn(mutator)).first(), unmarshaller);
+        return new BinCursor(snapshot, mutator, isolation.first(), schema.getStrata().query(mutator).first(), unmarshaller);
     }
 }

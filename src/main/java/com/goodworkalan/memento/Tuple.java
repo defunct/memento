@@ -3,7 +3,9 @@ package com.goodworkalan.memento;
 import java.util.HashMap;
 import java.util.Map;
 
-
+// FIXME Rename Joint. Need to figure out how to create these using Tuples.
+// Joint, which wouldn't build, so much, but invoke the rest of the query,
+// so you would filter.
 public final class Tuple
 {
     private final Snapshot snapshot;

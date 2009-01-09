@@ -1,5 +1,7 @@
 package com.goodworkalan.memento;
 
+import static org.testng.Assert.assertEquals;
+
 import org.testng.annotations.Test;
 
 import com.agtrz.depot.serializable.Address;
@@ -34,20 +36,46 @@ public class PatternTest
                     }
                 });
         
-        store.add(person);
+        person.setFirstName("Alan");
+        person.setLastName("Gutierrez");
+        person.setEmail("alan@blogometer.com");
+        
+        Snapshot snapshot = store.newSnapshot();
+        
+        long key = snapshot.bin(Person.class).add(person);
+        
+        snapshot.commit();
+        
+        snapshot = store.newSnapshot();
+        
+        person = snapshot.bin(Person.class).get(key);
+
+        assertEquals(person.getFirstName(), "Alan");
+        assertEquals(person.getLastName(), "Gutierrez");
+        assertEquals(person.getEmail(), "alan@blogometer.com");
+        
+        snapshot.commit();
+        
+        snapshot = store.newSnapshot();
         
         // FIXME Serialize? What's the point? If the code changes, it 
         // changes, and the serialized objects will disappear, especially
         // if they are inline.
-        store.bin(Person.class);
+        snapshot.bin(Person.class);
         
-        person.setFirstName("Alan");
-        store.update(person);
+        person.setFirstName("Steve");
+        snapshot.bin(Person.class).update(person);
+        snapshot.update(Person.class, person);
+
+        Bin<Person> bin = snapshot.bin(Person.class);
+        assertEquals(bin.get(key).getFirstName(), "Steve");
+        
+        snapshot.commit();
         
         person = store.get(Person.class, store.getId(person));
 
         person.setLastName("Gutierrez");
-        store.replace(person, person);
+        snapshot.bin(Person.class).replace(person, person);
         
         for (Person each : store.getAll(Person.class))
         {

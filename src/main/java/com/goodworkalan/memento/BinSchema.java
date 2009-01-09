@@ -5,27 +5,30 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.goodworkalan.pack.Mutator;
-import com.goodworkalan.strata.Tree;
+import com.goodworkalan.strata.Strata;
 
-final class BinSchema
+final class BinSchema<Item>
 implements Serializable
 {
     private static final long serialVersionUID = 20070408L;
 
     public final DepotSchema schema;
     
-    public final Tree<BinRecord, Mutator> strata;
+    public final Strata<BinRecord, Mutator> strata;
 
     public final Map<String, IndexSchema> mapOfIndexSchemas;
+    
+    public final ItemIO<Item> io;
 
-    public BinSchema(DepotSchema schema, Tree<BinRecord, Mutator> strata, Map<String, IndexSchema> mapOfIndexSchemas)
+    public BinSchema(DepotSchema schema, Strata<BinRecord, Mutator> strata, Map<String, IndexSchema> mapOfIndexSchemas, ItemIO<Item> io)
     {
         this.schema = schema;
         this.strata = strata;
         this.mapOfIndexSchemas = mapOfIndexSchemas;
+        this.io = io;
     }
 
-    public com.goodworkalan.strata.Tree<BinRecord, Mutator> getStrata()
+    public Strata<BinRecord, Mutator> getStrata()
     {
         return strata;
     }

@@ -1,7 +1,5 @@
 package com.goodworkalan.memento;
 
-import static com.agtrz.depot.Depot.SIZEOF_LONG;
-import static com.agtrz.depot.Depot.SIZEOF_SHORT;
 import static com.goodworkalan.memento.Depot.CONCURRENT_MODIFICATION_ERROR;
 
 import java.io.IOException;
@@ -17,15 +15,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
 
 public final class Join
 {
     private final Snapshot snapshot;
 
-    private final Join.Schema schema;
+    private final JoinSchema schema;
 
-    private final Pack.Mutator mutator;
+    private final Mutator mutator;
 
     private final Strata.Query[] isolation;
 

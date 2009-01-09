@@ -53,7 +53,7 @@ public final class Snapshot
     
     private final WeakHashMap<Long, Object> outstandingValues; 
 
-    public Snapshot(Tree<SnapshotRecord, Mutator> snapshots,
+    public Snapshot(Strata<SnapshotRecord, Mutator> snapshots,
                     Schema schema,
                     Map<String, BinCommon> mapOfBinCommons,
                     Map<String, BinSchema> mapOfBinSchemas,
@@ -110,9 +110,9 @@ public final class Snapshot
         return toBin(itemClass, bin);
     }
     
-    public <Item> Item get(Class<Item> itemClass, long id)
+    public <Item> Item get(Class<Item> itemClass, long key)
     {
-        return bin(itemClass).get(id);
+        return bin(itemClass).get(key);
     }
 
     public Join getJoin(String joinName)
@@ -126,37 +126,25 @@ public final class Snapshot
         }
         return join;
     }
-    
-    public Bin getBin(Class<?> klass)
-    {
-        Bin swag = mapOfBins.get(klass);
 
-        if (swag == null)
-        {
-            Swag.Schema newSwag = schema.getSwagSchema(klass);
-            swag = newSwag.newSwag(this, mutator);
-            mapOfSwags.put(klass, swag);
-        }
-        
-        return swag;
+    public <Item> void add(Class<Item> itemClass, Item item)
+    {
+        bin(itemClass).add(item);
+    }
+    
+    public <Item> void update(Class<Item> itemClass, Item item)
+    {
+        bin(itemClass).update(item);
     }
 
-    public <T> void add(T object)
+    public <Item> void delete(Class<Item> itemClass, Item item)
     {
-        Box id = getSwag(object.getClass()).add(object);
-        
-        mapOfIds.put(object, id);
+        bin(itemClass).delete(item);
     }
-    
-    public <T> void update(long key, T object)
+
+    public <Item> void delete(Class<Item> itemClass, long key)
     {
-        Box id = getSwag(object.getClass()).update(key, object);
-        mapOfIds.put(object, id);
-    }
-    
-    public void delete(Class<?> klass, long key)
-    {
-        getSwag(klass).delete(key);
+        bin(itemClass).delete(key);
     }
     
     @SuppressWarnings("unchecked")
@@ -206,31 +194,6 @@ public final class Snapshot
         return false;
     }
 
-    public void dump(ObjectOutputStream out) throws IOException
-    {
-        out.writeObject(new Restoration.Schema(mapOfBinSchemas, mapOfJoinSchemas));
-
-        for (String name : mapOfBinSchemas.keySet())
-        {
-            Bin.Cursor bags = getBin(name).first();
-            while (bags.hasNext())
-            {
-                Bag bag = bags.nextBag();
-                out.writeObject(new Restoration.Bag(name, bag.getKey(), bag.getObject()));
-            }
-        }
-
-        for (String name : mapOfJoinSchemas.keySet())
-        {
-            Join.Cursor links = getJoin(name).find(new HashMap<String, Long>());
-            while (links.hasNext())
-            {
-                Tuple tuple = (Tuple) links.nextTuple();
-                out.writeObject(new Restoration.Join(name, tuple.getKeys()));
-            }
-        }
-    }
-
     public void commit()
     {
         if (spent)
@@ -240,11 +203,6 @@ public final class Snapshot
 
         spent = true;
         
-        for (Swag swag : mapOfSwags.values())
-        {
-            swag.flush();
-        }
-
         for (Bin bin : mapOfBins.values())
         {
             bin.flush();
@@ -257,11 +215,6 @@ public final class Snapshot
 
         try
         {
-            for (Swag swag : mapOfSwags.values())
-            {
-                swag.commit();
-            }
-
             for (Bin bin : mapOfBins.values())
             {
                 bin.commit();

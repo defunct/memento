@@ -47,17 +47,17 @@ implements Iterator<Bag>
         return !(nextIsolated == null && nextCommon == null);
     }
 
-    private Bag next(Strata.Cursor cursor, Record[] first, boolean isolated)
+    private Bag next(Cursor<BinRecord> cursor, BinRecord[] first, boolean isolated)
     {
         while (first[0] == null && cursor.hasNext())
         {
-            Record record = (Record) cursor.next();
+            BinRecord record = cursor.next();
             if (isolated || snapshot.isVisible(record.version))
             {
                 first[0] = record;
             }
         }
-        Record candidate;
+        BinRecord candidate;
         do
         {
             candidate = first[0];
@@ -73,7 +73,7 @@ implements Iterator<Bag>
                     first[0] = null;
                     break;
                 }
-                Record record = (Record) cursor.next();
+                BinRecord record = cursor.next();
                 if (first[0].key != record.key)
                 {
                     first[0] = record;
