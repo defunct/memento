@@ -10,11 +10,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
+import com.goodworkalan.favorites.Stash;
+import com.goodworkalan.fossil.Fossil;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
 import com.goodworkalan.strata.Cursor;
 import com.goodworkalan.strata.Query;
-import com.goodworkalan.strata.Transaction;
 
 // FIXME Vacuum.
 public final class Bin<Item>
@@ -33,17 +34,21 @@ public final class Bin<Item>
 
     final Query<BinRecord, Long> query;
 
-    private final Transaction<BinRecord, Long, Mutator> isolation;
+    private final Query<BinRecord, Long> isolation;
     
     private final WeakIdentityLookup outstandingKeys;
     
     private final WeakHashMap<Long, Box<Item>> outstandingValues; 
 
-    public Bin(Snapshot snapshot, Class<Item> itemClass, Mutator mutator,
-               String name, BinCommon common, BinSchema<Item> schema,
+    public Bin(Snapshot snapshot,
+               Class<Item> itemClass,
+               Mutator mutator,
+               String name,
+               BinCommon common,
+               BinSchema<Item> schema,
                Map<Long, Janitor> mapOfJanitors)
     {
-        query = schema.getStrata().query(mutator);
+        query = schema.getStrata().query(Fossil.initialize(new Stash(), mutator));
         isolation = new BinTree().create(mutator);
         BinJanitor<Item> janitor = new BinJanitor<Item>(isolation, itemClass);
 

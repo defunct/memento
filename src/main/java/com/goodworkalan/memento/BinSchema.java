@@ -14,13 +14,13 @@ implements Serializable
 
     public final DepotSchema schema;
     
-    public final Strata<BinRecord, Long, Mutator> strata;
+    public final Strata<BinRecord, Long> strata;
 
     public final Map<String, IndexSchema> mapOfIndexSchemas;
     
     public final ItemIO<Item> io;
 
-    public BinSchema(DepotSchema schema, Strata<BinRecord, Long, Mutator> strata, Map<String, IndexSchema> mapOfIndexSchemas, ItemIO<Item> io)
+    public BinSchema(DepotSchema schema, Strata<BinRecord, Long> strata, Map<String, IndexSchema> mapOfIndexSchemas, ItemIO<Item> io)
     {
         this.schema = schema;
         this.strata = strata;
@@ -28,7 +28,7 @@ implements Serializable
         this.io = io;
     }
 
-    public Strata<BinRecord, Long, Mutator> getStrata()
+    public Strata<BinRecord, Long> getStrata()
     {
         return strata;
     }
