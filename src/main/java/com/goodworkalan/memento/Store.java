@@ -1,18 +1,26 @@
 package com.goodworkalan.memento;
 
 import java.lang.reflect.ParameterizedType;
-import java.util.Collection;
-import java.util.Collections;
-
-import com.goodworkalan.favorites.Stash;
 
 public class Store
 {
-    public <Item> BinBuilder<Item> store(Class<Item> itemClass)
+    private final BinSchemaTable binSchemas = new BinSchemaTable();
+    
+    public <T> BinBuilder<T> store(Class<T> itemClass)
     {
-        return new BinBuilder<Item>(itemClass);
+        return new BinBuilder<T>(this, binSchemas, new Item<T>(itemClass) {});
     }
     
+    public <T> BinBuilder<T> store(Item<T> item)
+    {
+        return new BinBuilder<T>(this, binSchemas, item);
+    }
+    
+    public LinkBuilder link(Link link)
+    {
+        return null;
+    }
+
     public Snapshot newSnapshot(Sync sync)
     {
         return null;
@@ -21,26 +29,6 @@ public class Store
     public Snapshot newSnapshot()
     {
         return null;
-    }
-    
-    public <Item> long add(Item item)
-    {
-        return 0L;
-    }
-    
-    public <Item> long getId(Item item)
-    {
-        return 0L;
-    }
-    
-    public <Item> Item get(Class<Item> itemClass, long id)
-    {
-        return null;
-    }
-
-    public <Item> Collection<Item> getAll(Class<Item> itemClass)
-    {
-        return Collections.emptyList();
     }
     
     public <From, To> OneToMany<From, To> toMany(From from, Class<To> to)

@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
-import com.goodworkalan.favorites.Stash;
+import com.goodworkalan.stash.Stash;
 import com.goodworkalan.fossil.Fossil;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
@@ -18,17 +18,13 @@ import com.goodworkalan.strata.Cursor;
 import com.goodworkalan.strata.Query;
 
 // FIXME Vacuum.
-public final class Bin<Item>
+public final class Bin<T>
 {
     final Mutator mutator;
 
-    private final Class<Item> itemClass;
-    
     private final Snapshot snapshot;
 
-    private final BinCommon common;
-
-    private final BinSchema<Item> schema;
+    private final BinSchema<T> schema;
 
     final Map<String, Index> mapOfIndices;
 
@@ -38,19 +34,15 @@ public final class Bin<Item>
     
     private final WeakIdentityLookup outstandingKeys;
     
-    private final WeakHashMap<Long, Box<Item>> outstandingValues; 
+    private final WeakHashMap<Long, Box<T>> outstandingValues; 
 
     public Bin(Snapshot snapshot,
-               Class<Item> itemClass,
                Mutator mutator,
-               String name,
-               BinCommon common,
-               BinSchema<Item> schema,
-               Map<Long, Janitor> mapOfJanitors)
+               BinSchema<T> schema, Map<Long, Janitor> janitors)
     {
         query = schema.getStrata().query(Fossil.initialize(new Stash(), mutator));
         isolation = new BinTree().create(mutator);
-        BinJanitor<Item> janitor = new BinJanitor<Item>(isolation, itemClass);
+        BinJanitor<T> janitor = new BinJanitor<T>(isolation, itemClass);
 
         PackOutputStream allocation = new PackOutputStream(mutator);
         try
@@ -68,79 +60,27 @@ public final class Bin<Item>
 
         this.snapshot = snapshot;
         this.common = common;
-        this.mapOfIndices = newIndexMap(snapshot, schema);
+        this.mapOfIndices = null;
         this.schema = schema;
         this.mutator = mutator;
         
         this.itemClass = itemClass;
 
         this.outstandingKeys = new WeakIdentityLookup();
-        this.outstandingValues = new WeakHashMap<Long, Box<Item>>();
+        this.outstandingValues = new WeakHashMap<Long, Box<T>>();
     }
 
-    private static <Item> Map<String, Index> newIndexMap(Snapshot snapshot, BinSchema<Item> schema)
+    public void restore(long key, T object)
     {
-        Map<String, Index> mapOfIndices = new HashMap<String, Index>();
-        Iterator<Map.Entry<String, IndexSchema>> entries = schema.mapOfIndexSchemas.entrySet().iterator();
-        while (entries.hasNext())
-        {
-            Map.Entry<String, IndexSchema> entry = entries.next();
-            IndexSchema indexSchema = entry.getValue();
-            mapOfIndices.put(entry.getKey(), new Index(indexSchema));
-        }
-        return mapOfIndices;
-    }
-
-    public Class<Item> getItemClass()
-    {
-        return itemClass;
-    }
-
-    public void load(Marshaller marshaller, Iterator<Bag> iterator)
-    {
-        // FIXME Either check for empty bin or determine if existing
-        // commit logic will detect collision.
-        while (iterator.hasNext())
-        {
-            Bag bag = (Bag) iterator.next();
-
-            PackOutputStream allocation = new PackOutputStream(mutator);
-            marshaller.marshall(allocation, bag.getObject());
-
-            long address = allocation.allocate();
-
-            BinRecord record = new BinRecord(bag.getKey(), bag.getVersion(), address);
-
-            isolation.add(record);
-
-            for (Map.Entry<String, Index> entry : mapOfIndices.entrySet())
-            {
-                try
-                {
-                    entry.getValue().add(snapshot, mutator, this, bag);
-                }
-                catch (Error e)
-                {
-                    e.put("index", entry.getKey());
-                    isolation.remove(isolation.extract(record));
-                    mutator.free(record.address);
-                    throw e;
-                }
-            }
-        }
-    }
-
-    public void restore(long key, Item object)
-    {
-        Box<Item> box = new Box<Item>(key, snapshot.getVersion(), object);
+        Box<T> box = new Box<T>(key, snapshot.getVersion(), object);
         insert(box);
-        if (common.identifier <= key)
+        if (schema.identifier <= key)
         {
             common.identifier = key + 1;
         }
     }
 
-    private void insert(Box<Item> box)
+    private void insert(Box<T> box)
     {
         PackOutputStream allocation = new PackOutputStream(mutator);
 
@@ -150,25 +90,25 @@ public final class Bin<Item>
         BinRecord record = new BinRecord(box.getKey(), box.getVersion(), address);
         isolation.add(record);
 
-        for (Map.Entry<String, Index> entry : mapOfIndices.entrySet())
-        {
-            try
-            {
-                entry.getValue().add(snapshot, mutator, this, bag);
-            }
-            catch (Error e)
-            {
-                e.put("index", entry.getKey());
-                isolation.remove(isolation.extract(record));
-                mutator.free(record.address);
-                throw e;
-            }
-        }
+//        for (Map.Entry<String, Index> entry : mapOfIndices.entrySet())
+//        {
+//            try
+//            {
+//                entry.getValue().add(snapshot, mutator, this, bag);
+//            }
+//            catch (Error e)
+//            {
+//                e.put("index", entry.getKey());
+//                isolation.remove(isolation.extract(record));
+//                mutator.free(record.address);
+//                throw e;
+//            }
+//        }
     }
 
-    public long add(Item item)
+    public long add(T item)
     {
-        Box<Item> box = new Box<Item>(common.nextIdentifier(), snapshot.getVersion(), item);
+        Box<T> box = new Box<T>(common.nextIdentifier(), snapshot.getVersion(), item);
         
         insert(box);
 
@@ -189,7 +129,7 @@ public final class Bin<Item>
         }
         else
         {
-            record = get(query.find(new Comparable[] { key }), key, false);
+            record = get(query.find(key), key, false);
         }
         if (record != null)
         {
@@ -198,7 +138,7 @@ public final class Bin<Item>
         return record;
     }
     
-    public long update(Item item)
+    public long update(T item)
     {
         Long key = outstandingKeys.get(item);
 
@@ -210,7 +150,7 @@ public final class Bin<Item>
         return update(key, item).getKey();
     }
     
-    public long replace(Item then, Item now)
+    public long replace(T then, T now)
     {
         Long key = outstandingKeys.get(then);
         
@@ -222,7 +162,7 @@ public final class Bin<Item>
         return update(key, now).getKey();
     }
 
-    public Box<Item> update(long key, Item item)
+    public Box<T> update(long key, T item)
     {
         BinRecord record = record(key);
 
@@ -235,20 +175,20 @@ public final class Bin<Item>
         schema.io.write(allocation, item);
         long address = allocation.allocate();
         
-        Box<Item> box = new Box<Item>(key, snapshot.getVersion(), item);
+        Box<T> box = new Box<T>(key, snapshot.getVersion(), item);
         isolation.add(new BinRecord(box.getKey(), box.getVersion(), address));
 
-        Iterator<Index> indices = mapOfIndices.values().iterator();
-        while (indices.hasNext())
-        {
-            Index index = (Index) indices.next();
-            index.update(snapshot, mutator, this, bag, record.version);
-        }
+//        Iterator<Index> indices = mapOfIndices.values().iterator();
+//        while (indices.hasNext())
+//        {
+//            Index index = (Index) indices.next();
+//            index.update(snapshot, mutator, this, bag, record.version);
+//        }
 
         return box;
     }
 
-    public void delete(Item item)
+    public void delete(T item)
     {
         long key = key(item);
         if (key == 0L)
@@ -271,11 +211,6 @@ public final class Bin<Item>
         {
             isolation.add(new BinRecord(key, snapshot.getVersion(), Pack.NULL_ADDRESS));
         }
-    }
-
-    public void dispose(Record record)
-    {
-
     }
 
     private BinRecord getVersion(Cursor<BinRecord> cursor, Long key, Long version)
@@ -320,11 +255,11 @@ public final class Bin<Item>
         return candidate;
     }
 
-    private Box<Item> unmarshall(ItemIO<Item> io, BinRecord record)
+    private Box<T> unmarshall(ItemIO<T> io, BinRecord record)
     {
         ByteBuffer block = mutator.read(record.address);
-        Item item = io.read(new ByteBufferInputStream(block));
-        return new Box<Item>(record.key, record.version, item);
+        T item = io.read(new ByteBufferInputStream(block));
+        return new Box<T>(record.key, record.version, item);
     }
 
     private BinRecord getRecord(Long key)
@@ -344,8 +279,8 @@ public final class Bin<Item>
 
     private BinRecord getRecord(Long key, Long version)
     {
-        BinRecord stored = getVersion(query.find(new Comparable[] { key }), key, version);
-        BinRecord isolated = getVersion(isolation.find(new Comparable[] { key }), key, version);
+        BinRecord stored = getVersion(query.find(key), key, version);
+        BinRecord isolated = getVersion(isolation.find(key), key, version);
         if (isolated != null)
         {
             return isDeleted(isolated) ? null : isolated;
@@ -357,9 +292,9 @@ public final class Bin<Item>
         return null;
     }
 
-    public Item get(long key)
+    public T get(long key)
     { 
-        Box<Item> box = box(key);
+        Box<T> box = box(key);
         if (box == null)
         {
             return null;
@@ -367,7 +302,7 @@ public final class Bin<Item>
         return box.getItem();
     }
 
-    public long key(Item item)
+    public long key(T item)
     {
         Long key = outstandingKeys.get(item);
         if (key == null)
@@ -377,9 +312,9 @@ public final class Bin<Item>
         return key;
     }
 
-    public Box<Item> box(long key)
+    public Box<T> box(long key)
     {
-        Box<Item> box = outstandingValues.get(key);
+        Box<T> box = outstandingValues.get(key);
         if (box == null)
         {
             /* FIXME */ ItemIO<Item> io = null;
@@ -390,13 +325,13 @@ public final class Bin<Item>
         return box;
     }
 
-    public Box<Item> get(ItemIO<Item> io, Long key)
+    public Box<T> get(ItemIO<T> io, Long key)
     {
         BinRecord record = getRecord(key);
         return record == null ? null : unmarshall(io, record);
     }
 
-    Box<Item> get(ItemIO<Item> io, Long key, Long version)
+    Box<T> get(ItemIO<T> io, Long key, Long version)
     {
         BinRecord record = getRecord(key, version);
         return record == null ? null : unmarshall(io, record);

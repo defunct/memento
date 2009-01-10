@@ -3,9 +3,9 @@ package com.goodworkalan.memento;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-public interface ItemIO<Item>
+public interface ItemIO<T>
 {
-    public Item read(InputStream in);
+    public T read(InputStream in);
     
-    public void write(OutputStream out, Item item);
+    public void write(OutputStream out, T item);
 }

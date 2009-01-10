@@ -1,14 +1,14 @@
 package com.goodworkalan.memento;
 
-public class Box<Item>
+public class Box<T>
 {
     private final long key;
     
     private final long version;
     
-    private final Item item;
+    private final T item;
     
-    public Box(long key, long version, Item item)
+    public Box(long key, long version, T item)
     {
         this.key = key;
         this.version = version;
@@ -25,7 +25,7 @@ public class Box<Item>
         return version;
     }
     
-    public Item getItem()
+    public T getItem()
     {
         return item;
     }

@@ -1,15 +1,15 @@
 package com.goodworkalan.memento;
 
-public class ClassCaster<Item> implements Cast<Item>
+public class ClassCaster<T> implements Caster<T>
 {
-    private final Class<Item> itemClass;
+    private final Class<T> itemClass;
     
-    public ClassCaster(Class<Item> itemClass)
+    public ClassCaster(Class<T> itemClass)
     {
         this.itemClass = itemClass;
     }
     
-    public Item cast(Object object)
+    public T cast(Object object)
     {
         return itemClass.cast(object);
     }

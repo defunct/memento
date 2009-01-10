@@ -21,21 +21,29 @@ public class PatternTest
             .store(Person.class)
                 .subclass(Employee.class)
                 .io(SerializationIO.getInstance(Person.class))
-                .index("email", new Indexer<Person, String>()
-                {
-                    public String index(Person object)
+                .index(new Index<String>("email") {})
+                    .indexer(new Indexer<Person, String>()
                     {
-                        return object.getEmail();
-                    }
-                })
-                .index("lastNameFirst", new Indexer<Person, Ordered>()
-                {
-                    public Ordered index(Person object)
+                        public String index(Person object)
+                        {
+                            return object.getEmail();
+                        }
+                    })
+                    .end()
+                .index(new Index<Ordered>("lastNameFirst") {})
+                    .indexer(new Indexer<Person, Ordered>()
                     {
-                        return new Ordered(object.getLastName(), object.getFirstName());
-                    }
-                });
-        
+                        public Ordered index(Person object)
+                        {
+                            return new Ordered(object.getLastName(), object.getFirstName());
+                        }
+                    })
+                    .end()
+                .end()
+            .link(new Link().bin(Person.class).bin(Address.class));
+                
+        JoinBinBuilder<Address, JoinBinBuilder<Person, End>> end = new JoinBinBuilder<Person, End>().bin(Address.class);
+
         person.setFirstName("Alan");
         person.setLastName("Gutierrez");
         person.setEmail("alan@blogometer.com");
@@ -72,12 +80,12 @@ public class PatternTest
         
         snapshot.commit();
         
-        person = store.get(Person.class, store.getId(person));
+        person = snapshot.bin(Person.class).get(snapshot.bin(Person.class).key(person));
 
         person.setLastName("Gutierrez");
         snapshot.bin(Person.class).replace(person, person);
         
-        for (Person each : store.getAll(Person.class))
+        for (Person each : snapshot.bin(Person.class).getAll())
         {
             System.out.println(each);
         }
@@ -87,4 +95,21 @@ public class PatternTest
         
         store.toMany(person, Address.class).add(address);
     }
+    
+    public void foo()
+    {
+        Link<Term<Person>, End> personLink = new Link<Term<Person>, End>();
+        Link<Node<Address>, Link<Term<Person>, End>> addressLink = personLink.node(Address.class);
+        
+        Link<Link<Term<Person>, End>, Node<Address>> reversed = addressLink.reverse();
+        reversed.reverse();
+    }
+    
+    public void bar()
+    {
+        Link<Start, Person> personLink = new Link<Start, Person>();
+        Link<Link<Start, Person>, Address> personToAddress = personLink.link(Address.class);
+        personToAddress.getClass();
+    }
+
 }

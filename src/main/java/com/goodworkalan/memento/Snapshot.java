@@ -9,15 +9,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
-import com.goodworkalan.memento.Restoration.Join;
-import com.goodworkalan.memento.Restoration.Schema;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
 import com.goodworkalan.strata.Strata;
 
 public final class Snapshot
 {
-    private final Strata<SnapshotRecord, Mutator> snapshots;
+    private final Strata<SnapshotRecord, Long> snapshots;
 
     private final Map<String, BinCommon> mapOfBinCommons;
 
@@ -51,7 +49,9 @@ public final class Snapshot
     
     private final WeakIdentityLookup outstandingKeys;
     
-    private final WeakHashMap<Long, Object> outstandingValues; 
+    private final WeakHashMap<Long, Object> outstandingValues;
+    
+    private final BinTable bins = null;
 
     public Snapshot(Strata<SnapshotRecord, Mutator> snapshots,
                     Schema schema,
@@ -93,87 +93,14 @@ public final class Snapshot
         return outstandingKeys.get(item);
     }
     
-    @SuppressWarnings("unchecked")
-    private <Item> Bin<Item> toBin(Class<Item> itemClass, Bin<?> bin)
+    public <T> Bin<T> bin(Class<T> itemClass)
     {
-        return (Bin<Item>) bin;
+        return bins.get(new Item<T>(itemClass) {});
     }
     
-    public <Item> Bin<Item> bin(Class<Item> itemClass)
+    public JoinBuilder join(Link link)
     {
-        // FIXME Populate a snapshot with all bins, no lazy construct.
-        Bin<?> bin = mapOfBins.get(itemClass);
-        if (bin == null)
-        {
-            throw new IllegalStateException();
-        }
-        return toBin(itemClass, bin);
-    }
-    
-    public <Item> Item get(Class<Item> itemClass, long key)
-    {
-        return bin(itemClass).get(key);
-    }
-
-    public Join getJoin(String joinName)
-    {
-        Join join = (Join) mapOfJoins.get(joinName);
-        if (join == null)
-        {
-            JoinSchema schema = (JoinSchema) mapOfJoinSchemas.get(joinName);
-            join = new Join(this, mutator, schema, joinName, mapOfJanitors);
-            mapOfJoins.put(joinName, join);
-        }
-        return join;
-    }
-
-    public <Item> void add(Class<Item> itemClass, Item item)
-    {
-        bin(itemClass).add(item);
-    }
-    
-    public <Item> void update(Class<Item> itemClass, Item item)
-    {
-        bin(itemClass).update(item);
-    }
-
-    public <Item> void delete(Class<Item> itemClass, Item item)
-    {
-        bin(itemClass).delete(item);
-    }
-
-    public <Item> void delete(Class<Item> itemClass, long key)
-    {
-        bin(itemClass).delete(key);
-    }
-    
-    @SuppressWarnings("unchecked")
-    public <T> T load(Class<T> klass, long key)
-    {
-        assert key > 0;
-        
-        Swag swag = getSwag(klass);
-        
-        Box id = swag.get(key);
-        
-        if (id == null)
-        {
-            return null;
-        }
-        
-        mapOfIds.put(id.getObject(), id);
-        
-        return (T) id.getObject();
-    }
-    
-    public long getId(Object object)
-    {
-        Box id = mapOfIds.get(object);
-        if (id == null)
-        {
-            return 0L;
-        }
-        return id.getKey();
+        return null;
     }
 
     public Long getVersion()

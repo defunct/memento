@@ -1,30 +1,38 @@
 package com.goodworkalan.memento;
 
+import com.goodworkalan.stash.Stash;
 import com.goodworkalan.strata.Strata;
 
-public class IndexSchema<Item, Fields>
+public class IndexSchema<T, F>
 {
-    public final Indexer<Item, Fields> extractor;
+    final static Stash.Key EXTRACTOR = new Stash.Key();
+    
+    private Indexer<T, F> extractor;
 
-    public final Strata<IndexRecord, Ordered> strata;
+    private Strata<IndexRecord, Ordered> strata;
 
-    public final boolean unique;
+    private boolean unique;
 
-    public final boolean notNull;
+    private boolean notNull;
 
-    public final ItemIO<Item> io;
+    private ItemIO<T> io;
 
-    public IndexSchema(Strata<IndexRecord, Ordered> strata, Indexer<Item, Fields> extractor, boolean unique, boolean notNull, ItemIO<Item> io)
+    public IndexSchema()
     {
-        this.extractor = extractor;
-        this.strata = strata;
-        this.unique = unique;
-        this.notNull = notNull;
-        this.io = io;
     }
 
     public Strata<IndexRecord, Ordered> getStrata()
     {
         return strata;
+    }
+    
+    public void setItemIO(ItemIO<T> io)
+    {
+        this.io = io;
+    }
+    
+    public ItemIO<T> getItemIO()
+    {
+        return io;
     }
 }

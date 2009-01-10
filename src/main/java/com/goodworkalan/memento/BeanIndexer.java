@@ -10,8 +10,8 @@ import java.lang.reflect.Type;
 
 
 
-public class BeanIndexer<Item>
-implements Indexer<Item, Ordered>
+public class BeanIndexer<T>
+implements Indexer<T, Ordered>
 {
     private final String[] fields;
 
@@ -73,7 +73,7 @@ implements Indexer<Item, Ordered>
     }
     
     @SuppressWarnings("unchecked")
-    public Ordered index(Item item)
+    public Ordered index(T item)
     {
         Comparable[] comparables = new Comparable[getters.length];
         for (int i = 0; i < getters.length; i++)

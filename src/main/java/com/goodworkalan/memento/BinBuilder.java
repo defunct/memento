@@ -1,30 +1,39 @@
 package com.goodworkalan.memento;
 
-public class BinBuilder<Item>
+
+public class BinBuilder<T>
 {
-    private final Class<Item> itemClass;
+    private final Store store;
     
-    private ItemIO<Item> io;
+    private final Item<T> item;
     
-    public BinBuilder(Class<Item> itemClass)
+    private final BinSchemaTable binSchemas;
+    
+    public BinBuilder(Store store, BinSchemaTable binSchemas, Item<T> item)
     {
-        this.itemClass = itemClass;
-        this.io = SerializationIO.getInstance(itemClass);
+        this.store = store;
+        this.item = item;
+        this.binSchemas = binSchemas;
     }
     
-    public <Child extends Item> BinBuilder<Item> subclass(Class<Child> subclass)
+    public <S extends T> BinBuilder<T> subclass(Class<S> subclass)
     {
         return this;
     }
     
-    public BinBuilder<Item> io(ItemIO<Item> io)
+    public BinBuilder<T> io(ItemIO<T> io)
     {
-        this.io = io;
+        binSchemas.get(item).setItemIO(io);
         return this;
     }
     
-    public <Fields> BinBuilder<Item> index(String name, Indexer<Item, Fields> indexer)
+    public <F> IndexBuilder<T, F> index(Index<F> index)
     {
-        return this;
+        return new IndexBuilder<T, F>(this, binSchemas, item, index);
+    }
+    
+    public Store end()
+    {
+        return store;
     }
 }

@@ -6,16 +6,16 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 
-public class SerializationIO<Item> implements ItemIO<Item>
+public class SerializationIO<T> implements ItemIO<T>
 {
-    private final Class<Item> itemClass;
+    private final Caster<T> itemClass;
     
-    protected SerializationIO(Class<Item> itemClass)
+    protected SerializationIO(Caster<T> itemClass)
     {
         this.itemClass = itemClass;
     }
 
-    public void write(OutputStream out, Item object)
+    public void write(OutputStream out, T object)
     {
         try
         {
@@ -29,10 +29,15 @@ public class SerializationIO<Item> implements ItemIO<Item>
     
     public static <Type> SerializationIO<Type> getInstance(Class<Type> itemClass)
     {
+        return new SerializationIO<Type>(new ClassCaster<Type>(itemClass));
+    }
+    
+    static <Type> SerializationIO<Type> getInstance(Caster<Type> itemClass)
+    {
         return new SerializationIO<Type>(itemClass);
     }
 
-    public Item read(InputStream in)
+    public T read(InputStream in)
     {
         Object object;
         try
