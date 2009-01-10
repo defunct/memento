@@ -6,10 +6,9 @@ import java.util.Iterator;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
 import com.goodworkalan.strata.Cursor;
-import com.goodworkalan.strata.Strata;
 
-public class BinCursor
-implements Iterator<Bag>
+public class BinCursor<T>
+implements Iterator<Box<T>>
 {
     private final Snapshot snapshot;
 
@@ -19,23 +18,23 @@ implements Iterator<Bag>
 
     private final Cursor<BinRecord> common;
 
-    private final Unmarshaller unmarshaller;
+    private final ItemIO<T> io;
 
-    private Bag nextIsolated;
+    private Box<T> nextIsolated;
 
-    private Bag nextCommon;
+    private Box<T> nextCommon;
 
     private BinRecord[] firstIsolated;
 
     private BinRecord[] firstCommon;
 
-    public BinCursor(Snapshot snapshot, Mutator mutator, Cursor<BinRecord> isolation, Cursor<BinRecord> common, Unmarshaller unmarshaller)
+    public BinCursor(Snapshot snapshot, Mutator mutator, Cursor<BinRecord> isolation, Cursor<BinRecord> common, ItemIO<T> io)
     {
         this.snapshot = snapshot;
         this.mutator = mutator;
         this.isolation = isolation;
         this.common = common;
-        this.unmarshaller = unmarshaller;
+        this.io = io;
         this.firstIsolated = new BinRecord[1];
         this.firstCommon = new BinRecord[1];
         this.nextIsolated = next(isolation, firstIsolated, true);
@@ -47,7 +46,7 @@ implements Iterator<Bag>
         return !(nextIsolated == null && nextCommon == null);
     }
 
-    private Bag next(Cursor<BinRecord> cursor, BinRecord[] first, boolean isolated)
+    private Box<T> next(Cursor<BinRecord> cursor, BinRecord[] first, boolean isolated)
     {
         while (first[0] == null && cursor.hasNext())
         {
@@ -91,13 +90,12 @@ implements Iterator<Bag>
         }
         while (candidate.address == Pack.NULL_ADDRESS);
         ByteBuffer block = mutator.read(candidate.address);
-        Object object = unmarshaller.unmarshall(new ByteBufferInputStream(block));
-        return new Bag(candidate.key, candidate.version, object);
+        return new Box<T>(candidate.key, candidate.version, io.read(new ByteBufferInputStream(block)));
     }
 
-    public Bag nextBag()
+    public Box<T> nextBag()
     {
-        Bag next = null;
+        Box<T> next = null;
         if (nextIsolated == null)
         {
             if (nextCommon != null)
@@ -113,7 +111,7 @@ implements Iterator<Bag>
         }
         else
         {
-            int compare = nextIsolated.getKey().compareTo(nextCommon.getKey());
+            int compare = new Long(nextIsolated.getKey()).compareTo(nextCommon.getKey());
             if (compare == 0)
             {
                 next = nextIsolated;
@@ -134,7 +132,7 @@ implements Iterator<Bag>
         return next;
     }
 
-    public Bag next()
+    public Box<T> next()
     {
         return nextBag();
     }

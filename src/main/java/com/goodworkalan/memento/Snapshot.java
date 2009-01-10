@@ -1,16 +1,14 @@
 package com.goodworkalan.memento;
 
-import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
-import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
+import com.goodworkalan.fossil.Fossil;
 import com.goodworkalan.pack.Mutator;
-import com.goodworkalan.pack.Pack;
+import com.goodworkalan.stash.Stash;
+import com.goodworkalan.strata.Query;
 import com.goodworkalan.strata.Strata;
 
 public final class Snapshot
@@ -32,8 +30,6 @@ public final class Snapshot
     private final Map<Class<?>, Bin> mapOfBins;
     
     private final Map<String, Join> mapOfJoins;
-    
-    private final WeakHashMap<Object, Bag> mapOfBoxes;
 
     private final Long version;
 
@@ -45,16 +41,13 @@ public final class Snapshot
 
     private final Sync sync;
     
-    private final Schema schema;
-    
     private final WeakIdentityLookup outstandingKeys;
     
     private final WeakHashMap<Long, Object> outstandingValues;
     
     private final BinTable bins = null;
 
-    public Snapshot(Strata<SnapshotRecord, Mutator> snapshots,
-                    Schema schema,
+    public Snapshot(Strata<SnapshotRecord, Long> snapshots,
                     Map<String, BinCommon> mapOfBinCommons,
                     Map<String, BinSchema> mapOfBinSchemas,
                     Map<String, JoinSchema> mapOfJoinSchemas,
@@ -78,7 +71,6 @@ public final class Snapshot
         this.oldest = (Long) setOfCommitted.iterator().next();
         this.mapOfJanitors = new HashMap<Long, Janitor>();
         this.sync = sync;
-        this.schema = schema;
         this.outstandingKeys = new WeakIdentityLookup();
         this.outstandingValues = new WeakHashMap<Long, Object>();
     }
@@ -161,8 +153,7 @@ public final class Snapshot
 
             mutator.commit();
 
-            Strata.Query query = snapshots.query(Fossil.txn(mutator));
-            query.remove(new Comparable[] { version }, Strata.ANY);
+            snapshots.query(Fossil.initialize(new Stash(), mutator)).remove(version);
 
             test.journalComplete.release();
 
@@ -177,12 +168,11 @@ public final class Snapshot
             entry.getValue().dispose(mutator, false);
         }
 
-        Strata.Query query = snapshots.query(Fossil.txn(mutator));
+        Query<SnapshotRecord, Long> query = snapshots.query(Fossil.initialize(new Stash(), mutator));
 
-        Snapshot.Record committed = new Record(version, Depot.COMMITTED);
-        query.insert(committed);
-
-        query.remove(new Comparable[] { version }, Strata.ANY);
+        SnapshotRecord committed = new SnapshotRecord(version, Depot.COMMITTED);
+        query.add(committed);
+        query.remove(version);
 
         test.journalComplete.release();
 
@@ -202,51 +192,11 @@ public final class Snapshot
                 entry.getValue().dispose(mutator, true);
             }
 
-            Strata.Query query = snapshots.query(Fossil.txn(mutator));
+            Query<SnapshotRecord, Long> query = snapshots.query(Fossil.initialize(new Stash(), mutator));
 
-            query.remove(new Comparable[] { version }, Strata.ANY);
+            query.remove(version);
 
             sync.release();
-        }
-    }
-
-
-    final static class Writer
-    implements Fossil.Writer, Serializable
-    {
-        private static final long serialVersionUID = 20070409L;
-
-        public void write(ByteBuffer bytes, Object object)
-        {
-            if (object == null)
-            {
-                bytes.putLong(0L);
-                bytes.putInt(0);
-            }
-            else
-            {
-                Snapshot.Record record = (com.goodworkalan.memento.Record) object;
-                bytes.putLong(record.version.longValue());
-                bytes.putInt(record.state.intValue());
-            }
-        }
-    }
-
-    final static class Reader
-    implements Fossil.Reader, Serializable
-    {
-        private static final long serialVersionUID = 20070409L;
-
-        public Object read(ByteBuffer bytes)
-        {
-            Long version = new Long(bytes.getLong());
-            Integer state = new Integer(bytes.getInt());
-            if (version.longValue() == 0L)
-            {
-                return null;
-            }
-            Snapshot.Record record = new Record(version, state);
-            return record;
         }
     }
 }

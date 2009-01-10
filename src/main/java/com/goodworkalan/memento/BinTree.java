@@ -2,6 +2,7 @@ package com.goodworkalan.memento;
 
 import com.goodworkalan.fossil.Fossil;
 import com.goodworkalan.pack.Mutator;
+import com.goodworkalan.stash.Stash;
 import com.goodworkalan.strata.Query;
 import com.goodworkalan.strata.Schema;
 

@@ -12,31 +12,9 @@ import com.goodworkalan.pack.Pack;
 
 public final class Creator
     {
-        private final Map<String, Bin.Creator> mapOfBinCreators = new HashMap<String, Bin.Creator>();
+        private final Map<String, BinCreator> mapOfBinCreators = new HashMap<String, Bin.Creator>();
 
-        private final Map<String, Join.Creator> mapOfJoinCreators = new HashMap<String, Join.Creator>();
-
-        public Bin.Creator newBin(String name)
-        {
-            if (mapOfBinCreators.containsKey(name))
-            {
-                throw new IllegalStateException();
-            }
-            Bin.Creator newBin = new Bin.Creator(name);
-            mapOfBinCreators.put(name, newBin);
-            return newBin;
-        }
-
-        public Join.Creator newJoin(String name)
-        {
-            if (mapOfJoinCreators.containsKey(name))
-            {
-                throw new IllegalStateException();
-            }
-            Join.Creator newJoin = new Join.Creator(mapOfBinCreators.keySet());
-            mapOfJoinCreators.put(name, newJoin);
-            return newJoin;
-        }
+        private final Map<String, JoinCreator> mapOfJoinCreators = new HashMap<String, Join.Creator>();
 
         public Depot create(File file)
         {

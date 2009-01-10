@@ -42,8 +42,6 @@ public class PatternTest
                 .end()
             .link(new Link().bin(Person.class).bin(Address.class));
                 
-        JoinBinBuilder<Address, JoinBinBuilder<Person, End>> end = new JoinBinBuilder<Person, End>().bin(Address.class);
-
         person.setFirstName("Alan");
         person.setLastName("Gutierrez");
         person.setEmail("alan@blogometer.com");
@@ -93,5 +91,16 @@ public class PatternTest
         address.setZip("70119");
         
         store.toMany(person, Address.class).add(address);
+        
+        snapshot
+            .join(new Link().bin(Person.class).bin(Address.class))
+            .set(Person.class, person)
+            .set(Address.class, address)
+            .add();
+        
+        Bin<Person> people = snapshot.bin(Person.class);
+        people.join(person, Address.class).add(address);
+        
+        snapshot.commit();
     }
 }

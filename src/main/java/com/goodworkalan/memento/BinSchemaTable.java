@@ -7,17 +7,16 @@ public class BinSchemaTable
 {
     private final Map<Object, Object> table = new HashMap<Object, Object>();
     
-    @SuppressWarnings("unchecked")
     public <T> BinSchema<T> get(Item<T> item)
     {
         Object object = table.get(item);
         if (object == null)
         {
-            BinSchema<T> binSchema = new BinSchema<T>();
+            BinSchema<T> binSchema = new BinSchema<T>(item);
             binSchema.setItemIO(SerializationIO.getInstance(item.caster));
             table.put(item, binSchema);
         }
-        return (BinSchema<T>) object;
+        return new UnsafeCast<BinSchema<T>>().cast(object);
     }
     
     public boolean has(Item<?> item)

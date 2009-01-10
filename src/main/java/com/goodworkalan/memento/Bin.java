@@ -3,9 +3,11 @@ package com.goodworkalan.memento;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -20,6 +22,8 @@ import com.goodworkalan.strata.Query;
 // FIXME Vacuum.
 public final class Bin<T>
 {
+    private final Item<T> item;
+    
     final Mutator mutator;
 
     private final Snapshot snapshot;
@@ -67,6 +71,11 @@ public final class Bin<T>
         
         this.outstandingKeys = new WeakIdentityLookup();
         this.outstandingValues = new WeakHashMap<Long, Box<T>>();
+    }
+    
+    public List<T> getAll()
+    {
+        return Collections.emptyList();
     }
     
     BinSchema<T> getSchema()
@@ -445,5 +454,10 @@ public final class Bin<T>
     public BinCursor first(Unmarshaller unmarshaller)
     {
         return new BinCursor(snapshot, mutator, isolation.first(), schema.getStrata().query(mutator).first(), unmarshaller);
+    }
+    
+    public <O> JoinAdd<O> join(T object, Class<O> other)
+    {
+        return new JoinAdd<O>(snapshot.join(new Link().bin(item).bin(other)), new Item<O>(other) {});
     }
 }

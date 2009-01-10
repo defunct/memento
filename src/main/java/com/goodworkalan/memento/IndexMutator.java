@@ -21,7 +21,7 @@ public final class IndexMutator<T, F extends Comparable<F>>
 
     private final Query<IndexRecord, F> isolation;
 
-    public IndexMutator(IndexSchema<T, F> schema, BinTable bins)
+    public IndexMutator(BinTable bins, IndexSchema<T, F> schema)
     {
         this.schema = schema;
         this.isolation = newIsolation(schema, bins);
@@ -39,7 +39,7 @@ public final class IndexMutator<T, F extends Comparable<F>>
         return newStrata.newTransaction(stash);
     }
 
-    public void add(Snapshot snapshot, Mutator mutator, Bin<Item> bin, Box<Item> box)
+    public void add(Snapshot snapshot, Mutator mutator, Bin<T> bin, Box<T> box)
     {
         IndexTransaction txn = new IndexTransaction(mutator, bin, schema);
         Fields fields = schema.extractor.index(box.getItem());

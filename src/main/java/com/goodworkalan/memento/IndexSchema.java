@@ -61,4 +61,24 @@ public class IndexSchema<T, F>
     {
         return indexer;
     }
+    
+    public void setUnique(boolean unique)
+    {
+        this.unique = unique;
+    }
+    
+    public boolean isUnique()
+    {
+        return unique;
+    }
+    
+    public void setNotNull(boolean notNull)
+    {
+        this.notNull = notNull;
+    }
+    
+    public boolean isNotNull()
+    {
+        return notNull;
+    }
 }

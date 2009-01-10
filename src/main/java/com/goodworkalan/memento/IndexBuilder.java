@@ -8,10 +8,6 @@ public class IndexBuilder<T, F>
     
     private final Index<F> index;
     
-    private boolean unique;
-    
-    private Indexer<T, F> indexer; 
-    
     private final BinSchemaTable binSchemas;
     
     public IndexBuilder(BinBuilder<T> binBuilder, BinSchemaTable binSchemas, Item<T> item, Index<F> index)
@@ -25,14 +21,18 @@ public class IndexBuilder<T, F>
     public IndexBuilder<T, F> indexer(Indexer<T, F> indexer)
     {
         binSchemas.get(item).getIndexSchemas().get(index).setIndexer(indexer);
-        // TODO Maybe reindex.
-        this.indexer = indexer;
         return this;
     }
     
     public IndexBuilder<T, F> unique(boolean unique)
     {
-        binSchemas.get(item).getIndexSchemas().get(index).set(indexer);
+        binSchemas.get(item).getIndexSchemas().get(index).setUnique(unique);
+        return this;
+    }
+    
+    public IndexBuilder<T, F> notNull(boolean notNull)
+    {
+        binSchemas.get(item).getIndexSchemas().get(index).setNotNull(notNull);
         return this;
     }
     
