@@ -9,17 +9,25 @@ implements Serializable
 {
     private static final long serialVersionUID = 20070408L;
 
-    private final IndexTable indexTable;
+    private final IndexSchemaTable<T> indexSchemas;
     
     private Strata<BinRecord, Long> strata;
+
+    private final Item<T> item;
 
     private ItemIO<T> io;
     
     private long identifier;
-
-    public BinSchema()
+    
+    public BinSchema(Item<T> item)
     {
-        this.indexTable = new IndexTable();
+        this.item = item;
+        this.indexSchemas = new IndexSchemaTable<T>(this);
+    }
+
+    public Item<T> getItem()
+    {
+        return item;
     }
 
     public Strata<BinRecord, Long> getStrata()
@@ -38,9 +46,9 @@ implements Serializable
         return io;
     }
     
-    public IndexTable getIndexTable()
+    public IndexSchemaTable<T> getIndexSchemas()
     {
-        return indexTable;
+        return indexSchemas;
     }
     
     public long nextIdentifier()

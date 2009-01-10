@@ -73,7 +73,6 @@ public class PatternTest
         
         person.setFirstName("Steve");
         snapshot.bin(Person.class).update(person);
-        snapshot.update(Person.class, person);
 
         Bin<Person> bin = snapshot.bin(Person.class);
         assertEquals(bin.get(key).getFirstName(), "Steve");
@@ -95,21 +94,4 @@ public class PatternTest
         
         store.toMany(person, Address.class).add(address);
     }
-    
-    public void foo()
-    {
-        Link<Term<Person>, End> personLink = new Link<Term<Person>, End>();
-        Link<Node<Address>, Link<Term<Person>, End>> addressLink = personLink.node(Address.class);
-        
-        Link<Link<Term<Person>, End>, Node<Address>> reversed = addressLink.reverse();
-        reversed.reverse();
-    }
-    
-    public void bar()
-    {
-        Link<Start, Person> personLink = new Link<Start, Person>();
-        Link<Link<Start, Person>, Address> personToAddress = personLink.link(Address.class);
-        personToAddress.getClass();
-    }
-
 }

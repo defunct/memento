@@ -3,35 +3,40 @@ package com.goodworkalan.memento;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
-
+import static com.goodworkalan.memento.IndexSchema.EXTRACTOR;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
+import com.goodworkalan.stash.Stash;
+import com.goodworkalan.strata.Cursor;
+import com.goodworkalan.strata.Extractor;
 import com.goodworkalan.strata.Query;
 import com.goodworkalan.strata.Schema;
 import com.goodworkalan.strata.Strata;
 import com.goodworkalan.strata.Stratas;
 
 // FIXME Vacuum.
-public final class IndexMutator<T, F>
+public final class IndexMutator<T, F extends Comparable<F>>
 {
     private final IndexSchema<T, F> schema;
 
-    private final Query<IndexRecord, Ordered> isolation;
+    private final Query<IndexRecord, F> isolation;
 
-    public IndexMutator(IndexSchema<T, F> schema)
+    public IndexMutator(IndexSchema<T, F> schema, BinTable bins)
     {
         this.schema = schema;
-        this.isolation = newIsolation();
+        this.isolation = newIsolation(schema, bins);
     }
 
-    private static Query<IndexRecord, Ordered> newIsolation()
+    private static <T, F extends Comparable<F>> Query<IndexRecord, F> newIsolation(IndexSchema<T, F> indexSchema, BinTable bins)
     {
-        Schema<IndexRecord, Ordered> newStrata = Stratas.newInMemorySchema();
+        Schema<IndexRecord, F> newStrata = Stratas.newInMemorySchema();
 
         newStrata.setFieldCaching(true);
-        newStrata.setExtractor(new IndexExtractor<T, F>());
+        newStrata.setExtractor(new IndexExtractor<T, F>(indexSchema.getItem(), indexSchema.getIndex()));
 
-        return newStrata.newTransaction(null);
+        Stash stash = new Stash();
+        stash.put(EXTRACTOR, BinTable.class, bins);
+        return newStrata.newTransaction(stash);
     }
 
     public void add(Snapshot snapshot, Mutator mutator, Bin<Item> bin, Box<Item> box)
@@ -117,7 +122,7 @@ public final class IndexMutator<T, F>
         return new Cursor(schema.getStrata().query(txn).find(fields), isolation.query(txn).find(fields), txn, fields, limit);
     }
 
-    private Cursor first(Snapshot snapshot, Pack.Mutator mutator, Bin bin)
+    private Cursor<IndexRecord> first(Snapshot snapshot, Mutator mutator, Bin<T> bin)
     {
         Transaction txn = new Transaction(mutator, bin, schema);
         return new Cursor(schema.getStrata().query(txn).first(), isolation.query(txn).first(), txn, new Comparable[] {}, false);

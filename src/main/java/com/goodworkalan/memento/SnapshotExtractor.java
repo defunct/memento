@@ -1,18 +1,13 @@
 package com.goodworkalan.memento;
 
-import java.io.Serializable;
-
-import com.goodworkalan.pack.Mutator;
+import com.goodworkalan.stash.Stash;
 import com.goodworkalan.strata.Extractor;
-import com.goodworkalan.strata.Record;
 
 public class SnapshotExtractor
-implements Extractor<SnapshotRecord, Mutator>, Serializable
+implements Extractor<SnapshotRecord, Long>
 {
-    private static final long serialVersionUID = 20070409L;
-
-    public void extract(Mutator txn, SnapshotRecord object, Record record)
+    public Long extract(Stash stash, SnapshotRecord object)
     {
-        record.fields(object.version);
+        return object.version;
     }
 }

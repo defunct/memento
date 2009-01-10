@@ -24,7 +24,7 @@ public class IndexBuilder<T, F>
     
     public IndexBuilder<T, F> indexer(Indexer<T, F> indexer)
     {
-        binSchemas.get(item).getIndexTable().get(index).setIndexer(indexer);
+        binSchemas.get(item).getIndexSchemas().get(index).setIndexer(indexer);
         // TODO Maybe reindex.
         this.indexer = indexer;
         return this;
@@ -32,7 +32,7 @@ public class IndexBuilder<T, F>
     
     public IndexBuilder<T, F> unique(boolean unique)
     {
-        this.unique = unique;
+        binSchemas.get(item).getIndexSchemas().get(index).set(indexer);
         return this;
     }
     

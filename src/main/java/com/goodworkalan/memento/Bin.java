@@ -26,8 +26,8 @@ public final class Bin<T>
 
     private final BinSchema<T> schema;
 
-    final Map<String, Index> mapOfIndices;
-
+    private final IndexTable<T> indexes;
+    
     final Query<BinRecord, Long> query;
 
     private final Query<BinRecord, Long> isolation;
@@ -38,7 +38,9 @@ public final class Bin<T>
 
     public Bin(Snapshot snapshot,
                Mutator mutator,
-               BinSchema<T> schema, Map<Long, Janitor> janitors)
+               BinSchema<T> schema,
+               IndexTable<T> indexes,
+               Map<Long, Janitor> janitors)
     {
         query = schema.getStrata().query(Fossil.initialize(new Stash(), mutator));
         isolation = new BinTree().create(mutator);
@@ -56,35 +58,39 @@ public final class Bin<T>
         }
 
         long address = allocation.temporary();
-        mapOfJanitors.put(address, janitor);
+        janitors.put(address, janitor);
 
         this.snapshot = snapshot;
-        this.common = common;
-        this.mapOfIndices = null;
+        this.indexes = indexes;
         this.schema = schema;
         this.mutator = mutator;
         
-        this.itemClass = itemClass;
-
         this.outstandingKeys = new WeakIdentityLookup();
         this.outstandingValues = new WeakHashMap<Long, Box<T>>();
+    }
+    
+    BinSchema<T> getSchema()
+    {
+        return schema;
+    }
+    
+    IndexTable<T> getIndexes()
+    {
+        return indexes;
     }
 
     public void restore(long key, T object)
     {
         Box<T> box = new Box<T>(key, snapshot.getVersion(), object);
         insert(box);
-        if (schema.identifier <= key)
-        {
-            common.identifier = key + 1;
-        }
+        schema.setIdentifierIf(key);
     }
 
     private void insert(Box<T> box)
     {
         PackOutputStream allocation = new PackOutputStream(mutator);
 
-        schema.io.write(allocation, box.getItem());
+        schema.getItemIO().write(allocation, box.getItem());
  
         long address = allocation.allocate();
         BinRecord record = new BinRecord(box.getKey(), box.getVersion(), address);
@@ -108,7 +114,7 @@ public final class Bin<T>
 
     public long add(T item)
     {
-        Box<T> box = new Box<T>(common.nextIdentifier(), snapshot.getVersion(), item);
+        Box<T> box = new Box<T>(schema.nextIdentifier(), snapshot.getVersion(), item);
         
         insert(box);
 
@@ -172,7 +178,7 @@ public final class Bin<T>
         }
 
         PackOutputStream allocation = new PackOutputStream(mutator);
-        schema.io.write(allocation, item);
+        schema.getItemIO().write(allocation, item);
         long address = allocation.allocate();
         
         Box<T> box = new Box<T>(key, snapshot.getVersion(), item);
@@ -264,8 +270,8 @@ public final class Bin<T>
 
     private BinRecord getRecord(Long key)
     {
-        BinRecord stored = get(query.find(new Comparable[] { key }), key, false);
-        BinRecord isolated = get(isolation.find(new Comparable[] { key }), key, true);
+        BinRecord stored = get(query.find(key), key, false);
+        BinRecord isolated = get(isolation.find(key), key, true);
         if (isolated != null)
         {
             return isDeleted(isolated) ? null : isolated;
@@ -317,8 +323,7 @@ public final class Bin<T>
         Box<T> box = outstandingValues.get(key);
         if (box == null)
         {
-            /* FIXME */ ItemIO<Item> io = null;
-            box = get(io, key);
+            box = get(schema.getItemIO(), key);
             outstandingValues.put(box.getKey(), box);
             outstandingKeys.put(box.getItem(), box.getKey());
         }
@@ -421,15 +426,15 @@ public final class Bin<T>
         return find(string, fields, true);
     }
 
-    public IndexCursor first(String indexName)
+    public <F extends Comparable<F>> IndexCursor first(Index<F> index)
     {
-        Index index = (Index) mapOfIndices.get(indexName);
-        if (index == null)
+        IndexMutator<T, F> indexMutator = indexes.get(index);
+        if (indexMutator == null)
         {
-            throw new Danger("no.such.index", 503).add(indexName);
+            throw new Danger("no.such.index", 503).add(index);
         }
 
-        return index.first(snapshot, mutator, this);
+        return indexMutator.first(snapshot, mutator, this);
     }
 
     public IndexCursor first()

@@ -7,14 +7,11 @@ public class IndexSchemaTable<T>
 {
     private final Map<Object, Object> table = new HashMap<Object, Object>();
     
-    private final BinSchemaTable binSchemas;
+    private final BinSchema<T> binSchema;
     
-    private final Item<T> item;
-    
-    public IndexSchemaTable(BinSchemaTable binSchemas, Item<T> item)
+    public IndexSchemaTable(BinSchema<T> binSchema)
     {
-        this.binSchemas = binSchemas;
-        this.item = item;
+        this.binSchema = binSchema;
     }
 
     public <F> IndexSchema<T, F> get(Index<F> index)
@@ -22,9 +19,8 @@ public class IndexSchemaTable<T>
         Object object = table.get(index);
         if (object == null)
         {
-            ItemIO<T> io = binSchemas.get(item).getItemIO();
-            IndexSchema<T, F> indexSchema = new IndexSchema<T, F>();
-            indexSchema.setItemIO(io);
+            IndexSchema<T, F> indexSchema = new IndexSchema<T, F>(binSchema.getItem(), index);
+            indexSchema.setItemIO(binSchema.getItemIO());
             
             object = indexSchema;
             table.put(index, object);

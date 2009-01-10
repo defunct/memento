@@ -83,11 +83,6 @@ public final class Snapshot
         this.outstandingValues = new WeakHashMap<Long, Object>();
     }
     
-    public <Item> Class<?> classFor(Item item) 
-    {
-        return item.getClass();
-    }
-    
     public long id(Object item)
     {
         return outstandingKeys.get(item);

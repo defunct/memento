@@ -1,12 +1,12 @@
 package com.goodworkalan.memento;
 
-import com.goodworkalan.pack.Mutator;
+import com.goodworkalan.stash.Stash;
 import com.goodworkalan.strata.Extractor;
 
 public class BinExtractor
-implements Extractor<BinRecord, Long, Mutator>
+implements Extractor<BinRecord, Long>
 {
-    public Long extract(Mutator txn, BinRecord record)
+    public Long extract(Stash stash, BinRecord record)
     {
         return record.key;
     }
