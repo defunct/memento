@@ -1,51 +1,61 @@
 package com.goodworkalan.memento;
+import static com.goodworkalan.memento.IndexSchema.EXTRACTOR;
 
 import java.util.Iterator;
 
-import com.goodworkalan.strata.Strata;
+import com.goodworkalan.stash.Stash;
+import com.goodworkalan.strata.Cursor;
 
-public class IndexCursor
-implements Iterator<Object>
+public class IndexCursor<T, F extends Comparable<F>>
+implements Iterator<T>
 {
-    private final Comparable<?>[] fields;
+    private final IndexSchema<T, F> indexSchema;
 
-    private final Transaction txn;
+    private final F fields;
 
-    private final Strata.Cursor isolated;
+    private final Stash stash;
 
-    private final Strata.Cursor stored;
+    private final Cursor<IndexRecord> isolated;
+
+    private final Cursor<IndexRecord> stored;
 
     private final boolean limit;
 
-    private Record nextStored;
+    private IndexRecord nextStored;
 
-    private Record nextIsolated;
+    private IndexRecord nextIsolated;
+    
+    private Bin<T> bin;
 
-    private Bag next;
+    private Box<T> next;
 
-    public IndexCursor(Strata.Cursor stored, Strata.Cursor isolated, Transaction txn, Comparable<?>[] fields, boolean limit)
+    public IndexCursor(IndexSchema<T, F> indexSchema, Cursor<IndexRecord> stored, Cursor<IndexRecord> isolated, Stash stash, F fields, boolean limit)
     {
-        this.txn = txn;
+        this.indexSchema = indexSchema;
+        this.stash = stash;
         this.fields = fields;
         this.limit = limit;
         this.isolated = isolated;
         this.stored = stored;
         this.nextStored = next(stored, false);
         this.nextIsolated = next(isolated, true);
-        this.next = seekBag();
+        this.bin = stash.get(EXTRACTOR, BinTable.class).get(indexSchema.getItem());
+        this.next = seekBox();
     }
 
-    private IndexRecord next(Strata.Cursor cursor, boolean isolated)
+    private IndexRecord next(Cursor<IndexRecord> cursor, boolean isolated)
     {
         while (cursor.hasNext())
         {
-            Record record = (Record) cursor.next();
-            Bag bag = txn.bin.get(txn.schema.unmarshaller, record.key);
-            if (bag == null || !bag.getVersion().equals(record.version))
+            IndexRecord record = cursor.next();
+            Box<T> box = stash.get(EXTRACTOR, BinTable.class).get(indexSchema.getItem()).get(indexSchema.getItemIO(), record.key);
+            if (box == null || box.getVersion() != record.version)
             {
                 continue;
             }
-            if (limit && !partial(fields, txn.schema.extractor.getFields(bag.getObject())))
+            // What did partial mean? Not exactly equal. Test here is for partial.
+//            if (limit && !partial(fields, indexSchema.getIndex().getFields(bag.getObject())))
+            if (limit)
             {
                 cursor.release();
                 return null;
@@ -55,13 +65,18 @@ implements Iterator<Object>
         cursor.release();
         return null;
     }
-
-    private Bag seekBag()
+    
+    private F index(long key, long version)
     {
-        Bag bag = null;
+        return indexSchema.getIndexer().index(bin.get(indexSchema.getItemIO(), key, version).getItem());
+    }
+
+    private Box<T> seekBox()
+    {
+        Box<T> box = null;
         if (nextIsolated != null || nextStored != null)
         {
-            Record next = null;
+            IndexRecord next = null;
             if (nextIsolated == null)
             {
                 next = nextStored;
@@ -74,7 +89,7 @@ implements Iterator<Object>
             }
             else
             {
-                int compare = compare(txn.getFields(nextIsolated.key, nextIsolated.version), txn.getFields(nextStored.key, nextStored.version));
+                int compare = index(nextIsolated.key, nextIsolated.version).compareTo(index(nextStored.key, nextStored.version));
                 if (compare < 0)
                 {
                     next = nextIsolated;
@@ -92,20 +107,20 @@ implements Iterator<Object>
                     nextStored = next(stored, true);
                 }
             }
-            bag = txn.getBag(next);
-            if (!bag.getVersion().equals(next.version))
+            box = bin.get(indexSchema.getItemIO(), next.key);
+            if (box.getVersion() != next.version)
             {
-                bag = nextBag();
+                box = nextBox();
             }
         }
-        return bag;
+        return box;
     }
 
-    public Bag nextBag()
+    public Box<T> nextBox()
     {
-        Bag bag = next;
-        next = seekBag();
-        return bag;
+        Box<T> box = next;
+        next = seekBox();
+        return box;
     }
 
     public boolean hasNext()
@@ -118,9 +133,9 @@ implements Iterator<Object>
         throw new UnsupportedOperationException();
     }
 
-    public Object next()
+    public T next()
     {
-        return nextBag().getObject();
+        return nextBox().getItem();
     }
 
     public void release()

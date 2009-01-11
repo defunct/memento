@@ -2,8 +2,6 @@ package com.goodworkalan.memento;
 
 import java.io.Serializable;
 
-import com.goodworkalan.memento.Join.Index;
-
 public class JoinIndex
 final static class Index
 implements Serializable
@@ -12,7 +10,7 @@ implements Serializable
 
     public final Object strata;
 
-    public final String[] fields;
+    public final int[] fields;
 
     public Index(Strata strata, String[] fields)
     {
@@ -20,13 +18,7 @@ implements Serializable
         this.fields = fields;
     }
 
-    private Index(Strata.Schema strata, String[] fields)
-    {
-        this.strata = strata;
-        this.fields = fields;
-    }
-
-    public Strata getStrata()
+    public Strata getQuery()
     {
         return (Strata) strata;
     }
@@ -38,7 +30,7 @@ implements Serializable
 
     public Join.Index toSchema()
     {
-        return new Index(getStrata().getSchema(), fields);
+        return new Index(getQuery().getSchema(), fields);
     }
 }
 

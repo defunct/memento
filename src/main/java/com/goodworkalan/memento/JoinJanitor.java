@@ -23,7 +23,7 @@ implements Janitor
         Join join = snapshot.getJoin(name);
         for (int i = 0; i < join.schema.indices.length; i++)
         {
-            Strata.Query query = join.schema.indices[i].getStrata().query(Fossil.txn(join.mutator));
+            Strata.Query query = join.schema.indices[i].getQuery().query(Fossil.txn(join.mutator));
             Strata.Cursor cursor = isolation[i].query(Fossil.txn(join.mutator)).first();
             while (cursor.hasNext())
             {

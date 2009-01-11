@@ -1,6 +1,7 @@
 package com.goodworkalan.memento;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class Link
@@ -29,6 +30,16 @@ public class Link
     {
         items.add(new Item<T>(itemClass) {});
         return this;
+    }
+    
+    public List<Item<?>> getItems()
+    {
+        return Collections.unmodifiableList(items);
+    }
+    
+    public int size()
+    {
+        return items.size();
     }
     
     @Override

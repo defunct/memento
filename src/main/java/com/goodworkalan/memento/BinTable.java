@@ -1,13 +1,14 @@
 package com.goodworkalan.memento;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 import com.goodworkalan.pack.Mutator;
 
-public class BinTable
+public class BinTable implements Iterable<Bin<?>>
 {
-    private final Map<Object, Object> table = new HashMap<Object, Object>();
+    private final Map<Object, Bin<?>> table = new HashMap<Object, Bin<?>>();
     
     private final Snapshot snapshot;
     
@@ -30,7 +31,7 @@ public class BinTable
 
     public <T> Bin<T> get(Item<T> item)
     {
-        Object bin = table.get(item);
+        Bin<?> bin = table.get(item);
         if (bin == null)
         {
             BinSchema<T> binSchema = binSchemas.get(item);
@@ -39,5 +40,10 @@ public class BinTable
             table.put(item, bin);
         }
         return new UnsafeCast<Bin<T>>().cast(bin);
-    }   
+    }
+    
+    public Iterator<Bin<?>> iterator()
+    {
+        return table.values().iterator();
+    }
 }

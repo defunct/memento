@@ -40,12 +40,14 @@ public final class Bin<T>
     
     private final WeakHashMap<Long, Box<T>> outstandingValues; 
 
-    public Bin(Snapshot snapshot,
+    public Bin(Storage storage,
+               Snapshot snapshot,
                Mutator mutator,
                BinSchema<T> schema,
                IndexTable<T> indexes,
                Map<Long, Janitor> janitors)
     {
+        BinStorage binStorage = storage.open(item);
         query = schema.getStrata().query(Fossil.initialize(new Stash(), mutator));
         isolation = new BinTree().create(mutator);
         BinJanitor<T> janitor = new BinJanitor<T>(isolation, itemClass);

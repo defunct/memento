@@ -3,7 +3,6 @@ package com.goodworkalan.memento;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.WeakHashMap;
 
 import com.goodworkalan.fossil.Fossil;
 import com.goodworkalan.pack.Mutator;
@@ -14,12 +13,8 @@ import com.goodworkalan.strata.Strata;
 public final class Snapshot
 {
     private final Strata<SnapshotRecord, Long> snapshots;
-
-    private final Map<String, BinCommon> mapOfBinCommons;
-
-    private final Map<String, BinSchema> mapOfBinSchemas;
-
-    private final Map<String, JoinSchema> mapOfJoinSchemas;
+    
+    private final Storage storage;
 
     private final Map<Long, Janitor> mapOfJanitors;
 
@@ -27,13 +22,7 @@ public final class Snapshot
 
     private final Mutator mutator;
 
-    private final Map<Class<?>, Bin> mapOfBins;
-    
-    private final Map<String, Join> mapOfJoins;
-
     private final Long version;
-
-    private final Test test;
 
     private final Long oldest;
 
@@ -41,43 +30,25 @@ public final class Snapshot
 
     private final Sync sync;
     
-    private final WeakIdentityLookup outstandingKeys;
-    
-    private final WeakHashMap<Long, Object> outstandingValues;
-    
     private final BinTable bins = null;
+    
+    private final JoinTable joins;
 
-    public Snapshot(Strata<SnapshotRecord, Long> snapshots,
-                    Map<String, BinCommon> mapOfBinCommons,
-                    Map<String, BinSchema> mapOfBinSchemas,
-                    Map<String, JoinSchema> mapOfJoinSchemas,
+    public Snapshot(Storage storage,
                     Mutator mutator,
                     Set<Long> setOfCommitted,
-                    Test test,
                     Long version,
                     Sync sync)
     {
-        this.snapshots = snapshots;
-        this.mapOfBinCommons = mapOfBinCommons;
-        this.mapOfBinSchemas = mapOfBinSchemas;
-        this.mapOfJoinSchemas = mapOfJoinSchemas;
+        this.storage = storage;
+        this.snapshots = storage.getSnapshots();
         this.mutator = mutator;
-        this.mapOfBins = new HashMap<Class<?>, Bin>();
-//        this.mapOfSwags = new HashMap<Class<?>, Swag>();
-        this.mapOfJoins = new HashMap<String, Join>();
         this.version = version;
-        this.test = test;
         this.setOfCommitted = setOfCommitted;
         this.oldest = (Long) setOfCommitted.iterator().next();
         this.mapOfJanitors = new HashMap<Long, Janitor>();
         this.sync = sync;
-        this.outstandingKeys = new WeakIdentityLookup();
-        this.outstandingValues = new WeakHashMap<Long, Object>();
-    }
-    
-    public long id(Object item)
-    {
-        return outstandingKeys.get(item);
+        this.joins = new JoinTable();
     }
     
     public <T> Bin<T> bin(Class<T> itemClass)
@@ -117,32 +88,30 @@ public final class Snapshot
 
         spent = true;
         
-        for (Bin bin : mapOfBins.values())
+        for (Bin<?> bin : bins)
         {
             bin.flush();
         }
 
-        for (Join join : mapOfJoins.values())
+        for (Join join : joins)
         {
             join.flush();
         }
 
         try
         {
-            for (Bin bin : mapOfBins.values())
+            for (Bin<?> bin : bins)
             {
                 bin.commit();
             }
 
-            for (Join join : mapOfJoins.values())
+            for (Join join : joins)
             {
                 join.commit();
             }
         }
         catch (Error e)
         {
-            test.changesWritten();
-
             for (Map.Entry<Long, Janitor> entry : mapOfJanitors.entrySet())
             {
                 entry.getValue().rollback(this);
@@ -155,12 +124,8 @@ public final class Snapshot
 
             snapshots.query(Fossil.initialize(new Stash(), mutator)).remove(version);
 
-            test.journalComplete.release();
-
             throw e;
         }
-
-        test.changesWritten();
 
         for (Map.Entry<Long, Janitor> entry : mapOfJanitors.entrySet())
         {
@@ -170,11 +135,9 @@ public final class Snapshot
 
         Query<SnapshotRecord, Long> query = snapshots.query(Fossil.initialize(new Stash(), mutator));
 
-        SnapshotRecord committed = new SnapshotRecord(version, Depot.COMMITTED);
+        SnapshotRecord committed = new SnapshotRecord(version, Store.COMMITTED);
         query.add(committed);
         query.remove(version);
-
-        test.journalComplete.release();
 
         sync.release();
     }

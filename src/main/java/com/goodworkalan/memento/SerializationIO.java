@@ -32,6 +32,11 @@ public class SerializationIO<T> implements ItemIO<T>
         return new SerializationIO<Type>(new ClassCaster<Type>(itemClass));
     }
     
+    public static <Type> SerializationIO<Type> getInstance(Item<Type> itemClass)
+    {
+        return new SerializationIO<Type>(new UnsafeCast<Type>());
+    }
+
     static <Type> SerializationIO<Type> getInstance(Caster<Type> itemClass)
     {
         return new SerializationIO<Type>(itemClass);

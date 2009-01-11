@@ -7,17 +7,17 @@ import java.util.Map;
 
 public class JoinBuilder
 {
-    private final Map<Object, List<Object>> join;
+    private final Map<Item<?>, List<Object>> join;
     
-    public JoinBuilder(Map<Object, Integer> prototype)
+    public JoinBuilder(Map<Item<?>, Integer> prototype)
     {
         this.join = duplicate(prototype);
     }
     
-    public Map<Object, List<Object>> duplicate(Map<Object, Integer> prototype)
+    public Map<Item<?>, List<Object>> duplicate(Map<Item<?>, Integer> prototype)
     {
-        Map<Object, List<Object>> join = new HashMap<Object, List<Object>>();
-        for (Object key : prototype.keySet())
+        Map<Item<?>, List<Object>> join = new HashMap<Item<?>, List<Object>>();
+        for (Item<?> key : prototype.keySet())
         {
             join.put(key, new ArrayList<Object>(prototype.get(key)));
         }

@@ -4,21 +4,15 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 abstract class TypeKey
 {
     private final List<Object> key;
     
-    protected TypeKey(List<Type> type, List<Object> other)
+    protected TypeKey(List<Object> key)
     {
-        this.key = newKey(type, other);
-    }
-    
-    protected TypeKey(List<Type> type)
-    {
-        this(type, Collections.emptyList());
+        this.key = key;
     }
     
     protected TypeKey(Object...other)

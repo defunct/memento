@@ -153,7 +153,7 @@ public final class Join
         }
     }
 
-    public Join.Cursor find(Map<String, Long> mapOfKeys)
+    public JoinCursor find(Map<Object, List<Object>> join)
     {
         // if (mapOfKeys.size() == 0)
         // {
@@ -190,7 +190,7 @@ public final class Join
             }
         }
 
-        Strata.Query common = schema.indices[index].getStrata().query(Fossil.txn(mutator));
+        Strata.Query common = schema.indices[index].getQuery().query(Fossil.txn(mutator));
         Long[] keys = new Long[most];
         if (most == 0)
         {
@@ -237,7 +237,7 @@ public final class Join
     {
         for (int i = 0; i < schema.indices.length; i++)
         {
-            Strata.Query query = schema.indices[i].getStrata().query(Fossil.txn(mutator));
+            Strata.Query query = schema.indices[i].getQuery().query(Fossil.txn(mutator));
             Strata.Cursor isolated = isolation[i].first();
             while (isolated.hasNext())
             {
@@ -282,7 +282,7 @@ public final class Join
     {
         for (int i = 0; i < schema.indices.length; i++)
         {
-            Strata.Query query = schema.indices[i].getStrata().query(Fossil.txn(mutator));
+            Strata.Query query = schema.indices[i].getQuery().query(Fossil.txn(mutator));
             Strata.Cursor cursor = query.first();
             Join.Record previous = null;
             while (cursor.hasNext() && previous == null)

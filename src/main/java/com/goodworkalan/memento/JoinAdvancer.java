@@ -1,15 +1,17 @@
 package com.goodworkalan.memento;
 
+import com.goodworkalan.strata.Cursor;
+
 
 public class JoinAdvancer
 {
-    private final Strata.Cursor cursor;
+    private final Cursor<JoinRecord> cursor;
 
     private JoinRecord record;
 
     private boolean atEnd;
 
-    public JoinAdvancer(Strata.Cursor cursor)
+    public JoinAdvancer(Cursor<JoinRecord> cursor)
     {
         this.cursor = cursor;
     }
@@ -32,7 +34,7 @@ public class JoinAdvancer
             cursor.release();
             return false;
         }
-        record = (com.goodworkalan.memento.Record) cursor.next();
+        record = cursor.next();
         return true;
     }
 

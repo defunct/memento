@@ -1,11 +1,14 @@
 package com.goodworkalan.memento;
 
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 
+import com.goodworkalan.strata.Cursor;
+
 
 public class JoinCursor
-implements Iterator<Tuple>
+implements Iterator<Joint>
 {
     private final JoinAdvancer stored;
 
@@ -13,9 +16,9 @@ implements Iterator<Tuple>
 
     private final Snapshot snapshot;
 
-    private final Long[] keys;
+    private final long[] keys;
 
-    private final Join.Schema schema;
+    private final JoinSchema schema;
 
     private JoinRecord nextStored;
 
@@ -27,12 +30,12 @@ implements Iterator<Tuple>
 
     private final JoinIndex index;
 
-    public Cursor(Snapshot snapshot, Long[] keys, Map<String, Long> mapToScan, Strata.Cursor storedCursor, Strata.Cursor isolatedCursor, Join.Schema schema, Join.Index index)
+    public Cursor(Snapshot snapshot, long[] keys, Map<String, Long> mapToScan, Cursor<JoinRecord> storedCursor, Strata.Cursor isolatedCursor, JoinSchema schema, Join.Index index)
     {
         this.snapshot = snapshot;
         this.keys = keys;
-        this.stored = new Advancer(storedCursor);
-        this.isolated = new Advancer(isolatedCursor);
+        this.stored = new JoinAdvancer(storedCursor);
+        this.isolated = new JoinAdvancer(isolatedCursor);
         this.mapToScan = mapToScan;
         this.index = index;
         this.nextStored = stored.advance() ? next(stored, false) : null;
@@ -41,10 +44,10 @@ implements Iterator<Tuple>
         this.schema = schema;
     }
 
-    private Join.Record next(Join.Advancer cursor, boolean isolated)
+    private JoinRecord next(JoinAdvancer cursor, boolean isolated)
     {
-        Join.Record candidate = null;
-        Long[] candidateKeys = null;
+        JoinRecord candidate = null;
+        long[] candidateKeys = null;
         for (;;)
         {
             if (cursor.getAtEnd())
@@ -52,8 +55,8 @@ implements Iterator<Tuple>
                 cursor.release();
                 break;
             }
-            Join.Record record = cursor.getRecord();
-            if (keys.length > 0 && !Depot.partial(keys, record.keys))
+            JoinRecord record = cursor.getRecord();
+            if (keys.length > 0 && !Store.partial(keys, record.keys))
             {
                 cursor.release();
                 break;
@@ -76,7 +79,7 @@ implements Iterator<Tuple>
                 {
                     candidateKeys = record.keys;
                 }
-                else if (!Depot.partial(candidateKeys, record.keys))
+                else if (!Store.partial(candidateKeys, record.keys))
                 {
                     break;
                 }
@@ -104,7 +107,7 @@ implements Iterator<Tuple>
             }
             else
             {
-                int compare = Depot.compare(nextIsolated.keys, nextStored.keys);
+                int compare = Store.compare(nextIsolated.keys, nextStored.keys);
                 if (compare < 0)
                 {
                     next = nextIsolated;
@@ -140,18 +143,11 @@ implements Iterator<Tuple>
         throw new UnsupportedOperationException();
     }
 
-    public Tuple nextTuple()
+    public Joint next()
     {
-        Tuple tuple = new Tuple(snapshot, schema.mapOfFields, index.fields, next);
+        Joint joint = new Joint(snapshot, schema.mapOfFields, index.fields, next);
         next = nextRecord();
-        return tuple;
-    }
-
-    public Tuple next()
-    {
-        Tuple tuple = new Tuple(snapshot, schema.mapOfFields, index.fields, next);
-        next = nextRecord();
-        return tuple;
+        return joint;
     }
 
     public void release()

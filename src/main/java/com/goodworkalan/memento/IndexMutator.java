@@ -9,6 +9,7 @@ import com.goodworkalan.pack.Pack;
 import com.goodworkalan.stash.Stash;
 import com.goodworkalan.strata.Cursor;
 import com.goodworkalan.strata.Extractor;
+import com.goodworkalan.strata.InMemoryStorageBuilder;
 import com.goodworkalan.strata.Query;
 import com.goodworkalan.strata.Schema;
 import com.goodworkalan.strata.Strata;
@@ -36,7 +37,7 @@ public final class IndexMutator<T, F extends Comparable<F>>
 
         Stash stash = new Stash();
         stash.put(EXTRACTOR, BinTable.class, bins);
-        return newStrata.newTransaction(stash);
+        return newStrata.create(stash, new InMemoryStorageBuilder<IndexRecord, F>());
     }
 
     public void add(Snapshot snapshot, Mutator mutator, Bin<T> bin, Box<T> box)

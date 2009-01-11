@@ -13,7 +13,7 @@ public class BinSchemaTable
         if (object == null)
         {
             BinSchema<T> binSchema = new BinSchema<T>(item);
-            binSchema.setItemIO(SerializationIO.getInstance(item.caster));
+            binSchema.setItemIO(SerializationIO.getInstance(item));
             table.put(item, binSchema);
         }
         return new UnsafeCast<BinSchema<T>>().cast(object);
