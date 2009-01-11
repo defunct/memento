@@ -61,7 +61,7 @@ public final class Join
         }
         catch (IOException e)
         {
-            throw new Danger("Cannot write output stream.", e, 0);
+            throw new MementoException(111);
         }
 
         mapOfJanitors.put(allocation.temporary(), janitor);
@@ -230,7 +230,7 @@ public final class Join
                 }
                 if (seen.contains(listOfKeys))
                 {
-                    throw new Danger("Duplicate key in isolation.", 0);
+                    throw new MementoException(112);
                 }
                 seen.add(listOfKeys);
             }

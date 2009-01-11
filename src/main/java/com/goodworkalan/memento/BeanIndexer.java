@@ -47,7 +47,7 @@ implements Indexer<T, Ordered>
         }
         catch (IntrospectionException e)
         {
-            throw new Danger("Introspection.", e, 100);
+            throw new MementoException(103, e).add(rawType);
         }
         Method[] getters = new Method[fields.length];
         for (int i = 0; i < getters.length; i++)
@@ -66,7 +66,7 @@ implements Indexer<T, Ordered>
         {
             if (getters[i] == null)
             {
-                throw new Danger("Cannot find proeprty: " + fields[i], 300);
+                throw new MementoException(101).add(Messages.stringEscape(fields[i]));
             }
         }
         return getters;
@@ -84,7 +84,7 @@ implements Indexer<T, Ordered>
             }
             catch (Exception e)
             {
-                throw new Danger("Unable to get property: " + fields[i], e, 300);
+                throw new MementoException(102, e).add(Messages.stringEscape(fields[i]));
             }
         }
         return new Ordered(comparables);

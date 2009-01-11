@@ -9,29 +9,29 @@ import com.goodworkalan.strata.Cursor;
 import com.goodworkalan.strata.Query;
 import com.goodworkalan.strata.Strata;
 
-public final class BinJanitor<Item>
+public final class BinJanitor<T>
 implements Janitor
 {
     private static final long serialVersionUID = 20070826L;
 
     private final Strata<BinRecord, Long> isolation;
 
-    private final Class<Item> itemClass;
+    private final Item<T> itemClass;
 
-    public BinJanitor(Query<BinRecord, Long> isolation, Class<Item> itemClass)
+    public BinJanitor(Query<BinRecord, Long> isolation, Item<T> item)
     {
         this.isolation = isolation.getStrata();
-        this.itemClass = itemClass;
+        this.itemClass = item;
     }
 
     public void rollback(Snapshot snapshot)
     {
-        Bin<Item> bin = snapshot.bin(itemClass);
+        Bin<T> bin = snapshot.bin(itemClass);
         Cursor<BinRecord> cursor = isolation.query(Fossil.initialize(new Stash(), bin.mutator)).first();
         while (cursor.hasNext())
         {
             BinRecord record =  cursor.next();
-            Iterator<Index> indices = bin.mapOfIndices.values().iterator();
+            Iterator<T> indices = bin.mapOfIndices.values().iterator();
             while (indices.hasNext())
             {
                 Index index = (Index) indices.next();
@@ -45,7 +45,7 @@ implements Janitor
 
     public void dispose(Mutator mutator, boolean deallocate)
     {
-        Query<BinRecord, Long> query = isolation.query(mutator);
+        Query<BinRecord, Long> query = isolation.query(Fossil.initialize(new Stash(), mutator));
         if (deallocate)
         {
             Cursor<BinRecord> cursor = query.first();

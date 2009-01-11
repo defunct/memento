@@ -23,7 +23,7 @@ public class SerializationIO<T> implements ItemIO<T>
         }
         catch (IOException e)
         {
-            throw new Danger("io", 403);
+            throw new MementoException(113, e);
         }
     }
     
@@ -49,13 +49,9 @@ public class SerializationIO<T> implements ItemIO<T>
         {
             object = new ObjectInputStream(in).readObject();
         }
-        catch (IOException e)
+        catch (Exception e)
         {
-            throw new Danger("io", 403);
-        }
-        catch (ClassNotFoundException e)
-        {
-            throw new Danger("class.not.found", 403);
+            throw new MementoException(114, e);
         }
         return itemClass.cast(object);
     }

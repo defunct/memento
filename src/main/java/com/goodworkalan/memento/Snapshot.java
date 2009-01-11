@@ -51,6 +51,11 @@ public final class Snapshot
         this.joins = new JoinTable();
     }
     
+    public <T> Bin<T> bin(Item<T> item)
+    {
+        return bins.get(item);
+    }
+
     public <T> Bin<T> bin(Class<T> itemClass)
     {
         return bins.get(new Item<T>(itemClass) {});
@@ -83,7 +88,7 @@ public final class Snapshot
     {
         if (spent)
         {
-            throw new Danger("commit.spent.snapshot", 501);
+            throw new MementoException(115);
         }
 
         spent = true;

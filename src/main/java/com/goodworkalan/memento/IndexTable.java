@@ -1,12 +1,13 @@
 package com.goodworkalan.memento;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 
-public class IndexTable<T>
+public class IndexTable<T> implements Iterable<IndexMutator<T, ?>>
 {
-    private final Map<Object, Object> table = new HashMap<Object, Object>();
+    private final Map<Index<?>, IndexMutator<T, ?>> table = new HashMap<Index<?>, IndexMutator<T, ?>>();
     
     private final BinTable bins;
     
@@ -20,12 +21,17 @@ public class IndexTable<T>
     
     public <F extends Comparable<F>> IndexMutator<T, F> get(Index<F> index)
     {
-        Object object = table.get(index);
+        IndexMutator<T, ?> object = table.get(index);
         if (object == null)
         {
             object = new IndexMutator<T, F>(bins, indexSchemas.get(index));
             table.put(index, object);
         }
         return new UnsafeCast<IndexMutator<T, F>>().cast(object);
+    }
+    
+    public Iterator<IndexMutator<T, ?>> iterator()
+    {
+        return table.values().iterator();
     }
 }

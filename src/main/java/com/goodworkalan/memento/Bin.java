@@ -4,26 +4,22 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
-import com.goodworkalan.stash.Stash;
 import com.goodworkalan.fossil.Fossil;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
+import com.goodworkalan.stash.Stash;
 import com.goodworkalan.strata.Cursor;
 import com.goodworkalan.strata.Query;
 
 // FIXME Vacuum.
 public final class Bin<T>
 {
-    private final Item<T> item;
-    
     final Mutator mutator;
 
     private final Snapshot snapshot;
@@ -47,10 +43,10 @@ public final class Bin<T>
                IndexTable<T> indexes,
                Map<Long, Janitor> janitors)
     {
-        BinStorage binStorage = storage.open(item);
+//        BinStorage binStorage = storage.open(schema.getItem());
         query = schema.getStrata().query(Fossil.initialize(new Stash(), mutator));
         isolation = new BinTree().create(mutator);
-        BinJanitor<T> janitor = new BinJanitor<T>(isolation, itemClass);
+        BinJanitor<T> janitor = new BinJanitor<T>(isolation, schema.getItem());
 
         PackOutputStream allocation = new PackOutputStream(mutator);
         try
@@ -60,7 +56,7 @@ public final class Bin<T>
         }
         catch (IOException e)
         {
-            throw new Danger("Cannot write output stream.", e, 0);
+            throw new MementoException(104, e);
         }
 
         long address = allocation.temporary();
@@ -161,7 +157,7 @@ public final class Bin<T>
 
         if (key == null)
         {
-            throw new Danger("update.bag.does.not.exist", 401);
+            throw new MementoException(105);
         }
         
         return update(key, item).getKey();
@@ -173,7 +169,7 @@ public final class Bin<T>
         
         if (key == null)
         {
-            throw new Danger("error", 401);
+            throw new MementoException(106);
         }
         
         return update(key, now).getKey();
@@ -185,7 +181,7 @@ public final class Bin<T>
 
         if (record == null)
         {
-            throw new Danger("update.bag.does.not.exist", 401);
+            throw new MementoException(105);
         }
 
         PackOutputStream allocation = new PackOutputStream(mutator);
@@ -221,7 +217,7 @@ public final class Bin<T>
 
         if (record == null)
         {
-            throw new Danger("Deleted record does not exist.", 402);
+            throw new MementoException(107);
         }
 
         if (record.version != snapshot.getVersion())
@@ -363,7 +359,7 @@ public final class Bin<T>
             BinRecord record = isolated.next();
             if (seen.contains(record))
             {
-                throw new Danger("Duplicate key in isolation.", 0);
+                throw new MementoException(109);
             }
             seen.add(record.key);
         }
@@ -388,7 +384,7 @@ public final class Bin<T>
         while (copacetic && isolated.hasNext())
         {
             BinRecord record = isolated.next();
-            Cursor<BinRecord> cursor = query.find(new Comparable[] { record.key });
+            Cursor<BinRecord> cursor = query.find(record.key);
             while (copacetic && cursor.hasNext())
             {
                 BinRecord candidate = cursor.next();
@@ -410,31 +406,18 @@ public final class Bin<T>
 
         if (!copacetic)
         {
-            throw new Error("Concurrent modification.", Depot.CONCURRENT_MODIFICATION_ERROR);
+            throw new MementoException(110);
         }
 
-        Iterator<Index> indices = mapOfIndices.values().iterator();
-        while (indices.hasNext())
+        for (IndexMutator<T, ?> index : indexes)
         {
-            Index index = indices.next();
             index.commit(snapshot, mutator, this);
         }
     }
 
-    public IndexCursor find(String indexName, Comparable<?>[] fields, boolean limit)
+    public <F extends Comparable<F>> IndexCursor<T, F>  find(Index<F> index, F field)
     {
-        Index index = (Index) mapOfIndices.get(indexName);
-        if (index == null)
-        {
-            throw new Danger("no.such.index", 503).add(indexName);
-        }
-
-        return index.find(snapshot, mutator, this, fields, limit);
-    }
-
-    public IndexCursor find(String string, Comparable<?>[] fields)
-    {
-        return find(string, fields, true);
+        return indexes.get(index).find(snapshot, mutator, this, field, false);
     }
 
     public <F extends Comparable<F>> IndexCursor<T, F> first(Index<F> index)
@@ -442,7 +425,7 @@ public final class Bin<T>
         IndexMutator<T, F> indexMutator = indexes.get(index);
         if (indexMutator == null)
         {
-            throw new Danger("no.such.index", 503).add(index);
+            throw new MementoException(108);
         }
 
         return indexMutator.first(snapshot, mutator, this);
@@ -450,11 +433,11 @@ public final class Bin<T>
 
     public BinCursor<T> first()
     {
-        return new BinCursor<T>(snapshot, mutator, isolation.first(), schema.getStrata().query(mutator).first(), schema.getItemIO());
+        return new BinCursor<T>(snapshot, mutator, isolation.first(), schema.getStrata().query(Fossil.initialize(new Stash(), mutator)).first(), schema.getItemIO());
     }
     
     public <O> JoinAdd<O> join(T object, Class<O> other)
     {
-        return new JoinAdd<O>(snapshot.join(new Link().bin(item).bin(other)), new Item<O>(other) {});
+        return new JoinAdd<O>(snapshot.join(new Link().bin(schema.getItem()).bin(other)), new Item<O>(other) {});
     }
 }
