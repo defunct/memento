@@ -3,11 +3,16 @@ package com.goodworkalan.memento;
 
 public class JoinSchema
 {
-    public final Link link;
+    private final Link link;
 
     public JoinSchema(Link link)
     {
         this.link = link;
+    }
+    
+    public Link getLink()
+    {
+        return link;
     }
 }
 

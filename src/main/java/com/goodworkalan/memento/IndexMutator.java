@@ -1,14 +1,12 @@
 package com.goodworkalan.memento;
 
-import java.io.Serializable;
-import java.nio.ByteBuffer;
-import java.util.Iterator;
 import static com.goodworkalan.memento.IndexSchema.EXTRACTOR;
+
+import java.util.Iterator;
+
 import com.goodworkalan.pack.Mutator;
-import com.goodworkalan.pack.Pack;
 import com.goodworkalan.stash.Stash;
 import com.goodworkalan.strata.Cursor;
-import com.goodworkalan.strata.Extractor;
 import com.goodworkalan.strata.InMemoryStorageBuilder;
 import com.goodworkalan.strata.Query;
 import com.goodworkalan.strata.Schema;
@@ -55,7 +53,7 @@ public final class IndexMutator<T, F extends Comparable<F>>
             if (found.hasNext())
             {
                 found.next(); // Release locks.
-                throw new Error("Unique index constraint violation.", Depot.UNIQUE_CONSTRAINT_VIOLATION_ERROR).put("bin", bin.getName());
+                throw new Error("Unique index constraint violation.", 1/* UNIQUE_CONSTRAINT_VIOLATION_ERROR */).put("bin", bin.getName());
             }
         }
         Query query = isolation.query(mutator);
@@ -117,21 +115,21 @@ public final class IndexMutator<T, F extends Comparable<F>>
         });
     }
 
-    private Cursor find(Snapshot snapshot, Pack.Mutator mutator, Bin bin, Comparable<?>[] fields, boolean limit)
+    private IndexCursor<T,F> find(Snapshot snapshot, Mutator mutator, Bin<T> bin, F fields, boolean limit)
     {
-        Transaction txn = new Transaction(mutator, bin, schema);
-        return new Cursor(schema.getStrata().query(txn).find(fields), isolation.query(txn).find(fields), txn, fields, limit);
+        // TODO Setup stash.
+        return new IndexCursor<T,F>(schema.getStrata().query(txn).find(fields), isolation.query(txn).find(fields), txn, fields, limit);
     }
 
-    private Cursor<IndexRecord> first(Snapshot snapshot, Mutator mutator, Bin<T> bin)
+    private IndexCursor<T,F> first(Snapshot snapshot, Mutator mutator, Bin<T> bin)
     {
-        Transaction txn = new Transaction(mutator, bin, schema);
-        return new Cursor(schema.getStrata().query(txn).first(), isolation.query(txn).first(), txn, new Comparable[] {}, false);
+        // TODO Setup stash.
+        return new IndexCursor<T,F>(schema.getStrata().query(txn).first(), isolation.query(txn).first(), txn, new Comparable[] {}, false);
     }
 
-    private void commit(Snapshot snapshot, Pack.Mutator mutator, Bin bin)
+    private void commit(Snapshot snapshot, Mutator mutator, Bin bin)
     {
-        Transaction txn = new Transaction(mutator, bin, schema);
+        // TODO Setup stash.
         Strata.Query queryOfIsolated = isolation.query(txn);
         Strata.Query queryOfStored = schema.getStrata().query(txn);
         Strata.Cursor isolated = queryOfIsolated.first();

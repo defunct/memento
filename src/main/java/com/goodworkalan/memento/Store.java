@@ -99,4 +99,8 @@ public class Store
         }
         return compare == 0 ? partial.length - full.length : compare;
     }
+    
+    public void end()
+    {
+    }
 }

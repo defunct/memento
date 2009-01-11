@@ -1,15 +1,14 @@
 package com.goodworkalan.memento;
 
-import java.util.List;
 
 public class Joint
 {
-    public <T> List<T> getAll(Class<T> type)
+    public <T> T get(int index, Class<T> type)
     {
         return null;
     }
-
-    public <T> List<T> getAll(Item<T> type)
+    
+    public <T> T get(int index, Item<T> type)
     {
         return null;
     }

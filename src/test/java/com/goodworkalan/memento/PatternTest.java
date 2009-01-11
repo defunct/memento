@@ -2,10 +2,13 @@ package com.goodworkalan.memento;
 
 import static org.testng.Assert.assertEquals;
 
+import java.io.File;
+
 import org.testng.annotations.Test;
 
 import com.agtrz.depot.serializable.Address;
-import com.agtrz.depot.serializable.Employee;
+import com.agtrz.depot.serializable.Book;
+import com.agtrz.depot.serializable.Author;
 import com.agtrz.depot.serializable.Person;
 
 public class PatternTest
@@ -15,11 +18,11 @@ public class PatternTest
     {
         Person person = new Person();
 
-        Store store = new Store();
+        Store store = new Store(new FileStorage(new File("test.memento")));
         
         store
             .store(Person.class)
-                .subclass(Employee.class)
+                .subclass(Author.class)
                 .io(SerializationIO.getInstance(Person.class))
                 .index(new Index<String>("email") {})
                     .indexer(new Indexer<Person, String>()
@@ -40,7 +43,13 @@ public class PatternTest
                     })
                     .end()
                 .end()
-            .link(new Link().bin(Person.class).bin(Address.class));
+            .link(new Link().bin(Person.class).bin(Book.class))
+                .alternate(new Link().bin(Book.class).bin(Person.class))
+                .end()
+            .link(new Link("children").bin(Person.class).bin(Person.class))
+                .alternate(new Link("parent").bin(Person.class).bin(Person.class))
+                .end()
+            .end();
                 
         person.setFirstName("Alan");
         person.setLastName("Gutierrez");
@@ -93,13 +102,13 @@ public class PatternTest
         store.toMany(person, Address.class).add(address);
         
         snapshot
-            .join(new Link().bin(Person.class).bin(Address.class))
-            .set(Person.class, person)
-            .set(Address.class, address)
+            .join(new Link().bin(Person.class).bin(Book.class))
+            .push(Person.class, person)
+            .push(Book.class, new Book("My Diary"))
             .add();
         
         Bin<Person> people = snapshot.bin(Person.class);
-        people.join(person, Address.class).add(address);
+        people.join(person, Book.class).add(new Book("War and Peace"));
         
         snapshot.commit();
     }

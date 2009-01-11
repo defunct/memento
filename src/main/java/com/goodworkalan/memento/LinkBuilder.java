@@ -1,9 +1,9 @@
 package com.goodworkalan.memento;
 
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 public class LinkBuilder
 {
@@ -11,36 +11,92 @@ public class LinkBuilder
     
     private final Store store; 
     
-    private final List<Integer[]> alternates;
+    private final List<LinkAlternate> alternates;
     
     public LinkBuilder(Store store, Link link)
     {
         this.store = store;
         this.link = link;
-        this.alternates = new ArrayList<Integer[]>();
+        this.alternates = new ArrayList<LinkAlternate>();
     }
-
-    public void alternate(Integer...fields)
+    
+    public LinkBuilder biDirectional(Link alternate)
     {
-        List<Item<?>> items = link.getItems();
-        Set<Integer> seen = new HashSet<Integer>();
-        if (fields.length > items.size())
+        if (alternate.size() != 2)
         {
             throw new IllegalArgumentException();
         }
-        for (int i = 0; i < fields.length; i++)
+        List<Item<?>> these = link.getItems();
+        List<Item<?>> those = alternate.getItems();
+        if (!these.get(0).equals(those.get(1)) || !these.get(1).equals(those.get(0)))
         {
-            if (seen.contains(fields[i]))
-            {
-                throw new IllegalArgumentException();
-            }
-            if (fields[i] >= items.size())
-            {
-                throw new IllegalArgumentException();
-            }
-            seen.add(fields[i]);
+            throw new IllegalArgumentException();
         }
-        alternates.add(fields);
+        return alternate(alternate, 1, 0);
+    }
+
+    public LinkBuilder alternate(Link alternate, int...fields)
+    {
+        List<Item<?>> these = link.getItems();
+        List<Item<?>> those = link.getItems();
+        if (these.size() != those.size())
+        {
+            throw new IllegalArgumentException();
+        }
+        if (fields.length == 0)
+        {
+            Map<Item<?>, int[]> seen = new HashMap<Item<?>, int[]>(); 
+            fields = new int[these.size()];
+            for (int i = 0; i <  those.size(); i++)
+            {
+                Item<?> item = those.get(i);
+                if (!seen.containsKey(item))
+                {
+                    seen.put(item, new int[] { 0 });
+                }
+                int found = -1;
+                int count = seen.get(item)[0] + 1;
+                for (int j = 0; j < count; j++)
+                {
+                    found = -1;
+                    for (int k = 0; found == -1 && k < these.size(); k++)
+                    {
+                        if (these.get(k).equals(item))
+                        {
+                            found = k;
+                        }
+                    }
+                }
+                if (found == -1)
+                {
+                    throw new IllegalArgumentException();
+                }
+                fields[i] = found;
+            }
+        }
+        else if (fields.length == these.size())
+        {
+            for (int i = 0; i < fields.length; i++)
+            {
+                if (fields[i] >= these.size())
+                {
+                    throw new IllegalArgumentException();
+                }
+            }
+        }
+        else
+        {
+            throw new IllegalArgumentException();
+        }
+        for (int i = 0; i < those.size(); i++)
+        {
+            if (!these.get(fields[i]).equals(those.get(i)))
+            {
+                throw new IllegalArgumentException();
+            }
+        }
+        alternates.add(new LinkAlternate(alternate, fields));
+        return this;
     }
     
     public Store end()

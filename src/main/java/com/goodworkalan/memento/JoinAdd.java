@@ -14,6 +14,6 @@ public class JoinAdd<T>
     
     public void add(T value)
     {
-        joinBuilder.set(item, value);
+        joinBuilder.push(item, value);
     }
 }

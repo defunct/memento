@@ -1,36 +1,19 @@
 package com.goodworkalan.memento;
 
-import java.io.Serializable;
 
 public class JoinIndex
-final static class Index
-implements Serializable
 {
-    private static final long serialVersionUID = 20070903L;
+    public final JoinSchema joinSchema;
 
-    public final Object strata;
+    public final Link alternate;
 
-    public final int[] fields;
+    public final int[] order;
 
-    public Index(Strata strata, String[] fields)
+    public JoinIndex(JoinSchema joinSchema, Link alternate, int[] order)
     {
-        this.strata = strata;
-        this.fields = fields;
-    }
-
-    public Strata getQuery()
-    {
-        return (Strata) strata;
-    }
-
-    public Join.Index toStrata(Object txn)
-    {
-        return new Index(((Strata.Schema) strata).newStrata(txn), fields);
-    }
-
-    public Join.Index toSchema()
-    {
-        return new Index(getQuery().getSchema(), fields);
+        this.joinSchema = joinSchema;
+        this.alternate = alternate;
+        this.order = order;
     }
 }
 

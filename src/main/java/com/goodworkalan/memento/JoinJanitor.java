@@ -1,20 +1,23 @@
 package com.goodworkalan.memento;
 
+import java.util.List;
+
+import com.goodworkalan.fossil.Fossil;
+import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
+import com.goodworkalan.stash.Stash;
+import com.goodworkalan.strata.Strata;
 
 public class JoinJanitor
-public final static class Janitor
 implements Janitor
 {
-    private static final long serialVersionUID = 20070826L;
-
-    private final Strata[] isolation;
+    private final List<Strata<JoinRecord, Ordered>> isolations;
 
     private final String name;
 
-    public Janitor(Strata[] isolation, String name)
+    public JoinJanitor(List<Strata<JoinRecord, Ordered>> isolation, String name)
     {
-        this.isolation = isolation;
+        this.isolations = isolation;
         this.name = name;
     }
 
@@ -24,7 +27,7 @@ implements Janitor
         for (int i = 0; i < join.schema.indices.length; i++)
         {
             Strata.Query query = join.schema.indices[i].getQuery().query(Fossil.txn(join.mutator));
-            Strata.Cursor cursor = isolation[i].query(Fossil.txn(join.mutator)).first();
+            Strata.Cursor cursor = isolations[i].query(Fossil.txn(join.mutator)).first();
             while (cursor.hasNext())
             {
                 query.remove((com.goodworkalan.memento.Record) cursor.next());
@@ -35,11 +38,11 @@ implements Janitor
 
     }
 
-    public void dispose(Pack.Mutator mutator, boolean deallocate)
+    public void dispose(Mutator mutator, boolean deallocate)
     {
-        for (int i = 0; i < isolation.length; i++)
+        for (Strata<JoinRecord, Ordered> isolation : isolations)
         {
-            isolation[i].query(Fossil.txn(mutator)).destroy();
+            isolation.query(Fossil.initialize(new Stash(), mutator)).destroy();
         }
     }
 }

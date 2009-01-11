@@ -153,12 +153,17 @@ public final class Join
         }
     }
 
-    public JoinCursor find(Map<Object, List<Object>> join)
+    public JoinCursor find(Map<Item<?>, List<Object>> join)
     {
         // if (mapOfKeys.size() == 0)
         // {
         // throw new IllegalArgumentException();
         // }
+        
+        for (Item<?> item : join.keySet())
+        {
+            
+        }
         Iterator<String> fields = mapOfKeys.keySet().iterator();
         while (fields.hasNext())
         {
@@ -322,7 +327,7 @@ public final class Join
                     }
                 }
                 cursor.release();
-                if (Depot.compare(previous.keys, next.keys) == 0 || previous.deleted)
+                if (Store.compare(previous.keys, next.keys) == 0 || previous.deleted)
                 {
                     query.remove(previous);
                     query.flush();

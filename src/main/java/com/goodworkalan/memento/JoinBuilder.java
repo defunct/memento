@@ -7,11 +7,17 @@ import java.util.Map;
 
 public class JoinBuilder
 {
-    private final Map<Item<?>, List<Object>> join;
+    private final JoinIndex joinIndex;
     
-    public JoinBuilder(Map<Item<?>, Integer> prototype)
+    private final List<Object> values;
+    
+    private final List<Item<?>> items;
+    
+    public JoinBuilder(JoinIndex joinIndex)
     {
-        this.join = duplicate(prototype);
+        this.joinIndex = joinIndex;
+        this.values = new ArrayList<Object>();
+        this.items = joinIndex.alternate.getItems();
     }
     
     public Map<Item<?>, List<Object>> duplicate(Map<Item<?>, Integer> prototype)
@@ -24,34 +30,27 @@ public class JoinBuilder
         return join;
     }
     
-    public <T> JoinBuilder set(int index, Item<T> item, T value)
+    public <T> JoinBuilder push(Item<T> item, T value)
     {
-        List<Object> values = join.get(item);
-        if (join == null)
+        if (values.size() == items.size())
         {
-            values = new ArrayList<Object>();
-            values.add(value);
+            throw new IllegalStateException();
         }
-        join.put(item, values);
+        if (!items.get(values.size()).equals(item))
+        {
+            throw new IllegalStateException();
+        }
+        values.add(value);
         return this;
     }
     
-    public <T> JoinBuilder set(int index, Class<T> itemClass, T value)
+    public <T> JoinBuilder push(Class<T> itemClass, T value)
     {
-        return set(index, new Item<T>(itemClass) {}, value);
-    }
-    
-    public <T> JoinBuilder set(Class<T> item, T value)
-    {
-        return set(0, item, value);
-    }
-    
-    public <T> JoinBuilder set(Item<T> item, T value)
-    {
-        return set(0, item, value);
+        return push(new Item<T>(itemClass) {}, value);
     }
     
     public void add()
     {
+        joinIndex.getClass();
     }
 }
