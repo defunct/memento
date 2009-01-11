@@ -115,7 +115,7 @@ public final class IndexMutator<T, F extends Comparable<F>>
         });
     }
 
-    private IndexCursor<T,F> find(Snapshot snapshot, Mutator mutator, Bin<T> bin, F fields, boolean limit)
+    private IndexCursor<T, F> find(Snapshot snapshot, Mutator mutator, Bin<T> bin, F fields, boolean limit)
     {
         // TODO Setup stash.
         return new IndexCursor<T,F>(schema.getStrata().query(txn).find(fields), isolation.query(txn).find(fields), txn, fields, limit);
@@ -124,7 +124,7 @@ public final class IndexMutator<T, F extends Comparable<F>>
     private IndexCursor<T,F> first(Snapshot snapshot, Mutator mutator, Bin<T> bin)
     {
         // TODO Setup stash.
-        return new IndexCursor<T,F>(schema.getStrata().query(txn).first(), isolation.query(txn).first(), txn, new Comparable[] {}, false);
+        return new IndexCursor<T, F>(schema.getStrata().query(txn).first(), isolation.query(txn).first(), txn, 0, false);
     }
 
     private void commit(Snapshot snapshot, Mutator mutator, Bin bin)
@@ -175,13 +175,4 @@ public final class IndexMutator<T, F extends Comparable<F>>
             queryOfStored.flush();
         }
     }
-
- 
-  
-
-   
-
- 
-   
-
 }

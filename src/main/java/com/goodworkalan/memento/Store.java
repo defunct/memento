@@ -67,16 +67,6 @@ public class Store
     {
         return null;
     }
-    
-    public <From, To> OneToMany<From, To> toMany(From from, Class<To> to)
-    {
-        return new OneToMany<From, To>();
-    }
-    
-    public <From, To> OneToMany<From, To> toMany(From from, Class<To> to, String name)
-    {
-        return new OneToMany<From, To>();
-    }
 
     public static boolean partial(long[] partial, long[] full)
     {

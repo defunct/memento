@@ -437,7 +437,7 @@ public final class Bin<T>
         return find(string, fields, true);
     }
 
-    public <F extends Comparable<F>> IndexCursor first(Index<F> index)
+    public <F extends Comparable<F>> IndexCursor<T, F> first(Index<F> index)
     {
         IndexMutator<T, F> indexMutator = indexes.get(index);
         if (indexMutator == null)
@@ -448,14 +448,9 @@ public final class Bin<T>
         return indexMutator.first(snapshot, mutator, this);
     }
 
-    public IndexCursor first()
+    public BinCursor<T> first()
     {
-        return first(schema.schema.unmarshaller);
-    }
-
-    public BinCursor first(Unmarshaller unmarshaller)
-    {
-        return new BinCursor(snapshot, mutator, isolation.first(), schema.getStrata().query(mutator).first(), unmarshaller);
+        return new BinCursor<T>(snapshot, mutator, isolation.first(), schema.getStrata().query(mutator).first(), schema.getItemIO());
     }
     
     public <O> JoinAdd<O> join(T object, Class<O> other)
