@@ -99,8 +99,6 @@ public class PatternTest
         Address address = new Address();
         address.setZip("70119");
         
-        store.toMany(person, Address.class).add(address);
-        
         snapshot
             .join(new Link().bin(Person.class).bin(Book.class))
             .push(Person.class, person)

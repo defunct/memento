@@ -48,7 +48,7 @@ implements Iterator<T>
         while (cursor.hasNext())
         {
             IndexRecord record = cursor.next();
-            Box<T> box = stash.get(EXTRACTOR, BinTable.class).get(indexSchema.getItem()).get(indexSchema.getItemIO(), record.key);
+            Box<T> box = stash.get(EXTRACTOR, BinTable.class).get(indexSchema.getItem()).box(record.key);
             if (box == null || box.getVersion() != record.version)
             {
                 continue;
@@ -68,7 +68,7 @@ implements Iterator<T>
     
     private F index(long key, long version)
     {
-        return indexSchema.getIndexer().index(bin.get(indexSchema.getItemIO(), key, version).getItem());
+        return indexSchema.getIndexer().index(bin.box(key, version).getItem());
     }
 
     private Box<T> seekBox()
@@ -107,7 +107,7 @@ implements Iterator<T>
                     nextStored = next(stored, true);
                 }
             }
-            box = bin.get(indexSchema.getItemIO(), next.key);
+            box = bin.box(next.key);
             if (box.getVersion() != next.version)
             {
                 box = nextBox();

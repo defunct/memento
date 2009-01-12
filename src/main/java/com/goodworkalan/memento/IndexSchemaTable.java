@@ -5,7 +5,7 @@ import java.util.Map;
 
 public class IndexSchemaTable<T>
 {
-    private final Map<Object, Object> table = new HashMap<Object, Object>();
+    private final Map<Object, IndexSchema<T, ?>> table = new HashMap<Object, IndexSchema<T, ?>>();
     
     private final BinSchema<T> binSchema;
     
@@ -16,15 +16,12 @@ public class IndexSchemaTable<T>
 
     public <F> IndexSchema<T, F> get(Index<F> index)
     {
-        Object object = table.get(index);
-        if (object == null)
+        IndexSchema<T, ?> indexSchema = table.get(index);
+        if (indexSchema == null)
         {
-            IndexSchema<T, F> indexSchema = new IndexSchema<T, F>(binSchema.getItem(), index);
-            indexSchema.setItemIO(binSchema.getItemIO());
-            
-            object = indexSchema;
-            table.put(index, object);
+            indexSchema = new IndexSchema<T, F>(binSchema.getItem(), index);
+            table.put(index, indexSchema);
         }
-        return new UnsafeCast<IndexSchema<T, F>>().cast(object); 
+        return new UnsafeCast<IndexSchema<T, F>>().cast(indexSchema); 
     }
 }

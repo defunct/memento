@@ -22,7 +22,7 @@ implements Extractor<IndexRecord, F>
     {
         BinTable bins = stash.get(EXTRACTOR, BinTable.class);
         Bin<T> bin = bins.get(item);
-        IndexSchema<T, F> indexSchema = bin.getSchema().getIndexSchemas().get(index);
-        return indexSchema.getIndexer().index(bin.get(indexSchema.getItemIO(), object.key, object.version).getItem());
+        IndexSchema<T, F> indexSchema = bin.getBinSchema().getIndexSchemas().get(index);
+        return indexSchema.getIndexer().index(bin.box(object.key, object.version).getItem());
     }
 }

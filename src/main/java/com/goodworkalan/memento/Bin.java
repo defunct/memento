@@ -24,7 +24,7 @@ public final class Bin<T>
 
     private final Snapshot snapshot;
 
-    private final BinSchema<T> schema;
+    private final BinSchema<T> binSchema;
 
     private final IndexTable<T> indexes;
     
@@ -64,7 +64,7 @@ public final class Bin<T>
 
         this.snapshot = snapshot;
         this.indexes = indexes;
-        this.schema = schema;
+        this.binSchema = schema;
         this.mutator = mutator;
         
         this.outstandingKeys = new WeakIdentityLookup();
@@ -76,9 +76,9 @@ public final class Bin<T>
         return Collections.emptyList();
     }
     
-    BinSchema<T> getSchema()
+    BinSchema<T> getBinSchema()
     {
-        return schema;
+        return binSchema;
     }
     
     IndexTable<T> getIndexes()
@@ -90,14 +90,14 @@ public final class Bin<T>
     {
         Box<T> box = new Box<T>(key, snapshot.getVersion(), object);
         insert(box);
-        schema.setIdentifierIf(key);
+        binSchema.setIdentifierIf(key);
     }
 
     private void insert(Box<T> box)
     {
         PackOutputStream allocation = new PackOutputStream(mutator);
 
-        schema.getItemIO().write(allocation, box.getItem());
+        binSchema.getItemIO().write(allocation, box.getItem());
  
         long address = allocation.allocate();
         BinRecord record = new BinRecord(box.getKey(), box.getVersion(), address);
@@ -121,7 +121,7 @@ public final class Bin<T>
 
     public long add(T item)
     {
-        Box<T> box = new Box<T>(schema.nextIdentifier(), snapshot.getVersion(), item);
+        Box<T> box = new Box<T>(binSchema.nextIdentifier(), snapshot.getVersion(), item);
         
         insert(box);
 
@@ -185,7 +185,7 @@ public final class Bin<T>
         }
 
         PackOutputStream allocation = new PackOutputStream(mutator);
-        schema.getItemIO().write(allocation, item);
+        binSchema.getItemIO().write(allocation, item);
         long address = allocation.allocate();
         
         Box<T> box = new Box<T>(key, snapshot.getVersion(), item);
@@ -268,10 +268,10 @@ public final class Bin<T>
         return candidate;
     }
 
-    private Box<T> unmarshall(ItemIO<T> io, BinRecord record)
+    private Box<T> unmarshall(BinRecord record)
     {
         ByteBuffer block = mutator.read(record.address);
-        T item = io.read(new ByteBufferInputStream(block));
+        T item = binSchema.getItemIO().read(new ByteBufferInputStream(block));
         return new Box<T>(record.key, record.version, item);
     }
 
@@ -330,23 +330,31 @@ public final class Bin<T>
         Box<T> box = outstandingValues.get(key);
         if (box == null)
         {
-            box = get(schema.getItemIO(), key);
-            outstandingValues.put(box.getKey(), box);
-            outstandingKeys.put(box.getItem(), box.getKey());
+            box = readBox(key);
+            if (box != null)
+            {
+                outstandingValues.put(box.getKey(), box);
+                outstandingKeys.put(box.getItem(), box.getKey());
+            }
         }
         return box;
     }
 
-    public Box<T> get(ItemIO<T> io, Long key)
+    private Box<T> readBox(Long key)
     {
         BinRecord record = getRecord(key);
-        return record == null ? null : unmarshall(io, record);
+        return record == null ? null : unmarshall(record);
     }
 
-    Box<T> get(ItemIO<T> io, Long key, Long version)
+    public Box<T> box(Long key, Long version)
     {
-        BinRecord record = getRecord(key, version);
-        return record == null ? null : unmarshall(io, record);
+        Box<T> box = box(key);
+        if (box.getVersion() != version)
+        {
+            BinRecord record = getRecord(key, version);
+            return record == null ? null : unmarshall(record);
+        }
+        return box;
     }
 
     // FIXME Call this somewhere somehow.
@@ -433,11 +441,11 @@ public final class Bin<T>
 
     public BinCursor<T> first()
     {
-        return new BinCursor<T>(snapshot, mutator, isolation.first(), schema.getStrata().query(Fossil.initialize(new Stash(), mutator)).first(), schema.getItemIO());
+        return new BinCursor<T>(snapshot, mutator, isolation.first(), binSchema.getStrata().query(Fossil.initialize(new Stash(), mutator)).first(), binSchema.getItemIO());
     }
     
     public <O> JoinAdd<O> join(T object, Class<O> other)
     {
-        return new JoinAdd<O>(snapshot.join(new Link().bin(schema.getItem()).bin(other)), new Item<O>(other) {});
+        return new JoinAdd<O>(snapshot.join(new Link().bin(binSchema.getItem()).bin(other)), new Item<O>(other) {});
     }
 }

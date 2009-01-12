@@ -4,6 +4,7 @@ import static com.goodworkalan.memento.IndexSchema.EXTRACTOR;
 
 import java.util.Iterator;
 
+import com.goodworkalan.fossil.Fossil;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.stash.Stash;
 import com.goodworkalan.strata.Cursor;
@@ -40,79 +41,74 @@ public final class IndexMutator<T, F extends Comparable<F>>
 
     public void add(Snapshot snapshot, Mutator mutator, Bin<T> bin, Box<T> box)
     {
-        IndexTransaction txn = new IndexTransaction(mutator, bin, schema);
-        Fields fields = schema.extractor.index(box.getItem());
+        F fields = schema.getIndexer().index(box.getItem());
         // Need to push not null into indexer. 
 //        if (schema.notNull && Depot.hasNulls(fields))
 //        {
 //            throw new Error("Not null violation.", Depot.NOT_NULL_VIOLATION_ERROR);
 //        }
-        if (schema.unique)// && (schema.notNull || !hasNulls(fields)))
+        if (schema.isUnique())// && (schema.notNull || !hasNulls(fields)))
         {
-            Iterator<Object> found = find(snapshot, mutator, bin, fields, true);
-            if (found.hasNext())
+            IndexCursor<T, F> exists = find(snapshot, mutator, bin, fields, true);
+            if (exists.hasNext())
             {
-                found.next(); // Release locks.
-                throw new Error("Unique index constraint violation.", 1/* UNIQUE_CONSTRAINT_VIOLATION_ERROR */).put("bin", bin.getName());
+                exists.next(); // Release locks.
+                throw new MementoException(116);
             }
         }
-        Query query = isolation.query(mutator);
-        IndexRecord record = new IndexRecord(bag.getKey(), bag.getVersion());
-        query.add(record);
-        query.flush();
+        IndexRecord record = new IndexRecord(box.getKey(), box.getVersion());
+        isolation.add(record);
     }
 
-    public void update(Snapshot snapshot, Mutator mutator, Bin bin, Bag bag, Long previous)
+    public void update(Snapshot snapshot, Mutator mutator, Bin<T> bin, Box<T> box, long previous)
     {
-        Transaction txn = new Transaction(mutator, bin, schema);
-        Strata.Query query = isolation.query(txn);
-        Strata.Cursor found = query.find(txn.getFields(bag.getKey(), previous));
+        Cursor<IndexRecord> found = isolation.find(schema.getIndexer().index(bin.box(box.getKey(), previous).getItem()));
         while (found.hasNext())
         {
-            Record record = (Record) found.next();
-            if (record.key.equals(bag.getKey()) && record.version.equals(previous))
+            IndexRecord record = found.next();
+            if (record.key.equals(box.getKey()) && record.version == previous)
             {
                 found.release();
-                query.remove(record);
-                query.flush();
+                isolation.remove(isolation.extract(record));
                 break;
             }
         }
         found.release();
-        Comparable<?>[] fields = schema.extractor.getFields(bag.getObject());
-        if (schema.notNull && hasNulls(fields))
+        F fields = schema.getIndexer().index(box.getItem());
+        // TODO Not null done with special version of ordered.
+//        if (schema.notNull && hasNulls(fields))
+//        {
+//            throw new Error("Not null violation.", NOT_NULL_VIOLATION_ERROR);
+//        }
+        if (schema.isUnique() ) //&& (schema.notNull || !hasNulls(fields)))
         {
-            throw new Error("Not null violation.", NOT_NULL_VIOLATION_ERROR);
-        }
-        if (schema.unique && (schema.notNull || !hasNulls(fields)))
-        {
-            Cursor exists = find(snapshot, mutator, bin, fields, true);
+            IndexCursor<T, F> exists = find(snapshot, mutator, bin, fields, true);
             if (exists.hasNext())
             {
-                Bag existing = exists.nextBag();
-                if (!existing.getKey().equals(bag.getKey()))
+                Box<T> existing = exists.nextBox();
+                if (existing.getKey() != box.getKey())
                 {
-                    throw new Error("unique.index.constraint.violation", UNIQUE_CONSTRAINT_VIOLATION_ERROR).put("bin", bin.getName());
+                    throw new MementoException(116);
                 }
             }
         }
-        query.insert(new Record(bag.getKey(), bag.getVersion()));
-        query.flush();
+        isolation.add(new IndexRecord(box.getKey(), box.getVersion()));
     }
 
-    public void remove(Mutator mutator, Bin bin, Long key, Long version)
+    public void remove(Mutator mutator, Bin<T> bin, Long key, Long version)
     {
-        IndexTransaction txn = new Transaction(mutator, bin, schema);
-        final Box<T> bag = bin.get(schema.unmarshaller, key, version);
-        Comparable<?>[] fields = schema.extractor.getFields(bag.getObject());
-        schema.getStrata().query(txn).remove(fields, new Strata.Deletable()
-        {
-            public boolean deletable(Object object)
-            {
-                Record record = (Record) object;
-                return record.key.equals(bag.getKey()) && record.version.equals(bag.getVersion());
-            }
-        });
+        // FIXME Was not happening in isolation!
+//        IndexTransaction txn = new Transaction(mutator, bin, schema);
+//        final Box<T> box = bin.box(key, version);
+//        F fields = schema.getIndexer().index(box.getItem());
+//        schema.getStrata().query(txn).remove(fields, new Strata.Deletable()
+//        {
+//            public boolean deletable(Object object)
+//            {
+//                Record record = (Record) object;
+//                return record.key.equals(bag.getKey()) && record.version.equals(bag.getVersion());
+//            }
+//        });
     }
 
     IndexCursor<T, F> find(Snapshot snapshot, Mutator mutator, Bin<T> bin, F fields, boolean limit)

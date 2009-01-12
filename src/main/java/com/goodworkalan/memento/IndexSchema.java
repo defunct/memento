@@ -15,8 +15,6 @@ public class IndexSchema<T, F>
 
     private boolean notNull;
 
-    private ItemIO<T> io;
-    
     private final Item<T> item;
     
     private final Index<F> index;
@@ -40,16 +38,6 @@ public class IndexSchema<T, F>
     public Strata<IndexRecord, Ordered> getStrata()
     {
         return strata;
-    }
-    
-    public void setItemIO(ItemIO<T> io)
-    {
-        this.io = io;
-    }
-    
-    public ItemIO<T> getItemIO()
-    {
-        return io;
     }
     
     public void setIndexer(Indexer<T, F> indexer)

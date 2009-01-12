@@ -1,7 +1,5 @@
 package com.goodworkalan.memento;
 
-import static com.goodworkalan.memento.Depot.CONCURRENT_MODIFICATION_ERROR;
-
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
