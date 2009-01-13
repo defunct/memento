@@ -17,6 +17,8 @@ implements Janitor
     private final Strata<BinRecord, Long> isolation;
 
     private final Item<T> itemClass;
+    
+    private IndexTable<T> indexes;
 
     public BinJanitor(Query<BinRecord, Long> isolation, Item<T> item)
     {
@@ -31,11 +33,9 @@ implements Janitor
         while (cursor.hasNext())
         {
             BinRecord record =  cursor.next();
-            Iterator<T> indices = bin.mapOfIndices.values().iterator();
-            while (indices.hasNext())
+            for (IndexMutator<T, ?> indexMutator : indexes)
             {
-                Index index = (Index) indices.next();
-                index.remove(bin.mutator, bin, record.key, record.version);
+                indexMutator.remove(bin.mutator, bin, record.key, record.version);
             }
             bin.query.remove(bin.query.extract(record));
         }
