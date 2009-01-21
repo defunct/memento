@@ -1,6 +1,6 @@
 package com.goodworkalan.memento;
 
-public class IndexBuilder<T, F>
+public class IndexBuilder<T, F extends Comparable<? super F>>
 {
     private final BinBuilder<T> binBuilder;
     

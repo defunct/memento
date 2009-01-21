@@ -6,10 +6,10 @@ import java.io.File;
 
 import org.testng.annotations.Test;
 
-import com.agtrz.depot.serializable.Address;
-import com.agtrz.depot.serializable.Book;
-import com.agtrz.depot.serializable.Author;
-import com.agtrz.depot.serializable.Person;
+import com.goodworkalan.memento.serializable.Address;
+import com.goodworkalan.memento.serializable.Author;
+import com.goodworkalan.memento.serializable.Book;
+import com.goodworkalan.memento.serializable.Person;
 
 public class PatternTest
 {

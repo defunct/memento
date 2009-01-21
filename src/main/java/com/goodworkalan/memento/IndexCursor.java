@@ -11,8 +11,6 @@ implements Iterator<T>
 {
     private final IndexSchema<T, F> indexSchema;
 
-    private final F fields;
-
     private final Stash stash;
 
     private final Cursor<IndexRecord> isolated;
@@ -29,11 +27,10 @@ implements Iterator<T>
 
     private Box<T> next;
 
-    public IndexCursor(IndexSchema<T, F> indexSchema, Cursor<IndexRecord> stored, Cursor<IndexRecord> isolated, Stash stash, F fields, boolean limit)
+    public IndexCursor(IndexSchema<T, F> indexSchema, Cursor<IndexRecord> stored, Cursor<IndexRecord> isolated, Stash stash, boolean limit)
     {
         this.indexSchema = indexSchema;
         this.stash = stash;
-        this.fields = fields;
         this.limit = limit;
         this.isolated = isolated;
         this.stored = stored;

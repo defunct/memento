@@ -2,8 +2,6 @@ package com.goodworkalan.memento;
 
 import static com.goodworkalan.memento.IndexSchema.EXTRACTOR;
 
-import java.util.Iterator;
-
 import com.goodworkalan.fossil.Fossil;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.stash.Stash;
@@ -11,7 +9,6 @@ import com.goodworkalan.strata.Cursor;
 import com.goodworkalan.strata.InMemoryStorageBuilder;
 import com.goodworkalan.strata.Query;
 import com.goodworkalan.strata.Schema;
-import com.goodworkalan.strata.Strata;
 import com.goodworkalan.strata.Stratas;
 
 // FIXME Vacuum.
@@ -114,46 +111,46 @@ public final class IndexMutator<T, F extends Comparable<F>>
     IndexCursor<T, F> find(Snapshot snapshot, Mutator mutator, Bin<T> bin, F fields, boolean limit)
     {
         // TODO Setup stash.
-        return new IndexCursor<T,F>(schema.getStrata().query(txn).find(fields), isolation.query(txn).find(fields), txn, fields, limit);
+        Stash stash = Fossil.initialize(new Stash(), mutator);
+        return new IndexCursor<T,F>(schema, schema.getStrata().query(stash).find(fields), isolation.find(fields), stash, limit);
     }
 
     IndexCursor<T,F> first(Snapshot snapshot, Mutator mutator, Bin<T> bin)
     {
         // TODO Setup stash.
-        return new IndexCursor<T, F>(schema.getStrata().query(txn).first(), isolation.query(txn).first(), txn, 0, false);
+        Stash stash = Fossil.initialize(new Stash(), mutator);
+        return new IndexCursor<T, F>(schema, schema.getStrata().query(stash).first(), isolation.first(), stash, false);
     }
 
     void commit(Snapshot snapshot, Mutator mutator, Bin<T> bin)
     {
-        // TODO Setup stash.
-        Strata.Query queryOfIsolated = isolation.query(txn);
-        Strata.Query queryOfStored = schema.getStrata().query(txn);
-        Strata.Cursor isolated = queryOfIsolated.first();
+        Query<IndexRecord, F> queryOfStored = schema.getStrata().query(Fossil.initialize(new Stash(), mutator));
+        Cursor<IndexRecord> isolated = isolation.first();
         try
         {
             while (isolated.hasNext())
             {
-                Record record = (Record) isolated.next();
-                queryOfStored.insert(record);
-                if (schema.unique)
+                IndexRecord record = isolated.next();
+                queryOfStored.add(record);
+                if (schema.isUnique())
                 {
-                    Bag bag = bin.get(schema.unmarshaller, record.key, record.version);
-                    Comparable<?>[] fields = schema.extractor.getFields(bag.getObject());
-                    if (schema.notNull || !hasNulls(fields))
-                    {
-                        Strata.Cursor found = queryOfStored.find(fields);
+                    Box<T> box = bin.box(record.key, record.version);
+                    F fields = schema.getIndexer().index(box.getItem());
+                    /*if ( schema.notNull || !hasNulls(fields) )
+                    {*/
+                        Cursor<IndexRecord> found = queryOfStored.find(fields);
                         try
                         {
                             while (found.hasNext())
                             {
-                                Record existing = (Record) found.next();
+                                IndexRecord existing = found.next();
                                 if (existing.key.equals(record.key) && existing.version.equals(record.version))
                                 {
                                     break;
                                 }
                                 else if (!snapshot.isVisible(existing.version))
                                 {
-                                    throw new Error("Concurrent modification.", CONCURRENT_MODIFICATION_ERROR);
+                                    throw new MementoException(110);
                                 }
                             }
                         }
@@ -161,7 +158,7 @@ public final class IndexMutator<T, F extends Comparable<F>>
                         {
                             found.release();
                         }
-                    }
+                   // }
                 }
             }
         }

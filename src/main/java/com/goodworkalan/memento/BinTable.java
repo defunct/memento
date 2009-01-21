@@ -36,7 +36,7 @@ public class BinTable implements Iterable<Bin<?>>
         {
             BinSchema<T> binSchema = binSchemas.get(item);
             IndexTable<T> indexes = new IndexTable<T>(bins, binSchema.getIndexSchemas());
-            bin = new Bin<T>(snapshot, mutator, binSchemas.get(item), indexes, janitors);
+            bin = new Bin<T>(null, snapshot, mutator, binSchemas.get(item), indexes, janitors);
             table.put(item, bin);
         }
         return new UnsafeCast<Bin<T>>().cast(bin);

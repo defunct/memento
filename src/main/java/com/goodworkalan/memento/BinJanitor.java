@@ -1,7 +1,5 @@
 package com.goodworkalan.memento;
 
-import java.util.Iterator;
-
 import com.goodworkalan.fossil.Fossil;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.stash.Stash;

@@ -391,6 +391,8 @@ public final class Bin<T>
         isolated = isolation.first();
         while (copacetic && isolated.hasNext())
         {
+            // FIXME Strata will not stop at hasNext(), need an
+            // interator that will check against the key.
             BinRecord record = isolated.next();
             Cursor<BinRecord> cursor = query.find(record.key);
             while (copacetic && cursor.hasNext())
@@ -399,11 +401,13 @@ public final class Bin<T>
                 
                 assert candidate.key == record.key;
 
+                // Our version of the record should come before any
+                // invisible versions. (This probably can be modified to
+                // accept known rollbacks, currently it doesn't.)
                 if (candidate.version == record.version)
                 {
                     break;
                 }
-                
                 else if (!snapshot.isVisible(candidate.version))
                 {
                     copacetic = false;

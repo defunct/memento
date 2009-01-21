@@ -14,7 +14,7 @@ public class IndexSchemaTable<T>
         this.binSchema = binSchema;
     }
 
-    public <F> IndexSchema<T, F> get(Index<F> index)
+    public <F extends Comparable<? super F>> IndexSchema<T, F> get(Index<F> index)
     {
         IndexSchema<T, ?> indexSchema = table.get(index);
         if (indexSchema == null)

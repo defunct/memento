@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.goodworkalan.fossil.Fossil;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
 
@@ -26,7 +27,7 @@ public final class Join
 
     private final Strata.Query[] isolation;
 
-    public Join(Snapshot snapshot, Pack.Mutator mutator, Join.Schema schema, String name, Map<Long, Join.Janitor> mapOfJanitors)
+    public Join(Snapshot snapshot, Mutator mutator, Join.Schema schema, String name, Map<Long, Join.Janitor> mapOfJanitors)
     {
         Strata[] isolations = new Strata[schema.indices.length];
 
@@ -96,22 +97,22 @@ public final class Join
 
     private void insertIsolation(Map<String, Long> mapOfKeys, Long version, boolean deleted, int index)
     {
-        Long[] keys = new Long[schema.mapOfFields.size()];
+        long[] keys = new long[schema.mapOfFields.size()];
         for (int i = 0; i < keys.length; i++)
         {
             keys[i] = (Long) mapOfKeys.get(schema.indices[index].fields[i]);
         }
-        isolation[index].insert(new Record(keys, version, deleted));
+        isolation[index].insert(new JoinRecord(keys, version, deleted));
     }
 
     private void removeIsolation(Map<String, Long> mapOfKeys, Long version, boolean deleted, int index)
     {
-        Long[] keys = new Long[schema.mapOfFields.size()];
+        long[] keys = new long[schema.mapOfFields.size()];
         for (int i = 0; i < keys.length; i++)
         {
             keys[i] = (Long) mapOfKeys.get(schema.indices[index].fields[i]);
         }
-        final Join.Record record = new Record(keys, version, deleted);
+        final JoinRecord record = new JoinRecord(keys, version, deleted);
         isolation[index].remove(keys, new Strata.Deletable()
         {
             public boolean deletable(Object object)
@@ -123,7 +124,7 @@ public final class Join
 
     private void add(Map<String, Long> mapOfKeys, Long version, boolean deleted)
     {
-        Long[] keys = new Long[schema.mapOfFields.size()];
+        long[] keys = new long[schema.mapOfFields.size()];
         for (int i = 0; i < keys.length; i++)
         {
             keys[i] = (Long) mapOfKeys.get(schema.indices[0].fields[i]);
@@ -131,9 +132,9 @@ public final class Join
         Strata.Cursor cursor = isolation[0].find(keys);
         if (cursor.hasNext())
         {
-            final Join.Record record = (com.goodworkalan.memento.Record) cursor.next();
+            final JoinRecord record = cursor.next();
             cursor.release();
-            if (Depot.compare(record.keys, keys) == 0)
+            if (Store.compare(record.keys, keys) == 0)
             {
                 for (int i = 0; i < schema.indices.length; i++)
                 {
@@ -220,7 +221,7 @@ public final class Join
             Strata.Cursor isolated = isolation[i].first();
             while (isolated.hasNext())
             {
-                Join.Record record = (com.goodworkalan.memento.Record) isolated.next();
+                JoinRecord record = isolated.next();
                 List<Object> listOfKeys = new ArrayList<Object>();
                 for (int j = 0; j < record.keys.length; j++)
                 {
@@ -244,7 +245,7 @@ public final class Join
             Strata.Cursor isolated = isolation[i].first();
             while (isolated.hasNext())
             {
-                query.insert((com.goodworkalan.memento.Record) isolated.next());
+                query.insert(isolated.next());
             }
             isolated.release();
             query.flush();
@@ -253,16 +254,16 @@ public final class Join
             isolated = isolation[i].first();
             while (copacetic && isolated.hasNext())
             {
-                Join.Record record = (com.goodworkalan.memento.Record) isolated.next();
+                JoinRecord record = isolated.next();
                 Strata.Cursor cursor = query.find(record.keys);
                 while (copacetic && cursor.hasNext())
                 {
-                    Join.Record candidate = (com.goodworkalan.memento.Record) cursor.next();
-                    if (Depot.compare(candidate.keys, record.keys) != 0)
+                    JoinRecord candidate = cursor.next();
+                    if (Store.compare(candidate.keys, record.keys) != 0)
                     {
                         break;
                     }
-                    else if (candidate.version.equals(record.version))
+                    else if (candidate.version == record.version)
                     {
                         break;
                     }
@@ -287,10 +288,10 @@ public final class Join
         {
             Strata.Query query = schema.indices[i].getQuery().query(Fossil.txn(mutator));
             Strata.Cursor cursor = query.first();
-            Join.Record previous = null;
+            JoinRecord previous = null;
             while (cursor.hasNext() && previous == null)
             {
-                Join.Record record = (com.goodworkalan.memento.Record) cursor.next();
+                JoinRecord record = cursor.next();
                 if (snapshot.isVisible(record.version))
                 {
                     previous = record;
@@ -300,10 +301,10 @@ public final class Join
             for (;;)
             {
                 cursor = query.find(previous);
-                Join.Record found = null;
+                JoinRecord found = null;
                 while (cursor.hasNext() && found == null)
                 {
-                    Join.Record record = (com.goodworkalan.memento.Record) cursor.next();
+                    JoinRecord record = cursor.next();
                     if (snapshot.isVisible(record.version))
                     {
                         found = record;
@@ -315,10 +316,10 @@ public final class Join
                     cursor.release();
                     continue;
                 }
-                Join.Record next = null;
+                JoinRecord next = null;
                 while (cursor.hasNext() && next == null)
                 {
-                    Join.Record record = (com.goodworkalan.memento.Record) cursor.next();
+                    JoinRecord record = cursor.next();
                     if (snapshot.isVisible(record.version))
                     {
                         next = record;
@@ -334,9 +335,4 @@ public final class Join
             }
         }
     }
-
-
- 
-
- 
 }

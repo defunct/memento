@@ -1,4 +1,4 @@
-package com.agtrz.depot.serializable;
+package com.goodworkalan.memento.serializable;
 
 public class Book
 {

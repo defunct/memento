@@ -17,7 +17,19 @@ public class LinkBuilder
     {
         this.store = store;
         this.link = link;
-        this.alternates = new ArrayList<LinkAlternate>();
+        this.alternates = newAlternates(); 
+    }
+    
+    public List<LinkAlternate> newAlternates()
+    {
+        List<LinkAlternate> alternates = new ArrayList<LinkAlternate>();
+        int[] order = new int[link.size()];
+        for (int i = 0; i < link.size(); i++) 
+        {
+            order[i] = i;
+        }
+        alternates.add(new LinkAlternate(link, order));
+        return alternates;
     }
     
     public LinkBuilder biDirectional(Link alternate)

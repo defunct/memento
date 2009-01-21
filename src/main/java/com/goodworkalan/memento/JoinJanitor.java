@@ -11,6 +11,8 @@ import com.goodworkalan.strata.Strata;
 public class JoinJanitor
 implements Janitor
 {
+    private static final long serialVersionUID = 1L;
+
     private final List<Strata<JoinRecord, Ordered>> isolations;
 
     private final String name;
@@ -30,12 +32,11 @@ implements Janitor
             Strata.Cursor cursor = isolations[i].query(Fossil.txn(join.mutator)).first();
             while (cursor.hasNext())
             {
-                query.remove((com.goodworkalan.memento.Record) cursor.next());
+                query.remove(cursor.next());
             }
             cursor.release();
             query.flush();
         }
-
     }
 
     public void dispose(Mutator mutator, boolean deallocate)

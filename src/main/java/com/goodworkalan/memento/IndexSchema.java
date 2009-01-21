@@ -3,13 +3,13 @@ package com.goodworkalan.memento;
 import com.goodworkalan.stash.Stash;
 import com.goodworkalan.strata.Strata;
 
-public class IndexSchema<T, F>
+public class IndexSchema<T, F extends Comparable<? super F>>
 {
     final static Stash.Key EXTRACTOR = new Stash.Key();
     
     private Indexer<T, F> indexer;
 
-    private Strata<IndexRecord, Ordered> strata;
+    private Strata<IndexRecord, F> strata;
 
     private boolean unique;
 
@@ -35,7 +35,7 @@ public class IndexSchema<T, F>
         return index;
     }
     
-    public Strata<IndexRecord, Ordered> getStrata()
+    public Strata<IndexRecord, F> getStrata()
     {
         return strata;
     }

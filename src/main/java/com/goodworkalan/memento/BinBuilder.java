@@ -27,7 +27,7 @@ public class BinBuilder<T>
         return this;
     }
     
-    public <F> IndexBuilder<T, F> index(Index<F> index)
+    public <F extends Comparable<? super F>> IndexBuilder<T, F> index(Index<F> index)
     {
         return new IndexBuilder<T, F>(this, binSchemas, item, index);
     }

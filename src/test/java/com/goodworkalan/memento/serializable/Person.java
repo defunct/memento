@@ -1,5 +1,5 @@
 /* Copyright Alan Gutierrez 2006 */
-package com.agtrz.depot.serializable;
+package com.goodworkalan.memento.serializable;
 
 import java.io.Serializable;
 
