@@ -1,6 +1,5 @@
 package com.goodworkalan.memento;
 
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -18,7 +17,7 @@ implements Iterator<Joint>
 
     private final long[] keys;
 
-    private final JoinSchema schema;
+//    private final JoinSchema schema;
 
     private JoinRecord nextStored;
 
@@ -28,20 +27,20 @@ implements Iterator<Joint>
 
     private final Map<String, Long> mapToScan;
 
-    private final JoinIndex index;
+//    private final JoinIndex index;
 
-    public Cursor(Snapshot snapshot, long[] keys, Map<String, Long> mapToScan, Cursor<JoinRecord> storedCursor, Strata.Cursor isolatedCursor, JoinSchema schema, Join.Index index)
+    public JoinCursor(Snapshot snapshot, long[] keys, Map<String, Long> mapToScan, Cursor<JoinRecord> storedCursor, Cursor<JoinRecord> isolatedCursor, JoinSchema schema, JoinIndex index)
     {
         this.snapshot = snapshot;
         this.keys = keys;
         this.stored = new JoinAdvancer(storedCursor);
         this.isolated = new JoinAdvancer(isolatedCursor);
         this.mapToScan = mapToScan;
-        this.index = index;
+//        this.index = index;
         this.nextStored = stored.advance() ? next(stored, false) : null;
         this.nextIsolated = isolated.advance() ? next(isolated, true) : null;
         this.next = nextRecord();
-        this.schema = schema;
+//        this.schema = schema;
     }
 
     private JoinRecord next(JoinAdvancer cursor, boolean isolated)
@@ -63,15 +62,15 @@ implements Iterator<Joint>
             }
             if (mapToScan.size() > 0)
             {
-                for (int i = keys.length; i < index.fields.length; i++)
-                {
-                    Long value = (Long) mapToScan.get(index.fields[i]);
-                    if (value != null && !record.keys[i].equals(value))
-                    {
-                        cursor.advance();
-                        continue;
-                    }
-                }
+//                for (int i = keys.length; i < index.fields.length; i++)
+//                {
+//                    Long value = (Long) mapToScan.get(index.fields[i]);
+//                    if (value != null && !record.keys[i].equals(value))
+//                    {
+//                        cursor.advance();
+//                        continue;
+//                    }
+//                }
             }
             if (isolated || snapshot.isVisible(record.version))
             {
@@ -145,7 +144,7 @@ implements Iterator<Joint>
 
     public Joint next()
     {
-        Joint joint = new Joint(snapshot, schema.mapOfFields, index.fields, next);
+        Joint joint = null; // new Joint(snapshot, schema.mapOfFields, index.fields, next);
         next = nextRecord();
         return joint;
     }

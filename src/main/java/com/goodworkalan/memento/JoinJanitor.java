@@ -1,49 +1,46 @@
 package com.goodworkalan.memento;
 
-import java.util.List;
-
 import com.goodworkalan.fossil.Fossil;
 import com.goodworkalan.pack.Mutator;
-import com.goodworkalan.pack.Pack;
 import com.goodworkalan.stash.Stash;
-import com.goodworkalan.strata.Strata;
+import com.goodworkalan.strata.Construction;
+import com.goodworkalan.strata.Cursor;
+import com.goodworkalan.strata.Query;
 
 public class JoinJanitor
 implements Janitor
 {
     private static final long serialVersionUID = 1L;
 
-    private final List<Strata<JoinRecord, Ordered>> isolations;
+    private final Storage storage;
 
-    private final String name;
+    private final Link link;
+    
+    private final Construction<JoinRecord, KeyList, Long> isolation;
 
-    public JoinJanitor(List<Strata<JoinRecord, Ordered>> isolation, String name)
+    public JoinJanitor(Storage storage, Link link, Construction<JoinRecord, KeyList, Long> isolation)
     {
-        this.isolations = isolation;
-        this.name = name;
+        this.storage = storage;
+        this.link = link;
+        this.isolation = isolation;
     }
 
     public void rollback(Snapshot snapshot)
     {
-        Join join = snapshot.getJoin(name);
-        for (int i = 0; i < join.schema.indices.length; i++)
+        // FIXME Who gives me a mutator?
+        Query<JoinRecord, KeyList> common = storage.open(link).getStrata().query(Fossil.initialize(new Stash(), null));
+        
+        Cursor<JoinRecord> cursor = isolation.getQuery().first();
+        while (cursor.hasNext())
         {
-            Strata.Query query = join.schema.indices[i].getQuery().query(Fossil.txn(join.mutator));
-            Strata.Cursor cursor = isolations[i].query(Fossil.txn(join.mutator)).first();
-            while (cursor.hasNext())
-            {
-                query.remove(cursor.next());
-            }
-            cursor.release();
-            query.flush();
+            common.remove(common.extract(cursor.next()));
         }
+        cursor.release();
+        isolation.getQuery().flush();
     }
 
     public void dispose(Mutator mutator, boolean deallocate)
     {
-        for (Strata<JoinRecord, Ordered> isolation : isolations)
-        {
-            isolation.query(Fossil.initialize(new Stash(), mutator)).destroy();
-        }
+        isolation.getQuery().destroy();
     }
 }

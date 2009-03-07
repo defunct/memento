@@ -13,6 +13,8 @@ import java.util.WeakHashMap;
 import com.goodworkalan.fossil.Fossil;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
+import com.goodworkalan.pack.io.ByteBufferInputStream;
+import com.goodworkalan.pack.io.PackOutputStream;
 import com.goodworkalan.stash.Stash;
 import com.goodworkalan.strata.Cursor;
 import com.goodworkalan.strata.Query;
@@ -59,7 +61,8 @@ public final class Bin<T>
             throw new MementoException(104, e);
         }
 
-        long address = allocation.temporary();
+        long address = allocation.allocate();
+        mutator.setTemporary(address);
         janitors.put(address, janitor);
 
         this.snapshot = snapshot;

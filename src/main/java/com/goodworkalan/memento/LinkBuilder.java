@@ -7,14 +7,17 @@ import java.util.Map;
 
 public class LinkBuilder
 {
+//    private final JoinSchemaTable joinSchemas;
+    
     private final Link link;
     
     private final Store store; 
     
     private final List<LinkAlternate> alternates;
     
-    public LinkBuilder(Store store, Link link)
+    public LinkBuilder(JoinSchemaTable joinSchemas, Store store, Link link)
     {
+//        this.joinSchemas = joinSchemas;
         this.store = store;
         this.link = link;
         this.alternates = newAlternates(); 

@@ -8,7 +8,7 @@ import com.goodworkalan.pack.Mutator;
 
 public class BinTable implements Iterable<Bin<?>>
 {
-    private final Map<Object, Bin<?>> table = new HashMap<Object, Bin<?>>();
+    private final Map<Item<?>, Bin<?>> table = new HashMap<Item<?>, Bin<?>>();
     
     private final Snapshot snapshot;
     
@@ -18,11 +18,8 @@ public class BinTable implements Iterable<Bin<?>>
     
     private final Map<Long, Janitor> janitors;
     
-    private final BinTable bins;
-    
-    public BinTable(BinTable bins, Snapshot snapshot, Mutator mutator, BinSchemaTable binSchemas, Map<Long, Janitor> janitors)
+    public BinTable(Snapshot snapshot, Mutator mutator, BinSchemaTable binSchemas, Map<Long, Janitor> janitors)
     {
-        this.bins = bins;
         this.snapshot = snapshot;
         this.mutator = mutator;
         this.binSchemas = binSchemas;
@@ -35,7 +32,7 @@ public class BinTable implements Iterable<Bin<?>>
         if (bin == null)
         {
             BinSchema<T> binSchema = binSchemas.get(item);
-            IndexTable<T> indexes = new IndexTable<T>(bins, binSchema.getIndexSchemas());
+            IndexTable<T> indexes = new IndexTable<T>(this, binSchema.getIndexSchemas());
             bin = new Bin<T>(null, snapshot, mutator, binSchemas.get(item), indexes, janitors);
             table.put(item, bin);
         }

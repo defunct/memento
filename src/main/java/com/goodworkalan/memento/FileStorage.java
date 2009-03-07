@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
@@ -12,6 +13,8 @@ import com.goodworkalan.pack.Creator;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Opener;
 import com.goodworkalan.pack.Pack;
+import com.goodworkalan.pack.io.ByteBufferInputStream;
+import com.goodworkalan.pack.io.PackOutputStream;
 
 public class FileStorage extends AbstractStorage<Long>
 {
@@ -46,11 +49,11 @@ public class FileStorage extends AbstractStorage<Long>
         {
             Creator creator = new Creator();
             creator.addStaticPage(HEADER_URI, Pack.ADDRESS_SIZE);
-            pack = creator.create(file);
+            pack = creator.create(new RandomAccessFile(file, "rw").getChannel());
 
             Mutator mutator = pack.mutate();
             
-            long header = mutator.getSchema().getStaticPageAddress(HEADER_URI);
+            long header = mutator.getPack().getStaticBlocks().get(HEADER_URI);
             ByteBuffer bytes = mutator.read(header); 
 
             PackOutputStream allocation = new PackOutputStream(mutator);
@@ -70,11 +73,11 @@ public class FileStorage extends AbstractStorage<Long>
             pack.close();
         }
         
-        pack = new Opener().open(file);
+        pack = new Opener().open(new RandomAccessFile(file, "rw").getChannel());
 
         Mutator mutator = pack.mutate();
         
-        ByteBuffer header = mutator.read(mutator.getSchema().getStaticPageAddress(HEADER_URI)); 
+        ByteBuffer header = mutator.read(mutator.getPack().getStaticBlocks().get(HEADER_URI)); 
         
         ByteBuffer bytes = mutator.read(header.getLong());
         ObjectInputStream in = new ObjectInputStream(new ByteBufferInputStream(bytes));
@@ -89,19 +92,19 @@ public class FileStorage extends AbstractStorage<Long>
  
     protected StrataPointer open(Long address)
     {
-        return new StrataPointer(pack, address);
+        return new StrataPointer(file, pack, address);
     }
     
     @Override
     protected StrataPointer create()
     {
-        return new StrataPointer(pack, 0L);
+        return new StrataPointer(file, pack, 0L);
     }
     
     @Override
     protected Long record(StrataPointer pointer, long address, Mutator mutator)
     {
-        long header = mutator.getSchema().getStaticPageAddress(HEADER_URI);
+        long header = mutator.getPack().getStaticBlocks().get(HEADER_URI);
         ByteBuffer bytes = mutator.read(header);
 
         mutator.free(bytes.getLong());

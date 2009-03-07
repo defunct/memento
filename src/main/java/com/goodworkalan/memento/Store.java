@@ -15,6 +15,8 @@ public class Store
     final static Integer COMMITTED = new Integer(2);
 
     private final BinSchemaTable binSchemas = new BinSchemaTable();
+
+    private final JoinSchemaTable joinSchemas = new JoinSchemaTable();
     
     private final Storage storage;
     
@@ -35,7 +37,7 @@ public class Store
     
     public LinkBuilder link(Link link)
     {
-        return new LinkBuilder(this, link);
+        return new LinkBuilder(joinSchemas, this, link);
     }
 
     public Snapshot newSnapshot(Sync sync)

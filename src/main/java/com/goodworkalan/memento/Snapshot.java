@@ -14,7 +14,7 @@ public final class Snapshot
 {
     private final Strata<SnapshotRecord, Long> snapshots;
     
-    private final Storage storage;
+//    private final Storage storage;
 
     private final Map<Long, Janitor> mapOfJanitors;
 
@@ -40,7 +40,7 @@ public final class Snapshot
                     Long version,
                     Sync sync)
     {
-        this.storage = storage;
+//        this.storage = storage;
         this.snapshots = storage.getSnapshots();
         this.mutator = mutator;
         this.version = version;
@@ -48,7 +48,7 @@ public final class Snapshot
         this.oldest = (Long) setOfCommitted.iterator().next();
         this.mapOfJanitors = new HashMap<Long, Janitor>();
         this.sync = sync;
-        this.joins = new JoinTable();
+        this.joins = new JoinTable(storage, this, mutator, null);
     }
     
     public <T> Bin<T> bin(Item<T> item)

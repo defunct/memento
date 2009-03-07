@@ -2,10 +2,12 @@ package com.goodworkalan.memento;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.util.Map;
 
@@ -26,12 +28,20 @@ public class DirectoryStorage extends AbstractStorage<String>
     @Override
     protected StrataPointer open(String file)
     {
-        Pack pack = new Opener().open(new File(dir, file));
+        Pack pack;
+        try
+        {
+            pack = new Opener().open(new RandomAccessFile(new File(dir, file), "rw").getChannel());
+        }
+        catch (FileNotFoundException e)
+        {
+            throw new MementoException(0, e);
+        }
         Mutator mutator = pack.mutate();
-        ByteBuffer bytes = mutator.read(mutator.getSchema().getStaticPageAddress(HEADER_URI));
+        ByteBuffer bytes = mutator.read(mutator.getPack().getStaticBlocks().get(HEADER_URI));
         long address = bytes.getLong();
         mutator.commit();
-        return new StrataPointer(pack, address);
+        return new StrataPointer(new File(dir, file), pack, address);
     }
     
     @Override
@@ -39,16 +49,25 @@ public class DirectoryStorage extends AbstractStorage<String>
     {
         Creator creator = new Creator();
         creator.addStaticPage(HEADER_URI, Pack.ADDRESS_SIZE);
-        Pack pack;
+        File file;
         try
         {
-            pack = creator.create(File.createTempFile("storage", ".pack", dir));
+            file = File.createTempFile("storage", ".pack", dir);
         }
         catch (IOException e)
         {
-            throw new RuntimeException(e);
+            throw new MementoException(0, e);
         }
-        return new StrataPointer(pack, 0L);
+        Pack pack;
+        try
+        {
+            pack = creator.create(new RandomAccessFile(file, "rw").getChannel());
+        }
+        catch (IOException e)
+        {
+            throw new MementoException(0, e);
+        }
+        return new StrataPointer(file, pack, 0L);
     }
     
     @Override
@@ -66,7 +85,7 @@ public class DirectoryStorage extends AbstractStorage<String>
         {
             throw new RuntimeException(e);
         }
-        return pointer.getPack().getFile().getName();
+        return pointer.getFile().getName();
     }
     
     public void open()

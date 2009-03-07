@@ -5,15 +5,15 @@ import com.goodworkalan.strata.Extractor;
 
 
 public class JoinExtractor
-implements Extractor<JoinRecord, Ordered>
+implements Extractor<JoinRecord, KeyList>
 {
-    public Ordered extract(Stash stash, JoinRecord object)
+    public KeyList extract(Stash stash, JoinRecord joinRecord)
     {
-        Long[] copy = new Long[object.keys.length];
-        for (int i = 0; i < copy.length; i++)
+        KeyList keys = new KeyList(joinRecord.keys.length);
+        for (int i = 0; i < joinRecord.keys.length; i++)
         {
-            copy[i] = object.keys[i];
+            keys.add(joinRecord.keys[i]);
         }
-        return new Ordered(copy);
+        return keys;
     }
 }

@@ -5,6 +5,7 @@ import java.util.Iterator;
 
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
+import com.goodworkalan.pack.io.ByteBufferInputStream;
 import com.goodworkalan.strata.Cursor;
 
 public class BinCursor<T>

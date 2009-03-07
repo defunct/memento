@@ -160,15 +160,15 @@ public abstract class AbstractStorage<A> implements Storage
                 
                 Mutator mutator = pack.mutate();
                 
-                Schema<JoinRecord, Ordered> schema = Fossil.newFossilSchema();
+                Schema<JoinRecord, KeyList> schema = Fossil.newFossilSchema();
                 schema.setExtractor(new JoinExtractor());
                 schema.setFieldCaching(true);
                 
-                Construction<JoinRecord, Ordered, Long> newStrata = schema.create(Fossil.initialize(new Stash(), mutator), new FossilStorage<JoinRecord, Ordered>(new JoinRecordIO(link.size())));
+                Construction<JoinRecord, KeyList, Long> newStrata = schema.create(Fossil.initialize(new Stash(), mutator), new FossilStorage<JoinRecord, KeyList>(new JoinRecordIO(link.size())));
                 
                 mapOfJoins.put(link, record(pointer, newStrata.getAddress(), mutator));
                 
-                Query<JoinRecord, Ordered> query = newStrata.getQuery();
+                Query<JoinRecord, KeyList> query = newStrata.getQuery();
                 query.flush();
                 
                 mapOfJoinStorage.put(link, new JoinStorage(pack, query.getStrata()));
@@ -182,11 +182,11 @@ public abstract class AbstractStorage<A> implements Storage
                 Pack pack = pointer.getPack();
                 long rootAddress = pointer.getRootAddress();
                 
-                Schema<JoinRecord, Ordered> schema = Fossil.newFossilSchema();
+                Schema<JoinRecord, KeyList> schema = Fossil.newFossilSchema();
                 schema.setExtractor(new JoinExtractor());
                 schema.setFieldCaching(true);
                 
-                Strata<JoinRecord, Ordered> strata = schema.open(new Stash(), new FossilStorage<JoinRecord, Ordered>(new JoinRecordIO(link.size())), rootAddress);
+                Strata<JoinRecord, KeyList> strata = schema.open(new Stash(), new FossilStorage<JoinRecord, KeyList>(new JoinRecordIO(link.size())), rootAddress);
                 storage = new JoinStorage(pack, strata);
                 
                 mapOfJoinStorage.put(link, storage);

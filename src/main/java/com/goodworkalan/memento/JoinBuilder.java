@@ -17,7 +17,7 @@ public class JoinBuilder
     {
         this.joinIndex = joinIndex;
         this.values = new ArrayList<Object>();
-        this.items = joinIndex.alternate.getItems();
+        this.items = joinIndex.link.getItems();
     }
     
     public Map<Item<?>, List<Object>> duplicate(Map<Item<?>, Integer> prototype)

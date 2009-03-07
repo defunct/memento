@@ -9,6 +9,11 @@
       <attribute value="jar:file:/Users/alan/.m2/repository/com/goodworkalan/fossil/0.1.X/fossil-0.1.X-javadoc.jar!/" name="javadoc_location"/>
     </attributes>
   </classpathentry>
+  <classpathentry kind="var" path="M2_REPO/com/goodworkalan/ilk/0.1.X/ilk-0.1.X.jar" sourcepath="M2_REPO/com/goodworkalan/ilk/0.1.X/ilk-0.1.X-sources.jar">
+    <attributes>
+      <attribute value="jar:file:/Users/alan/.m2/repository/com/goodworkalan/ilk/0.1.X/ilk-0.1.X-javadoc.jar!/" name="javadoc_location"/>
+    </attributes>
+  </classpathentry>
   <classpathentry kind="var" path="M2_REPO/junit/junit/4.4/junit-4.4.jar" sourcepath="M2_REPO/junit/junit/4.4/junit-4.4-sources.jar">
     <attributes>
       <attribute value="jar:file:/Users/alan/.m2/repository/junit/junit/4.4/junit-4.4-javadoc.jar!/" name="javadoc_location"/>
@@ -17,6 +22,16 @@
   <classpathentry kind="var" path="M2_REPO/com/goodworkalan/pack/0.1.X/pack-0.1.X.jar" sourcepath="M2_REPO/com/goodworkalan/pack/0.1.X/pack-0.1.X-sources.jar">
     <attributes>
       <attribute value="jar:file:/Users/alan/.m2/repository/com/goodworkalan/pack/0.1.X/pack-0.1.X-javadoc.jar!/" name="javadoc_location"/>
+    </attributes>
+  </classpathentry>
+  <classpathentry kind="var" path="M2_REPO/com/goodworkalan/pack-io/0.1.X/pack-io-0.1.X.jar" sourcepath="M2_REPO/com/goodworkalan/pack-io/0.1.X/pack-io-0.1.X-sources.jar">
+    <attributes>
+      <attribute value="jar:file:/Users/alan/.m2/repository/com/goodworkalan/pack-io/0.1.X/pack-io-0.1.X-javadoc.jar!/" name="javadoc_location"/>
+    </attributes>
+  </classpathentry>
+  <classpathentry kind="var" path="M2_REPO/com/goodworkalan/sheaf/0.1.X/sheaf-0.1.X.jar" sourcepath="M2_REPO/com/goodworkalan/sheaf/0.1.X/sheaf-0.1.X-sources.jar">
+    <attributes>
+      <attribute value="jar:file:/Users/alan/.m2/repository/com/goodworkalan/sheaf/0.1.X/sheaf-0.1.X-javadoc.jar!/" name="javadoc_location"/>
     </attributes>
   </classpathentry>
   <classpathentry kind="var" path="M2_REPO/com/goodworkalan/stash/0.1.X/stash-0.1.X.jar" sourcepath="M2_REPO/com/goodworkalan/stash/0.1.X/stash-0.1.X-sources.jar">
@@ -30,4 +45,14 @@
     </attributes>
   </classpathentry>
   <classpathentry kind="var" path="M2_REPO/org/testng/testng/5.8/testng-5.8-jdk15.jar"/>
+  <classpathentry kind="var" path="M2_REPO/com/mallardsoft/tuple/1.0/tuple-1.0.jar" sourcepath="M2_REPO/com/mallardsoft/tuple/1.0/tuple-1.0-sources.jar">
+    <attributes>
+      <attribute value="jar:file:/Users/alan/.m2/repository/com/mallardsoft/tuple/1.0/tuple-1.0-javadoc.jar!/" name="javadoc_location"/>
+    </attributes>
+  </classpathentry>
+  <classpathentry kind="var" path="M2_REPO/com/goodworkalan/tuple-partial/0.1.X/tuple-partial-0.1.X.jar" sourcepath="M2_REPO/com/goodworkalan/tuple-partial/0.1.X/tuple-partial-0.1.X-sources.jar">
+    <attributes>
+      <attribute value="jar:file:/Users/alan/.m2/repository/com/goodworkalan/tuple-partial/0.1.X/tuple-partial-0.1.X-javadoc.jar!/" name="javadoc_location"/>
+    </attributes>
+  </classpathentry>
 </classpath>
