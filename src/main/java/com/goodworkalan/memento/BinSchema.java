@@ -11,7 +11,7 @@ implements Serializable
 
     private final IndexSchemaTable<T> indexSchemas;
     
-    private Strata<BinRecord, Long> strata;
+    private Strata<BinRecord> strata;
 
     private final Item<T> item;
 
@@ -30,7 +30,7 @@ implements Serializable
         return item;
     }
 
-    public Strata<BinRecord, Long> getStrata()
+    public Strata<BinRecord> getStrata()
     {
         return strata;
     }

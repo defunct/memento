@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import com.goodworkalan.ilk.UncheckedCast;
 import com.goodworkalan.pack.Mutator;
 
 public class BinTable implements Iterable<Bin<?>>
@@ -36,7 +37,7 @@ public class BinTable implements Iterable<Bin<?>>
             bin = new Bin<T>(null, snapshot, mutator, binSchemas.get(item), indexes, janitors);
             table.put(item, bin);
         }
-        return new UnsafeCast<Bin<T>>().cast(bin);
+        return new UncheckedCast<Bin<T>>().cast(bin);
     }
     
     public Iterator<Bin<?>> iterator()

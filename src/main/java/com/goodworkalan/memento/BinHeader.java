@@ -9,16 +9,16 @@ implements Serializable
 {
     private static final long serialVersionUID = 20070208L;
     
-    private final Query<BinRecord, Long> strata;
+    private final Query<BinRecord> strata;
     
     private long next;
 
-    public BinHeader(Query<BinRecord, Long> strata)
+    public BinHeader(Query<BinRecord> strata)
     {
         this.strata = strata;
     }
     
-    public Query<BinRecord, Long> getStrata()
+    public Query<BinRecord> getStrata()
     {
         return strata;
     }

@@ -12,13 +12,13 @@ implements Janitor
 {
     private static final long serialVersionUID = 20070826L;
 
-    private final Strata<BinRecord, Long> isolation;
+    private final Strata<BinRecord> isolation;
 
     private final Item<T> itemClass;
     
     private IndexTable<T> indexes;
 
-    public BinJanitor(Query<BinRecord, Long> isolation, Item<T> item)
+    public BinJanitor(Query<BinRecord> isolation, Item<T> item)
     {
         this.isolation = isolation.getStrata();
         this.itemClass = item;
@@ -27,7 +27,7 @@ implements Janitor
     public void rollback(Snapshot snapshot)
     {
         Bin<T> bin = snapshot.bin(itemClass);
-        Cursor<BinRecord> cursor = isolation.query(Fossil.initialize(new Stash(), bin.mutator)).first();
+        Cursor<BinRecord> cursor = isolation.query(Fossil.newStash(bin.mutator)).first();
         while (cursor.hasNext())
         {
             BinRecord record =  cursor.next();
@@ -35,15 +35,14 @@ implements Janitor
             {
                 indexMutator.remove(bin.mutator, bin, record.key, record.version);
             }
-            bin.query.remove(bin.query.extract(record));
+            bin.query.remove(bin.query.newComparable(record));
         }
         cursor.release();
-        bin.query.flush();
     }
 
     public void dispose(Mutator mutator, boolean deallocate)
     {
-        Query<BinRecord, Long> query = isolation.query(Fossil.initialize(new Stash(), mutator));
+        Query<BinRecord> query = isolation.query(Fossil.initialize(new Stash(), mutator));
         if (deallocate)
         {
             Cursor<BinRecord> cursor = query.first();

@@ -4,34 +4,9 @@
 	<classpathentry kind="src" output="target/test-classes" path="src/test/java"/>
 	<classpathentry excluding="**/*.java" kind="src" output="target/test-classes" path="src/test/resources"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry kind="var" path="M2_REPO/com/goodworkalan/ilk/0.1.X/ilk-0.1.X.jar" sourcepath="M2_REPO/com/goodworkalan/ilk/0.1.X/ilk-0.1.X-sources.jar">
-		<attributes>
-			<attribute name="javadoc_location" value="jar:file:/Users/alan/.m2/repository/com/goodworkalan/ilk/0.1.X/ilk-0.1.X-javadoc.jar!/"/>
-		</attributes>
-	</classpathentry>
 	<classpathentry kind="var" path="M2_REPO/junit/junit/4.4/junit-4.4.jar" sourcepath="M2_REPO/junit/junit/4.4/junit-4.4-sources.jar">
 		<attributes>
 			<attribute name="javadoc_location" value="jar:file:/Users/alan/.m2/repository/junit/junit/4.4/junit-4.4-javadoc.jar!/"/>
-		</attributes>
-	</classpathentry>
-	<classpathentry kind="var" path="M2_REPO/com/goodworkalan/pack/0.1.X/pack-0.1.X.jar" sourcepath="M2_REPO/com/goodworkalan/pack/0.1.X/pack-0.1.X-sources.jar">
-		<attributes>
-			<attribute name="javadoc_location" value="jar:file:/Users/alan/.m2/repository/com/goodworkalan/pack/0.1.X/pack-0.1.X-javadoc.jar!/"/>
-		</attributes>
-	</classpathentry>
-	<classpathentry kind="var" path="M2_REPO/com/goodworkalan/pack-io/0.1.X/pack-io-0.1.X.jar" sourcepath="M2_REPO/com/goodworkalan/pack-io/0.1.X/pack-io-0.1.X-sources.jar">
-		<attributes>
-			<attribute name="javadoc_location" value="jar:file:/Users/alan/.m2/repository/com/goodworkalan/pack-io/0.1.X/pack-io-0.1.X-javadoc.jar!/"/>
-		</attributes>
-	</classpathentry>
-	<classpathentry kind="var" path="M2_REPO/com/goodworkalan/sheaf/0.1.X/sheaf-0.1.X.jar" sourcepath="M2_REPO/com/goodworkalan/sheaf/0.1.X/sheaf-0.1.X-sources.jar">
-		<attributes>
-			<attribute name="javadoc_location" value="jar:file:/Users/alan/.m2/repository/com/goodworkalan/sheaf/0.1.X/sheaf-0.1.X-javadoc.jar!/"/>
-		</attributes>
-	</classpathentry>
-	<classpathentry kind="var" path="M2_REPO/com/goodworkalan/stash/0.1.X/stash-0.1.X.jar" sourcepath="M2_REPO/com/goodworkalan/stash/0.1.X/stash-0.1.X-sources.jar">
-		<attributes>
-			<attribute name="javadoc_location" value="jar:file:/Users/alan/.m2/repository/com/goodworkalan/stash/0.1.X/stash-0.1.X-javadoc.jar!/"/>
 		</attributes>
 	</classpathentry>
 	<classpathentry kind="var" path="M2_REPO/org/testng/testng/5.8/testng-5.8-jdk15.jar"/>
@@ -47,5 +22,10 @@
 	</classpathentry>
 	<classpathentry combineaccessrules="false" kind="src" path="/fossil"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/strata"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/ilk"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/pack"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/pack-io"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/sheaf"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/stash"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>

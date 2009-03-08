@@ -12,7 +12,7 @@ import com.goodworkalan.strata.Strata;
 
 public final class Snapshot
 {
-    private final Strata<SnapshotRecord, Long> snapshots;
+    private final Strata<SnapshotRecord> snapshots;
     
 //    private final Storage storage;
 
@@ -127,7 +127,9 @@ public final class Snapshot
 
             mutator.commit();
 
-            snapshots.query(Fossil.initialize(new Stash(), mutator)).remove(version);
+            Query<SnapshotRecord> query = snapshots.query(Fossil.initialize(new Stash(), mutator));
+            
+            query.remove(new SnapshotVersionComparable(version));
 
             throw e;
         }
@@ -138,11 +140,11 @@ public final class Snapshot
             entry.getValue().dispose(mutator, false);
         }
 
-        Query<SnapshotRecord, Long> query = snapshots.query(Fossil.initialize(new Stash(), mutator));
+        Query<SnapshotRecord> query = snapshots.query(Fossil.initialize(new Stash(), mutator));
 
         SnapshotRecord committed = new SnapshotRecord(version, Store.COMMITTED);
         query.add(committed);
-        query.remove(version);
+        query.remove(new SnapshotVersionComparable(version));
 
         sync.release();
     }
@@ -160,9 +162,9 @@ public final class Snapshot
                 entry.getValue().dispose(mutator, true);
             }
 
-            Query<SnapshotRecord, Long> query = snapshots.query(Fossil.initialize(new Stash(), mutator));
+            Query<SnapshotRecord> query = snapshots.query(Fossil.initialize(new Stash(), mutator));
 
-            query.remove(version);
+            query.remove(new SnapshotVersionComparable(version));
 
             sync.release();
         }

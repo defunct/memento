@@ -3,13 +3,13 @@ package com.goodworkalan.memento;
 import com.goodworkalan.pack.Pack;
 import com.goodworkalan.strata.Strata;
 
-public class IndexStorage<F extends Comparable<F>>
+public class IndexStorage
 {
     private final Pack pack;
     
-    private final Strata<IndexRecord, F> strata;
+    private final Strata<IndexRecord> strata;
     
-    public IndexStorage(Pack pack, Strata<IndexRecord, F> strata)
+    public IndexStorage(Pack pack, Strata<IndexRecord> strata)
     {
         this.pack = pack;
         this.strata = strata;
@@ -20,7 +20,7 @@ public class IndexStorage<F extends Comparable<F>>
         return pack;
     }
     
-    public Strata<IndexRecord, F> getStrata()
+    public Strata<IndexRecord> getStrata()
     {
         return strata;
     }

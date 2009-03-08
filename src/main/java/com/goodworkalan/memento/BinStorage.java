@@ -7,9 +7,9 @@ public class BinStorage
 {
     public final Pack pack;
     
-    public final Strata<BinRecord, Long> strata;
+    public final Strata<BinRecord> strata;
     
-    public BinStorage(Pack pack, Strata<BinRecord, Long> strata)
+    public BinStorage(Pack pack, Strata<BinRecord> strata)
     {
         this.pack = pack;
         this.strata = strata;

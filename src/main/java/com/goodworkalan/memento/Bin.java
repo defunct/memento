@@ -30,23 +30,18 @@ public final class Bin<T>
 
     private final IndexTable<T> indexes;
     
-    final Query<BinRecord, Long> query;
+    final Query<BinRecord> query;
 
-    private final Query<BinRecord, Long> isolation;
+    private final Query<BinRecord> isolation;
     
     private final WeakIdentityLookup outstandingKeys;
     
     private final WeakHashMap<Long, Box<T>> outstandingValues; 
 
-    public Bin(Storage storage,
-               Snapshot snapshot,
-               Mutator mutator,
-               BinSchema<T> schema,
-               IndexTable<T> indexes,
-               Map<Long, Janitor> janitors)
+    public Bin(Storage storage, Snapshot snapshot, Mutator mutator, BinSchema<T> schema, IndexTable<T> indexes, Map<Long, Janitor> janitors)
     {
 //        BinStorage binStorage = storage.open(schema.getItem());
-        query = schema.getStrata().query(Fossil.initialize(new Stash(), mutator));
+        query = schema.getStrata().query(Fossil.newStash(mutator));
         isolation = new BinTree().create(mutator);
         BinJanitor<T> janitor = new BinJanitor<T>(isolation, schema.getItem());
 
@@ -138,14 +133,14 @@ public final class Bin<T>
 
     private BinRecord record(Long key)
     {
-        BinRecord record = isolation.remove(key);
+        BinRecord record = isolation.remove(new BinKeyComparable(key));
         if (record != null)
         {
             mutator.free(record.address);
         }
         else
         {
-            record = get(query.find(key), key, false);
+            record = get(query.find(new BinKeyComparable(key)), key, false);
         }
         if (record != null)
         {
@@ -280,8 +275,8 @@ public final class Bin<T>
 
     private BinRecord getRecord(Long key)
     {
-        BinRecord stored = get(query.find(key), key, false);
-        BinRecord isolated = get(isolation.find(key), key, true);
+        BinRecord stored = get(query.find(new BinKeyComparable(key)), key, false);
+        BinRecord isolated = get(isolation.find(new BinKeyComparable(key)), key, true);
         if (isolated != null)
         {
             return isDeleted(isolated) ? null : isolated;
@@ -295,8 +290,8 @@ public final class Bin<T>
 
     private BinRecord getRecord(Long key, Long version)
     {
-        BinRecord stored = getVersion(query.find(key), key, version);
-        BinRecord isolated = getVersion(isolation.find(key), key, version);
+        BinRecord stored = getVersion(query.find(new BinKeyComparable(key)), key, version);
+        BinRecord isolated = getVersion(isolation.find(new BinKeyComparable(key)), key, version);
         if (isolated != null)
         {
             return isDeleted(isolated) ? null : isolated;
@@ -378,7 +373,6 @@ public final class Bin<T>
 
     void flush()
     {
-        isolation.flush();
     }
 
     void commit()
@@ -388,7 +382,6 @@ public final class Bin<T>
         {
             query.add(isolated.next());
         }
-        query.flush();
 
         boolean copacetic = true;
         isolated = isolation.first();
@@ -397,7 +390,7 @@ public final class Bin<T>
             // FIXME Strata will not stop at hasNext(), need an
             // interator that will check against the key.
             BinRecord record = isolated.next();
-            Cursor<BinRecord> cursor = query.find(record.key);
+            Cursor<BinRecord> cursor = query.find(new BinKeyComparable(record.key));
             while (copacetic && cursor.hasNext())
             {
                 BinRecord candidate = cursor.next();

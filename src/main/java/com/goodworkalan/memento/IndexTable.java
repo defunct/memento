@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import com.goodworkalan.ilk.UncheckedCast;
+
 
 public class IndexTable<T> implements Iterable<IndexMutator<T, ?>>
 {
@@ -27,7 +29,7 @@ public class IndexTable<T> implements Iterable<IndexMutator<T, ?>>
             object = new IndexMutator<T, F>(bins, indexSchemas.get(index));
             table.put(index, object);
         }
-        return new UnsafeCast<IndexMutator<T, F>>().cast(object);
+        return new UncheckedCast<IndexMutator<T, F>>().cast(object);
     }
     
     public Iterator<IndexMutator<T, ?>> iterator()

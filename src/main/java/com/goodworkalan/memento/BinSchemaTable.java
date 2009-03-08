@@ -3,6 +3,8 @@ package com.goodworkalan.memento;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.goodworkalan.ilk.UncheckedCast;
+
 public class BinSchemaTable
 {
     private final Map<Object, Object> table = new HashMap<Object, Object>();
@@ -16,7 +18,7 @@ public class BinSchemaTable
             binSchema.setItemIO(SerializationIO.getInstance(item));
             table.put(item, binSchema);
         }
-        return new UnsafeCast<BinSchema<T>>().cast(object);
+        return new UncheckedCast<BinSchema<T>>().cast(object);
     }
     
     public boolean has(Item<?> item)

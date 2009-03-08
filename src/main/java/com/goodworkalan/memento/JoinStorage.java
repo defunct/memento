@@ -7,9 +7,9 @@ public class JoinStorage
 {
     private final Pack pack;
     
-    private final Strata<JoinRecord, KeyList> strata;
+    private final Strata<JoinRecord> strata;
     
-    public JoinStorage(Pack pack, Strata<JoinRecord, KeyList> strata)
+    public JoinStorage(Pack pack, Strata<JoinRecord> strata)
     {
         this.pack = pack;
         this.strata = strata;
@@ -20,7 +20,7 @@ public class JoinStorage
         return pack;
     }
     
-    public Strata<JoinRecord, KeyList> getStrata()
+    public Strata<JoinRecord> getStrata()
     {
         return strata;
     }

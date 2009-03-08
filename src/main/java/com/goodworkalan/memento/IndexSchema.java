@@ -9,7 +9,7 @@ public class IndexSchema<T, F extends Comparable<? super F>>
     
     private Indexer<T, F> indexer;
 
-    private Strata<IndexRecord, F> strata;
+    private Strata<IndexRecord> strata;
 
     private boolean unique;
 
@@ -35,7 +35,7 @@ public class IndexSchema<T, F extends Comparable<? super F>>
         return index;
     }
     
-    public Strata<IndexRecord, F> getStrata()
+    public Strata<IndexRecord> getStrata()
     {
         return strata;
     }

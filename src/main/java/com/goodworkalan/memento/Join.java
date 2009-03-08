@@ -8,8 +8,9 @@ import com.goodworkalan.fossil.Fossil;
 import com.goodworkalan.fossil.FossilStorage;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.stash.Stash;
-import com.goodworkalan.strata.Construction;
+import com.goodworkalan.strata.ExtractorComparableFactory;
 import com.goodworkalan.strata.Schema;
+import com.goodworkalan.strata.Strata;
 
 public final class Join
 {
@@ -21,24 +22,31 @@ public final class Join
 
     private final Mutator mutator;
 
-    private final Map<Link, Construction<JoinRecord, KeyList, Long>> isolation;
+    private final Map<Link, Strata<JoinRecord>> isolation;
 
     public Join(Storage storage, Snapshot snapshot, Mutator mutator, JoinSchema joinSchema, List<Janitor> janitors)
     {
-        Map<Link, Construction<JoinRecord, KeyList, Long>> isolation = new HashMap<Link, Construction<JoinRecord, KeyList, Long>>();
+        Map<Link, Strata<JoinRecord>> isolation = new HashMap<Link, Strata<JoinRecord>>();
 
         for (JoinIndex index : joinSchema)
         {
-            Schema<JoinRecord, KeyList> schema = Fossil.newFossilSchema();
-            schema.setExtractor(new JoinExtractor());
-            schema.setFieldCaching(true);
+            Schema<JoinRecord> schema = new Schema<JoinRecord>();
+
+            schema.setInnerCapacity(7);
+            schema.setLeafCapacity(7);
+            schema.setComparableFactory(new ExtractorComparableFactory<JoinRecord, KeyList>(new JoinExtractor()));
             
             Link link = index.getLink();
-            Construction<JoinRecord, KeyList, Long> newStrata = schema.create(Fossil.initialize(new Stash(), mutator), new FossilStorage<JoinRecord, KeyList>(new JoinRecordIO(link.size())));
-            
-            isolation.put(link, newStrata);
+            FossilStorage<JoinRecord> fossilStorage = new FossilStorage<JoinRecord>(new JoinRecordIO(link.size()));
 
-            JoinJanitor janitor = new JoinJanitor(storage, link, newStrata);
+            Stash stash = Fossil.newStash(mutator);
+            long rootAddress = schema.create(stash, fossilStorage);
+
+            Strata<JoinRecord> strata = schema.open(stash, rootAddress, fossilStorage);
+            
+            isolation.put(link, strata);
+
+            JoinJanitor janitor = new JoinJanitor(storage, link, strata);
             janitors.add(janitor);
         }
 
@@ -56,10 +64,10 @@ public final class Join
         storage.getClass();
         snapshot.getClass();
         joinSchema.getClass();
-        mutator.getClass();    
-        for (Construction<JoinRecord, KeyList, Long> query : isolation.values())
+        mutator.getClass();
+        for (Strata<JoinRecord> strata : isolation.values())
         {
-            query.getQuery().flush();
+            strata.query(Fossil.newStash(mutator)).destroy();
         }
     }
     

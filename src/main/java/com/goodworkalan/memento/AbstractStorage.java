@@ -10,7 +10,7 @@ import com.goodworkalan.fossil.FossilStorage;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
 import com.goodworkalan.stash.Stash;
-import com.goodworkalan.strata.Construction;
+import com.goodworkalan.strata.ExtractorComparableFactory;
 import com.goodworkalan.strata.Query;
 import com.goodworkalan.strata.Schema;
 import com.goodworkalan.strata.Strata;
@@ -29,7 +29,7 @@ public abstract class AbstractStorage<A> implements Storage
     
     private final Map<Item<?>, BinStorage> mapOfBinStorage = new HashMap<Item<?>, BinStorage>();
     
-    private final Map<Map<Item<?>, Index<?>>, IndexStorage<?>> mapOfIndexStorage = new HashMap<Map<Item<?>, Index<?>>, IndexStorage<?>>();
+    private final Map<Map<Item<?>, Index<?>>, IndexStorage> mapOfIndexStorage = new HashMap<Map<Item<?>, Index<?>>, IndexStorage>();
     
     private final Map<Link, JoinStorage> mapOfJoinStorage = new HashMap<Link, JoinStorage>();
     
@@ -39,15 +39,15 @@ public abstract class AbstractStorage<A> implements Storage
     
     protected abstract A record(StrataPointer pointer, long address, Mutator mutator);
    
-    public Strata<SnapshotRecord, Long> getSnapshots()
+    public Strata<SnapshotRecord> getSnapshots()
     {
         return snapshots.getStrata();
     }
     
-    public Query<SnapshotRecord, Long> newSnapshotQuery()
+    public Query<SnapshotRecord> newSnapshotQuery()
     {
         Mutator mutator = snapshots.getPack().mutate();
-        Query<SnapshotRecord, Long> query = snapshots.getStrata().query(Fossil.initialize(new Stash(), mutator));
+        Query<SnapshotRecord> query = snapshots.getStrata().query(Fossil.newStash(mutator));
         query.getStash().put(MUTATOR, Mutator.class, mutator);
         return query;
     }
@@ -65,18 +65,17 @@ public abstract class AbstractStorage<A> implements Storage
                 
                 Mutator mutator = pack.mutate();
                 
-                Schema<BinRecord, Long> schema = Fossil.newFossilSchema();
-                schema.setExtractor(new BinExtractor());
-                schema.setFieldCaching(true);
+                Schema<BinRecord> schema = new Schema<BinRecord>();
+                schema.setInnerCapacity(7);
+                schema.setLeafCapacity(7);
+                schema.setComparableFactory(new ExtractorComparableFactory<BinRecord, Long>(new BinExtractor()));
+
+                Stash stash = Fossil.newStash(mutator);
+                long root = schema.create(Fossil.newStash(mutator), new FossilStorage<BinRecord>(new BinRecordIO()));
                 
-                Construction<BinRecord, Long, Long> newStrata = schema.create(Fossil.initialize(new Stash(), mutator), new FossilStorage<BinRecord, Long>(new BinRecordIO()));
+                mapOfBins.put(item, record(pointer, root, mutator));
                 
-                mapOfBins.put(item, record(pointer, newStrata.getAddress(), mutator));
-                
-                Query<BinRecord, Long> query = newStrata.getQuery();
-                query.flush();
-                
-                mapOfBinStorage.put(item, new BinStorage(pack, query.getStrata()));
+                mapOfBinStorage.put(item, new BinStorage(pack, schema.open(stash, root, new FossilStorage<BinRecord>(new BinRecordIO()))));
     
                 mutator.commit();
             }
@@ -85,11 +84,14 @@ public abstract class AbstractStorage<A> implements Storage
             {
                 StrataPointer pointer = open(address);
                 
-                Schema<BinRecord, Long> schema = Fossil.newFossilSchema();
-                schema.setExtractor(new BinExtractor());
-                schema.setFieldCaching(true);
+                Schema<BinRecord> schema = new Schema<BinRecord>();
+
+                schema.setInnerCapacity(7);
+                schema.setLeafCapacity(7);
+                schema.setComparableFactory(new ExtractorComparableFactory<BinRecord, Long>(new BinExtractor()));
                 
-                Strata<BinRecord, Long> strata = schema.open(new Stash(), new FossilStorage<BinRecord, Long>(new BinRecordIO()), pointer.getRootAddress());
+                
+                Strata<BinRecord> strata = schema.open(new Stash(), pointer.getRootAddress(), new FossilStorage<BinRecord>(new BinRecordIO()));
                 storage = new BinStorage(pointer.getPack(), strata);
                 
                 mapOfBinStorage.put(item, storage);
@@ -98,9 +100,11 @@ public abstract class AbstractStorage<A> implements Storage
         return storage;
     }
 
-    public <T, F extends Comparable<F>> IndexStorage<F> open(Item<T> item, Index<F> index)
+    public <T, F extends Comparable<F>> IndexStorage open(Item<T> item, Index<F> index)
     {
-        IndexStorage<F> storage;
+        FossilStorage<IndexRecord> fossilStorage = new FossilStorage<IndexRecord>(new IndexRecordIO());
+
+        IndexStorage storage;
         synchronized (mapOfIndexes)
         {
             Map<Item<?>, Index<?>> key = Collections.<Item<?>, Index<?>>singletonMap(item, index);
@@ -112,34 +116,36 @@ public abstract class AbstractStorage<A> implements Storage
                 
                 Mutator mutator = pack.mutate();
                 
-                Schema<IndexRecord, F> schema = Fossil.newFossilSchema();
-                schema.setExtractor(new IndexExtractor<T, F>(item, index));
-                schema.setFieldCaching(true);
+                Schema<IndexRecord> schema = new Schema<IndexRecord>();
                 
-                Construction<IndexRecord, F, Long> newStrata = schema.create(Fossil.initialize(new Stash(), mutator), new FossilStorage<IndexRecord, F>(new IndexRecordIO()));
+                schema.setInnerCapacity(7);
+                schema.setLeafCapacity(7);
+                schema.setComparableFactory(new ExtractorComparableFactory<IndexRecord, F>(new IndexExtractor<T, F>(item, index)));
                 
-                mapOfIndexes.put(key, record(pointer, newStrata.getAddress(), mutator));
+                Stash stash = Fossil.newStash(mutator);
+                long rootAddress = schema.create(stash, fossilStorage);
                 
-                Query<IndexRecord, F> query = newStrata.getQuery();
-                query.flush();
+                mapOfIndexes.put(key, record(pointer, rootAddress, mutator));
                 
-                mapOfIndexStorage.put(key, new IndexStorage<F>(pack, query.getStrata()));
+                mapOfIndexStorage.put(key, new IndexStorage(pack, schema.open(stash, rootAddress, fossilStorage)));
 
                 mutator.commit();
             }
-            storage = new UnsafeCast<IndexStorage<F>>().cast(mapOfIndexStorage.get(key));
+            storage = (IndexStorage) mapOfIndexStorage.get(key);
             if (storage == null)
             {
                 StrataPointer pointer = open(address);
                 Pack pack = pointer.getPack();
                 long rootAddress = pointer.getRootAddress();
                 
-                Schema<IndexRecord, F> schema = Fossil.newFossilSchema();
-                schema.setExtractor(new IndexExtractor<T, F>(item, index));
-                schema.setFieldCaching(true);
+                Schema<IndexRecord> schema = new Schema<IndexRecord>();
                 
-                Strata<IndexRecord, F> strata = schema.open(new Stash(), new FossilStorage<IndexRecord, F>(new IndexRecordIO()), rootAddress);
-                storage = new IndexStorage<F>(pack, strata);
+                schema.setInnerCapacity(7);
+                schema.setLeafCapacity(7);
+                schema.setComparableFactory(new ExtractorComparableFactory<IndexRecord, F>(new IndexExtractor<T, F>(item, index)));
+                
+                Strata<IndexRecord> strata = schema.open(new Stash(), rootAddress, fossilStorage);
+                storage = new IndexStorage(pack, strata);
                 
                 mapOfIndexStorage.put(key, storage);
             }
@@ -149,6 +155,14 @@ public abstract class AbstractStorage<A> implements Storage
  
     public JoinStorage open(Link link)
     {
+        Schema<JoinRecord> schema = new Schema<JoinRecord>();
+        
+        schema.setInnerCapacity(7);
+        schema.setLeafCapacity(7);
+        schema.setComparableFactory(new ExtractorComparableFactory<JoinRecord, KeyList>(new JoinExtractor()));
+
+        FossilStorage<JoinRecord> fossilStorage = new FossilStorage<JoinRecord>(new JoinRecordIO(link.size()));
+
         JoinStorage storage;
         synchronized (mapOfJoins)
         {
@@ -160,18 +174,12 @@ public abstract class AbstractStorage<A> implements Storage
                 
                 Mutator mutator = pack.mutate();
                 
-                Schema<JoinRecord, KeyList> schema = Fossil.newFossilSchema();
-                schema.setExtractor(new JoinExtractor());
-                schema.setFieldCaching(true);
+                Stash stash = Fossil.newStash(mutator);
+                long rootAddress = schema.create(stash, fossilStorage);
                 
-                Construction<JoinRecord, KeyList, Long> newStrata = schema.create(Fossil.initialize(new Stash(), mutator), new FossilStorage<JoinRecord, KeyList>(new JoinRecordIO(link.size())));
+                mapOfJoins.put(link, record(pointer, rootAddress, mutator));
                 
-                mapOfJoins.put(link, record(pointer, newStrata.getAddress(), mutator));
-                
-                Query<JoinRecord, KeyList> query = newStrata.getQuery();
-                query.flush();
-                
-                mapOfJoinStorage.put(link, new JoinStorage(pack, query.getStrata()));
+                mapOfJoinStorage.put(link, new JoinStorage(pack, schema.open(stash, rootAddress, fossilStorage)));
 
                 mutator.commit();
             }
@@ -182,11 +190,7 @@ public abstract class AbstractStorage<A> implements Storage
                 Pack pack = pointer.getPack();
                 long rootAddress = pointer.getRootAddress();
                 
-                Schema<JoinRecord, KeyList> schema = Fossil.newFossilSchema();
-                schema.setExtractor(new JoinExtractor());
-                schema.setFieldCaching(true);
-                
-                Strata<JoinRecord, KeyList> strata = schema.open(new Stash(), new FossilStorage<JoinRecord, KeyList>(new JoinRecordIO(link.size())), rootAddress);
+                Strata<JoinRecord> strata = schema.open(new Stash(), rootAddress, fossilStorage);
                 storage = new JoinStorage(pack, strata);
                 
                 mapOfJoinStorage.put(link, storage);

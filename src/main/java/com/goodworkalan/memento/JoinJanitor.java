@@ -3,9 +3,9 @@ package com.goodworkalan.memento;
 import com.goodworkalan.fossil.Fossil;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.stash.Stash;
-import com.goodworkalan.strata.Construction;
 import com.goodworkalan.strata.Cursor;
 import com.goodworkalan.strata.Query;
+import com.goodworkalan.strata.Strata;
 
 public class JoinJanitor
 implements Janitor
@@ -16,9 +16,9 @@ implements Janitor
 
     private final Link link;
     
-    private final Construction<JoinRecord, KeyList, Long> isolation;
+    private final Strata<JoinRecord> isolation;
 
-    public JoinJanitor(Storage storage, Link link, Construction<JoinRecord, KeyList, Long> isolation)
+    public JoinJanitor(Storage storage, Link link, Strata<JoinRecord> isolation)
     {
         this.storage = storage;
         this.link = link;
@@ -28,19 +28,18 @@ implements Janitor
     public void rollback(Snapshot snapshot)
     {
         // FIXME Who gives me a mutator?
-        Query<JoinRecord, KeyList> common = storage.open(link).getStrata().query(Fossil.initialize(new Stash(), null));
+        Query<JoinRecord> common = storage.open(link).getStrata().query(Fossil.initialize(new Stash(), null));
         
-        Cursor<JoinRecord> cursor = isolation.getQuery().first();
+        Cursor<JoinRecord> cursor = isolation.query().first();
         while (cursor.hasNext())
         {
-            common.remove(common.extract(cursor.next()));
+            common.remove(common.newComparable(cursor.next()));
         }
         cursor.release();
-        isolation.getQuery().flush();
     }
 
     public void dispose(Mutator mutator, boolean deallocate)
     {
-        isolation.getQuery().destroy();
+        isolation.query(Fossil.newStash(mutator)).destroy();
     }
 }

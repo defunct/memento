@@ -5,17 +5,17 @@ import com.goodworkalan.strata.Strata;
 
 public class SnapshotStorage
 {
-    private final Strata<SnapshotRecord, Long> strata;
+    private final Strata<SnapshotRecord> strata;
     
     private final Pack pack;
     
-    public SnapshotStorage(Pack pack, Strata<SnapshotRecord, Long> strata)
+    public SnapshotStorage(Pack pack, Strata<SnapshotRecord> strata)
     {
         this.strata = strata;
         this.pack = pack;
     }
     
-    public Strata<SnapshotRecord, Long> getStrata()
+    public Strata<SnapshotRecord> getStrata()
     {
         return strata;
     }

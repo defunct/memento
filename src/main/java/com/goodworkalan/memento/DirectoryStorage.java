@@ -11,6 +11,7 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.util.Map;
 
+import com.goodworkalan.ilk.UncheckedCast;
 import com.goodworkalan.pack.Creator;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Opener;
@@ -29,9 +30,11 @@ public class DirectoryStorage extends AbstractStorage<String>
     protected StrataPointer open(String file)
     {
         Pack pack;
+        Opener opener = new Opener();
         try
         {
-            pack = new Opener().open(new RandomAccessFile(new File(dir, file), "rw").getChannel());
+            opener.open(new RandomAccessFile(new File(dir, file), "rw").getChannel());
+            pack = opener.getPack();
         }
         catch (FileNotFoundException e)
         {
@@ -48,7 +51,7 @@ public class DirectoryStorage extends AbstractStorage<String>
     protected StrataPointer create()
     {
         Creator creator = new Creator();
-        creator.addStaticPage(HEADER_URI, Pack.ADDRESS_SIZE);
+        creator.addStaticBlock(HEADER_URI, Long.SIZE / Byte.SIZE);
         File file;
         try
         {
@@ -111,9 +114,9 @@ public class DirectoryStorage extends AbstractStorage<String>
             ObjectInputStream in = new ObjectInputStream(new FileInputStream(schema));
             try
             {
-                mapOfBins.putAll(new UnsafeCast<Map<Item<?>, String>>().cast(in.readObject()));
-                mapOfIndexes.putAll(new UnsafeCast<Map<Map<Item<?>, Index<?>>, String>>().cast(in.readObject()));
-                mapOfJoins.putAll(new UnsafeCast<Map<Link, String>>().cast(in.readObject()));
+                mapOfBins.putAll(new UncheckedCast<Map<Item<?>, String>>().cast(in.readObject()));
+                mapOfIndexes.putAll(new UncheckedCast<Map<Map<Item<?>, Index<?>>, String>>().cast(in.readObject()));
+                mapOfJoins.putAll(new UncheckedCast<Map<Link, String>>().cast(in.readObject()));
             }
             catch (ClassNotFoundException e)
             {

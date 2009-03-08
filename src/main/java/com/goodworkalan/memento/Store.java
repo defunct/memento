@@ -45,7 +45,7 @@ public class Store
         Long version = new Long(System.currentTimeMillis());
         SnapshotRecord newSnapshot = new SnapshotRecord(version, OPERATING);
 
-        Query<SnapshotRecord, Long> query = storage.newSnapshotQuery();
+        Query<SnapshotRecord> query = storage.newSnapshotQuery();
         Cursor<SnapshotRecord> versions = query.first();
         Set<Long> setOfCommitted = new TreeSet<Long>();
         while (versions.hasNext())

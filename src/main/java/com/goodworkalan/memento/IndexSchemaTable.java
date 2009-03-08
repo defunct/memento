@@ -3,6 +3,8 @@ package com.goodworkalan.memento;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.goodworkalan.ilk.UncheckedCast;
+
 public class IndexSchemaTable<T>
 {
     private final Map<Object, IndexSchema<T, ?>> table = new HashMap<Object, IndexSchema<T, ?>>();
@@ -22,6 +24,6 @@ public class IndexSchemaTable<T>
             indexSchema = new IndexSchema<T, F>(binSchema.getItem(), index);
             table.put(index, indexSchema);
         }
-        return new UnsafeCast<IndexSchema<T, F>>().cast(indexSchema); 
+        return new UncheckedCast<IndexSchema<T, F>>().cast(indexSchema); 
     }
 }

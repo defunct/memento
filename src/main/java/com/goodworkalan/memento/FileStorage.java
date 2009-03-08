@@ -9,6 +9,7 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.goodworkalan.ilk.UncheckedCast;
 import com.goodworkalan.pack.Creator;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Opener;
@@ -48,7 +49,7 @@ public class FileStorage extends AbstractStorage<Long>
         if (!file.exists())
         {
             Creator creator = new Creator();
-            creator.addStaticPage(HEADER_URI, Pack.ADDRESS_SIZE);
+            creator.addStaticBlock(HEADER_URI, Long.SIZE / Byte.SIZE);
             pack = creator.create(new RandomAccessFile(file, "rw").getChannel());
 
             Mutator mutator = pack.mutate();
@@ -73,7 +74,9 @@ public class FileStorage extends AbstractStorage<Long>
             pack.close();
         }
         
-        pack = new Opener().open(new RandomAccessFile(file, "rw").getChannel());
+        Opener opener = new Opener();
+        opener.open(new RandomAccessFile(file, "rw").getChannel());
+        pack = opener.getPack(); 
 
         Mutator mutator = pack.mutate();
         
@@ -81,9 +84,9 @@ public class FileStorage extends AbstractStorage<Long>
         
         ByteBuffer bytes = mutator.read(header.getLong());
         ObjectInputStream in = new ObjectInputStream(new ByteBufferInputStream(bytes));
-        mapOfBins.putAll(new UnsafeCast<Map<Item<?>, Long>>().cast(in.readObject()));
-        mapOfIndexes.putAll(new UnsafeCast<Map<Map<Item<?>, Index<?>>, Long>>().cast(in.readObject()));
-        mapOfJoins.putAll(new UnsafeCast<Map<Link, Long>>().cast(in.readObject()));
+        mapOfBins.putAll(new UncheckedCast<Map<Item<?>, Long>>().cast(in.readObject()));
+        mapOfIndexes.putAll(new UncheckedCast<Map<Map<Item<?>, Index<?>>, Long>>().cast(in.readObject()));
+        mapOfJoins.putAll(new UncheckedCast<Map<Link, Long>>().cast(in.readObject()));
         
         in.close();
         
