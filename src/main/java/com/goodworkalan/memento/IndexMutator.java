@@ -32,11 +32,10 @@ public final class IndexMutator<T, F extends Comparable<F>>
         schema.setLeafCapacity(7);
         schema.setComparableFactory(new ExtractorComparableFactory<IndexRecord, F>(new IndexExtractor<T, F>(indexSchema.getItem(), indexSchema.getIndex())));
 
-        // FIXME Ignored.
         Stash stash = new Stash();
         stash.put(EXTRACTOR, BinTable.class, bins);
 
-        return schema.inMemory(new Ilk<IndexRecord>() { }).query();
+        return schema.inMemory(stash, new Ilk<IndexRecord>() { }).query();
     }
 
     public void add(Snapshot snapshot, Mutator mutator, Bin<T> bin, Box<T> box)
