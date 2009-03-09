@@ -41,7 +41,7 @@ public class Store
         return new LinkBuilder(joinSchemas, this, link);
     }
 
-    public Snapshot newSnapshot(Sync sync)
+    public Snapshot newSnapshot()
     {
         Long version = new Long(System.currentTimeMillis());
         SnapshotRecord newSnapshot = new SnapshotRecord(version, OPERATING);
@@ -63,12 +63,7 @@ public class Store
 
         query.getStash().get(Storage.MUTATOR, Mutator.class).commit();
 
-        return new Snapshot(storage, null, setOfCommitted, version, sync);
-     }
-    
-    public Snapshot newSnapshot()
-    {
-        return null;
+        return new Snapshot(storage, null, setOfCommitted, version);
     }
 
     // FIXME Keeping this around, need it, but doesn't belong here.

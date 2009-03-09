@@ -28,8 +28,6 @@ public final class Snapshot
     private final Long oldest;
 
     private boolean spent;
-
-    private final Sync sync;
     
     private final BinTable bins = null;
     
@@ -38,8 +36,7 @@ public final class Snapshot
     public Snapshot(Storage storage,
                     Mutator mutator,
                     Set<Long> setOfCommitted,
-                    Long version,
-                    Sync sync // FIXME GET RID OF THIS.
+                    Long version
                     )
     {
 //        this.storage = storage;
@@ -49,7 +46,6 @@ public final class Snapshot
         this.setOfCommitted = setOfCommitted;
         this.oldest = (Long) setOfCommitted.iterator().next();
         this.mapOfJanitors = new HashMap<Long, Janitor>();
-        this.sync = sync;
         this.joins = new JoinTable(storage, this, mutator, null);
     }
     
@@ -147,8 +143,6 @@ public final class Snapshot
         SnapshotRecord committed = new SnapshotRecord(version, Store.COMMITTED);
         query.add(committed);
         query.remove(new SnapshotVersionComparable(version));
-
-        sync.release();
     }
 
     public void rollback()
@@ -167,8 +161,6 @@ public final class Snapshot
             Query<SnapshotRecord> query = snapshots.query(Fossil.initialize(new Stash(), mutator));
 
             query.remove(new SnapshotVersionComparable(version));
-
-            sync.release();
         }
     }
 }
