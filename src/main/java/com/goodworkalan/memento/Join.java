@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.goodworkalan.fossil.Fossil;
-import com.goodworkalan.fossil.FossilAllocator;
+import com.goodworkalan.fossil.FossilStorage;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.stash.Stash;
 import com.goodworkalan.strata.ExtractorComparableFactory;
@@ -37,7 +37,7 @@ public final class Join
             schema.setComparableFactory(new ExtractorComparableFactory<JoinRecord, KeyList>(new JoinExtractor()));
             
             Link link = index.getLink();
-            FossilAllocator<JoinRecord> fossilStorage = new FossilAllocator<JoinRecord>(new JoinRecordIO(link.size()));
+            FossilStorage<JoinRecord> fossilStorage = new FossilStorage<JoinRecord>(new JoinRecordIO(link.size()));
 
             Stash stash = Fossil.newStash(mutator);
             long rootAddress = schema.create(stash, fossilStorage);

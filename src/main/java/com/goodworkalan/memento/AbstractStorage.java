@@ -6,7 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.goodworkalan.fossil.Fossil;
-import com.goodworkalan.fossil.FossilAllocator;
+import com.goodworkalan.fossil.FossilStorage;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
 import com.goodworkalan.stash.Stash;
@@ -71,11 +71,11 @@ public abstract class AbstractStorage<A> implements Storage
                 schema.setComparableFactory(new ExtractorComparableFactory<BinRecord, Long>(new BinExtractor()));
 
                 Stash stash = Fossil.newStash(mutator);
-                long root = schema.create(Fossil.newStash(mutator), new FossilAllocator<BinRecord>(new BinRecordIO()));
+                long root = schema.create(Fossil.newStash(mutator), new FossilStorage<BinRecord>(new BinRecordIO()));
                 
                 mapOfBins.put(item, record(pointer, root, mutator));
                 
-                mapOfBinStorage.put(item, new BinStorage(pack, schema.open(stash, root, new FossilAllocator<BinRecord>(new BinRecordIO()))));
+                mapOfBinStorage.put(item, new BinStorage(pack, schema.open(stash, root, new FossilStorage<BinRecord>(new BinRecordIO()))));
     
                 mutator.commit();
             }
@@ -91,7 +91,7 @@ public abstract class AbstractStorage<A> implements Storage
                 schema.setComparableFactory(new ExtractorComparableFactory<BinRecord, Long>(new BinExtractor()));
                 
                 
-                Strata<BinRecord> strata = schema.open(new Stash(), pointer.getRootAddress(), new FossilAllocator<BinRecord>(new BinRecordIO()));
+                Strata<BinRecord> strata = schema.open(new Stash(), pointer.getRootAddress(), new FossilStorage<BinRecord>(new BinRecordIO()));
                 storage = new BinStorage(pointer.getPack(), strata);
                 
                 mapOfBinStorage.put(item, storage);
@@ -102,7 +102,7 @@ public abstract class AbstractStorage<A> implements Storage
 
     public <T, F extends Comparable<F>> IndexStorage open(Item<T> item, Index<F> index)
     {
-        FossilAllocator<IndexRecord> fossilStorage = new FossilAllocator<IndexRecord>(new IndexRecordIO());
+        FossilStorage<IndexRecord> fossilStorage = new FossilStorage<IndexRecord>(new IndexRecordIO());
 
         IndexStorage storage;
         synchronized (mapOfIndexes)
@@ -161,7 +161,7 @@ public abstract class AbstractStorage<A> implements Storage
         schema.setLeafCapacity(7);
         schema.setComparableFactory(new ExtractorComparableFactory<JoinRecord, KeyList>(new JoinExtractor()));
 
-        FossilAllocator<JoinRecord> fossilStorage = new FossilAllocator<JoinRecord>(new JoinRecordIO(link.size()));
+        FossilStorage<JoinRecord> fossilStorage = new FossilStorage<JoinRecord>(new JoinRecordIO(link.size()));
 
         JoinStorage storage;
         synchronized (mapOfJoins)
