@@ -33,7 +33,7 @@ implements Janitor
         Cursor<JoinRecord> cursor = isolation.query().first();
         while (cursor.hasNext())
         {
-            common.remove(common.newComparable(cursor.next()));
+            common.remove(common.comparable(cursor.next()));
         }
         cursor.release();
     }

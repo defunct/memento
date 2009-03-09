@@ -35,7 +35,7 @@ implements Janitor
             {
                 indexMutator.remove(bin.mutator, bin, record.key, record.version);
             }
-            bin.query.remove(bin.query.newComparable(record));
+            bin.query.remove(bin.query.comparable(record));
         }
         cursor.release();
     }

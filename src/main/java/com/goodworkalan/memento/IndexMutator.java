@@ -68,7 +68,7 @@ public final class IndexMutator<T, F extends Comparable<F>>
             if (record.key.equals(box.getKey()) && record.version == previous)
             {
                 found.release();
-                isolation.remove(isolation.newComparable(record));
+                isolation.remove(isolation.comparable(record));
                 break;
             }
         }
