@@ -1,5 +1,6 @@
 package com.goodworkalan.memento;
 
+import com.goodworkalan.ilk.Ilk;
 import com.goodworkalan.stash.Stash;
 import com.goodworkalan.strata.Strata;
 
@@ -15,19 +16,19 @@ public class IndexSchema<T, F extends Comparable<? super F>>
 
     private boolean notNull;
 
-    private final Item<T> item;
+    private final Ilk<T> ilk;
     
     private final Index<F> index;
 
-    public IndexSchema(Item<T> item, Index<F> index)
+    public IndexSchema(Ilk<T> ilk, Index<F> index)
     {
-        this.item = item;
+        this.ilk = ilk;
         this.index = index;
     }
 
-    public Item<T> getItem()
+    public Ilk<T> getIlk()
     {
-        return item;
+        return ilk;
     }
     
     public Index<F> getIndex()

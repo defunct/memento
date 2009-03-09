@@ -73,9 +73,9 @@ public class PatternTest
         
         snapshot = store.newSnapshot();
         
-        // FIXME Serialize? What's the point? If the code changes, it 
-        // changes, and the serialized objects will disappear, especially
-        // if they are inline.
+        // FIXME Serialize the store? What's the point? If the code changes, it 
+        // changes, and the serialized objects will disappear, especially if 
+        // they are inline.
         snapshot.bin(Person.class);
         
         person.setFirstName("Steve");

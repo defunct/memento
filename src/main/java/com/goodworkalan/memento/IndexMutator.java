@@ -30,7 +30,7 @@ public final class IndexMutator<T, F extends Comparable<F>>
 
         schema.setInnerCapacity(7);
         schema.setLeafCapacity(7);
-        schema.setComparableFactory(new ExtractorComparableFactory<IndexRecord, F>(new IndexExtractor<T, F>(indexSchema.getItem(), indexSchema.getIndex())));
+        schema.setComparableFactory(new ExtractorComparableFactory<IndexRecord, F>(new IndexExtractor<T, F>(indexSchema.getIlk(), indexSchema.getIndex())));
 
         Stash stash = new Stash();
         stash.put(EXTRACTOR, BinTable.class, bins);

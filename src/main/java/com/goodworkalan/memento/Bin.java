@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.WeakHashMap;
 
 import com.goodworkalan.fossil.Fossil;
+import com.goodworkalan.ilk.Ilk;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
 import com.goodworkalan.pack.io.ByteBufferInputStream;
@@ -43,7 +44,7 @@ public final class Bin<T>
 //        BinStorage binStorage = storage.open(schema.getItem());
         query = schema.getStrata().query(Fossil.newStash(mutator));
         isolation = new BinTree().create(mutator);
-        BinJanitor<T> janitor = new BinJanitor<T>(isolation, schema.getItem());
+        BinJanitor<T> janitor = new BinJanitor<T>(isolation, schema.getIlk());
 
         PackOutputStream allocation = new PackOutputStream(mutator);
         try
@@ -446,6 +447,6 @@ public final class Bin<T>
     
     public <O> JoinAdd<O> join(T object, Class<O> other)
     {
-        return new JoinAdd<O>(snapshot.join(new Link().bin(binSchema.getItem()).bin(other)), new Item<O>(other) {});
+        return new JoinAdd<O>(snapshot.join(new Link().bin(binSchema.getIlk()).bin(other)), new Ilk<O>(other));
     }
 }

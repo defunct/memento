@@ -6,6 +6,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 
+import com.goodworkalan.ilk.Ilk;
+
 public class SerializationIO<T> implements ItemIO<T>
 {
     private final Caster<T> itemClass;
@@ -32,7 +34,7 @@ public class SerializationIO<T> implements ItemIO<T>
         return new SerializationIO<Type>(new ClassCaster<Type>(itemClass));
     }
     
-    public static <Type> SerializationIO<Type> getInstance(Item<Type> itemClass)
+    public static <Type> SerializationIO<Type> getInstance(Ilk<Type> itemClass)
     {
         return null /* new SerializationIO<Type>(new UncheckedCast<Type>()) */;
     }

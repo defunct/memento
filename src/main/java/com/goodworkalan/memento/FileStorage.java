@@ -9,6 +9,7 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.goodworkalan.ilk.Ilk;
 import com.goodworkalan.ilk.UncheckedCast;
 import com.goodworkalan.pack.Creator;
 import com.goodworkalan.pack.Mutator;
@@ -60,8 +61,8 @@ public class FileStorage extends AbstractStorage<Long>
             PackOutputStream allocation = new PackOutputStream(mutator);
             
             ObjectOutputStream out = new ObjectOutputStream(allocation);
-            out.writeObject(new HashMap<Item<?>, Long>());
-            out.writeObject(new HashMap<Map<Item<?>, Index<?>>, Long>());
+            out.writeObject(new HashMap<Ilk.Key, Long>());
+            out.writeObject(new HashMap<Map<Ilk.Key, Index<?>>, Long>());
             out.writeObject(new HashMap<Link, Long>());
             out.close();
             
@@ -84,8 +85,8 @@ public class FileStorage extends AbstractStorage<Long>
         
         ByteBuffer bytes = mutator.read(header.getLong());
         ObjectInputStream in = new ObjectInputStream(new ByteBufferInputStream(bytes));
-        mapOfBins.putAll(new UncheckedCast<Map<Item<?>, Long>>().cast(in.readObject()));
-        mapOfIndexes.putAll(new UncheckedCast<Map<Map<Item<?>, Index<?>>, Long>>().cast(in.readObject()));
+        mapOfBins.putAll(new UncheckedCast<Map<Ilk.Key, Long>>().cast(in.readObject()));
+        mapOfIndexes.putAll(new UncheckedCast<Map<Map<Ilk.Key, Index<?>>, Long>>().cast(in.readObject()));
         mapOfJoins.putAll(new UncheckedCast<Map<Link, Long>>().cast(in.readObject()));
         
         in.close();

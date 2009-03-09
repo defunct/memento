@@ -1,6 +1,7 @@
 package com.goodworkalan.memento;
 
 import com.goodworkalan.fossil.Fossil;
+import com.goodworkalan.ilk.Ilk;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.stash.Stash;
 import com.goodworkalan.strata.Cursor;
@@ -14,19 +15,19 @@ implements Janitor
 
     private final Strata<BinRecord> isolation;
 
-    private final Item<T> itemClass;
+    private final Ilk<T> ilk;
     
     private IndexTable<T> indexes;
 
-    public BinJanitor(Query<BinRecord> isolation, Item<T> item)
+    public BinJanitor(Query<BinRecord> isolation, Ilk<T> ilk)
     {
         this.isolation = isolation.getStrata();
-        this.itemClass = item;
+        this.ilk = ilk;
     }
 
     public void rollback(Snapshot snapshot)
     {
-        Bin<T> bin = snapshot.bin(itemClass);
+        Bin<T> bin = snapshot.bin(ilk);
         Cursor<BinRecord> cursor = isolation.query(Fossil.newStash(bin.mutator)).first();
         while (cursor.hasNext())
         {

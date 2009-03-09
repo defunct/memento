@@ -21,7 +21,7 @@ public class IndexSchemaTable<T>
         IndexSchema<T, ?> indexSchema = table.get(index);
         if (indexSchema == null)
         {
-            indexSchema = new IndexSchema<T, F>(binSchema.getItem(), index);
+            indexSchema = new IndexSchema<T, F>(binSchema.getIlk(), index);
             table.put(index, indexSchema);
         }
         return new UncheckedCast<IndexSchema<T, F>>().cast(indexSchema); 

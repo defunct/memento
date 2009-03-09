@@ -4,11 +4,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import com.goodworkalan.ilk.Ilk;
+
 public class Link
 {
     private final String name;
     
-    private final List<Item<?>> items = new ArrayList<Item<?>>();
+    private final List<Ilk.Key> ilkKeys = new ArrayList<Ilk.Key>();
 
     public Link()
     {
@@ -20,26 +22,26 @@ public class Link
         this.name = name;
     }
     
-    public <T> Link bin(Item<T> item)
+    public <T> Link bin(Ilk<T> ilk)
     {
-        items.add(item);
+        ilkKeys.add(ilk.key);
         return this;
     }
     
     public <T> Link bin(Class<T> itemClass)
     {
-        items.add(new Item<T>(itemClass) {});
+        ilkKeys.add(new Ilk.Key(itemClass));
         return this;
     }
     
-    public List<Item<?>> getItems()
+    public List<Ilk.Key> getIlkKeys()
     {
-        return Collections.unmodifiableList(items);
+        return Collections.unmodifiableList(ilkKeys);
     }
     
     public int size()
     {
-        return items.size();
+        return ilkKeys.size();
     }
     
     @Override
@@ -48,7 +50,7 @@ public class Link
         if (object instanceof Link)
         {
             Link link = (Link) object;
-            return name.equals(link.name) && items.equals(link.items);
+            return name.equals(link.name) && ilkKeys.equals(link.ilkKeys);
         }
         return false;
     }
@@ -64,9 +66,9 @@ public class Link
 
     final boolean valid(BinSchemaTable binSchemas)
     {
-        for (Item<?> item : items)
+        for (Ilk.Key key : ilkKeys)
         {
-            if (!binSchemas.has(item))
+            if (!binSchemas.has(key))
             {
                 return false;
             }

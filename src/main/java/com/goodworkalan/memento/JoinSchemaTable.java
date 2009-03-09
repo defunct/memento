@@ -3,6 +3,8 @@ package com.goodworkalan.memento;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.goodworkalan.ilk.Ilk;
+
 public class JoinSchemaTable
 {
     private final Map<Link, JoinSchema> table = new HashMap<Link, JoinSchema>();
@@ -18,8 +20,8 @@ public class JoinSchemaTable
         return joinSchema;
     }
     
-    public boolean has(Item<?> item)
+    public boolean has(Ilk<?> ilk)
     {
-        return table.containsKey(item);
+        return table.containsKey(ilk);
     }
 }

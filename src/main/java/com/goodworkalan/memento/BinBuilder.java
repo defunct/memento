@@ -1,18 +1,20 @@
 package com.goodworkalan.memento;
 
+import com.goodworkalan.ilk.Ilk;
+
 
 public class BinBuilder<T>
 {
     private final Store store;
     
-    private final Item<T> item;
+    private final Ilk<T> ilk;
     
     private final BinSchemaTable binSchemas;
     
-    public BinBuilder(Store store, BinSchemaTable binSchemas, Item<T> item)
+    public BinBuilder(Store store, BinSchemaTable binSchemas, Ilk<T> ilk)
     {
         this.store = store;
-        this.item = item;
+        this.ilk = ilk;
         this.binSchemas = binSchemas;
     }
     
@@ -23,13 +25,13 @@ public class BinBuilder<T>
     
     public BinBuilder<T> io(ItemIO<T> io)
     {
-        binSchemas.get(item).setItemIO(io);
+        binSchemas.get(ilk).setItemIO(io);
         return this;
     }
     
     public <F extends Comparable<? super F>> IndexBuilder<T, F> index(Index<F> index)
     {
-        return new IndexBuilder<T, F>(this, binSchemas, item, index);
+        return new IndexBuilder<T, F>(this, binSchemas, ilk, index);
     }
     
     public Store end()

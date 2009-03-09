@@ -11,6 +11,7 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.util.Map;
 
+import com.goodworkalan.ilk.Ilk;
 import com.goodworkalan.ilk.UncheckedCast;
 import com.goodworkalan.pack.Creator;
 import com.goodworkalan.pack.Mutator;
@@ -114,8 +115,8 @@ public class DirectoryStorage extends AbstractStorage<String>
             ObjectInputStream in = new ObjectInputStream(new FileInputStream(schema));
             try
             {
-                mapOfBins.putAll(new UncheckedCast<Map<Item<?>, String>>().cast(in.readObject()));
-                mapOfIndexes.putAll(new UncheckedCast<Map<Map<Item<?>, Index<?>>, String>>().cast(in.readObject()));
+                mapOfBins.putAll(new UncheckedCast<Map<Ilk.Key, String>>().cast(in.readObject()));
+                mapOfIndexes.putAll(new UncheckedCast<Map<Map<Ilk.Key, Index<?>>, String>>().cast(in.readObject()));
                 mapOfJoins.putAll(new UncheckedCast<Map<Link, String>>().cast(in.readObject()));
             }
             catch (ClassNotFoundException e)

@@ -3,6 +3,7 @@ package com.goodworkalan.memento;
 import java.util.Set;
 import java.util.TreeSet;
 
+import com.goodworkalan.ilk.Ilk;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.strata.Cursor;
 import com.goodworkalan.strata.Query;
@@ -25,14 +26,14 @@ public class Store
         this.storage = storage;
     }
     
-    public <T> BinBuilder<T> store(Class<T> itemClass)
+    public <T> BinBuilder<T> store(Class<T> meta)
     {
-        return new BinBuilder<T>(this, binSchemas, new Item<T>(itemClass) {});
+        return new BinBuilder<T>(this, binSchemas, new Ilk<T>(meta));
     }
     
-    public <T> BinBuilder<T> store(Item<T> item)
+    public <T> BinBuilder<T> store(Ilk<T> ilk)
     {
-        return new BinBuilder<T>(this, binSchemas, item);
+        return new BinBuilder<T>(this, binSchemas, ilk);
     }
     
     public LinkBuilder link(Link link)
@@ -70,6 +71,7 @@ public class Store
         return null;
     }
 
+    // FIXME Keeping this around, need it, but doesn't belong here.
     public static boolean partial(long[] partial, long[] full)
     {
         for (int i = 0 ; i < partial.length; i++)
@@ -82,6 +84,7 @@ public class Store
         return true;
     }
     
+    // FIXME Keeping this around, need it, but doesn't belong here.
     public static int compare(long[] partial, long[] full)
     {
         int compare = 0;

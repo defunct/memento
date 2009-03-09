@@ -36,7 +36,7 @@ implements Iterator<T>
         this.stored = stored;
         this.nextStored = next(stored, false);
         this.nextIsolated = next(isolated, true);
-        this.bin = stash.get(EXTRACTOR, BinTable.class).get(indexSchema.getItem());
+        this.bin = stash.get(EXTRACTOR, BinTable.class).get(indexSchema.getIlk());
         this.next = seekBox();
     }
 
@@ -45,7 +45,7 @@ implements Iterator<T>
         while (cursor.hasNext())
         {
             IndexRecord record = cursor.next();
-            Box<T> box = stash.get(EXTRACTOR, BinTable.class).get(indexSchema.getItem()).box(record.key);
+            Box<T> box = stash.get(EXTRACTOR, BinTable.class).get(indexSchema.getIlk()).box(record.key);
             if (box == null || box.getVersion() != record.version)
             {
                 continue;

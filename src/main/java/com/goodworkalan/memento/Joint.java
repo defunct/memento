@@ -1,5 +1,7 @@
 package com.goodworkalan.memento;
 
+import com.goodworkalan.ilk.Ilk;
+
 
 public class Joint
 {
@@ -8,7 +10,7 @@ public class Joint
         return null;
     }
     
-    public <T> T get(int index, Item<T> type)
+    public <T> T get(int index, Ilk<T> ilk)
     {
         return null;
     }
@@ -18,7 +20,7 @@ public class Joint
         return null;
     }
     
-    public <T> T get(Item<T> type)
+    public <T> T get(Ilk<T> ilk)
     {
         return null;
     }

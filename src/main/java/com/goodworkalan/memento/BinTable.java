@@ -4,12 +4,13 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import com.goodworkalan.ilk.Ilk;
 import com.goodworkalan.ilk.UncheckedCast;
 import com.goodworkalan.pack.Mutator;
 
 public class BinTable implements Iterable<Bin<?>>
 {
-    private final Map<Item<?>, Bin<?>> table = new HashMap<Item<?>, Bin<?>>();
+    private final Map<Ilk.Key, Bin<?>> table = new HashMap<Ilk.Key, Bin<?>>();
     
     private final Snapshot snapshot;
     
@@ -27,15 +28,15 @@ public class BinTable implements Iterable<Bin<?>>
         this.janitors = janitors;
     }
 
-    public <T> Bin<T> get(Item<T> item)
+    public <T> Bin<T> get(Ilk<T> ilk)
     {
-        Bin<?> bin = table.get(item);
+        Bin<?> bin = table.get(ilk.key);
         if (bin == null)
         {
-            BinSchema<T> binSchema = binSchemas.get(item);
+            BinSchema<T> binSchema = binSchemas.get(ilk);
             IndexTable<T> indexes = new IndexTable<T>(this, binSchema.getIndexSchemas());
-            bin = new Bin<T>(null, snapshot, mutator, binSchemas.get(item), indexes, janitors);
-            table.put(item, bin);
+            bin = new Bin<T>(null, snapshot, mutator, binSchemas.get(ilk), indexes, janitors);
+            table.put(ilk.key, bin);
         }
         return new UncheckedCast<Bin<T>>().cast(bin);
     }

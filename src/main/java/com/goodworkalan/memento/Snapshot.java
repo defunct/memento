@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.goodworkalan.fossil.Fossil;
+import com.goodworkalan.ilk.Ilk;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.stash.Stash;
 import com.goodworkalan.strata.Query;
@@ -38,7 +39,8 @@ public final class Snapshot
                     Mutator mutator,
                     Set<Long> setOfCommitted,
                     Long version,
-                    Sync sync)
+                    Sync sync // FIXME GET RID OF THIS.
+                    )
     {
 //        this.storage = storage;
         this.snapshots = storage.getSnapshots();
@@ -51,14 +53,14 @@ public final class Snapshot
         this.joins = new JoinTable(storage, this, mutator, null);
     }
     
-    public <T> Bin<T> bin(Item<T> item)
+    public <T> Bin<T> bin(Ilk<T> ilk)
     {
-        return bins.get(item);
+        return bins.get(ilk);
     }
 
     public <T> Bin<T> bin(Class<T> itemClass)
     {
-        return bins.get(new Item<T>(itemClass) {});
+        return bins.get(new Ilk<T>(itemClass) {});
     }
     
     public JoinBuilder join(Link link)

@@ -2,6 +2,7 @@ package com.goodworkalan.memento;
 
 import java.io.Serializable;
 
+import com.goodworkalan.ilk.Ilk;
 import com.goodworkalan.strata.Strata;
 
 final class BinSchema<T>
@@ -13,21 +14,21 @@ implements Serializable
     
     private Strata<BinRecord> strata;
 
-    private final Item<T> item;
+    private final Ilk<T> ilk;
 
     private ItemIO<T> io;
     
     private long identifier;
     
-    public BinSchema(Item<T> item)
+    public BinSchema(Ilk<T> ilk)
     {
-        this.item = item;
+        this.ilk = ilk;
         this.indexSchemas = new IndexSchemaTable<T>(this);
     }
 
-    public Item<T> getItem()
+    public Ilk<T> getIlk()
     {
-        return item;
+        return ilk;
     }
 
     public Strata<BinRecord> getStrata()

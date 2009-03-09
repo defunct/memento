@@ -7,6 +7,7 @@ import java.util.Map;
 
 import com.goodworkalan.fossil.Fossil;
 import com.goodworkalan.fossil.FossilStorage;
+import com.goodworkalan.ilk.Ilk;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.pack.Pack;
 import com.goodworkalan.stash.Stash;
@@ -21,15 +22,15 @@ public abstract class AbstractStorage<A> implements Storage
     
     protected final static URI HEADER_URI = URI.create("http://goodworkalan.com/memento/file-storage-header");
     
-    protected final Map<Item<?>, A> mapOfBins = new HashMap<Item<?>, A>();  
+    protected final Map<Ilk.Key, A> mapOfBins = new HashMap<Ilk.Key, A>();  
     
-    protected final Map<Map<Item<?>, Index<?>>, A> mapOfIndexes = new HashMap<Map<Item<?>, Index<?>>, A>();  
+    protected final Map<Map<Ilk.Key, Index<?>>, A> mapOfIndexes = new HashMap<Map<Ilk.Key, Index<?>>, A>();  
 
     protected final Map<Link, A> mapOfJoins = new HashMap<Link, A>();
     
-    private final Map<Item<?>, BinStorage> mapOfBinStorage = new HashMap<Item<?>, BinStorage>();
+    private final Map<Ilk.Key, BinStorage> mapOfBinStorage = new HashMap<Ilk.Key, BinStorage>();
     
-    private final Map<Map<Item<?>, Index<?>>, IndexStorage> mapOfIndexStorage = new HashMap<Map<Item<?>, Index<?>>, IndexStorage>();
+    private final Map<Map<Ilk.Key, Index<?>>, IndexStorage> mapOfIndexStorage = new HashMap<Map<Ilk.Key, Index<?>>, IndexStorage>();
     
     private final Map<Link, JoinStorage> mapOfJoinStorage = new HashMap<Link, JoinStorage>();
     
@@ -52,12 +53,12 @@ public abstract class AbstractStorage<A> implements Storage
         return query;
     }
 
-    public <T> BinStorage open(Item<T> item)
+    public <T> BinStorage open(Ilk<T> ilk)
     {
         BinStorage storage;
         synchronized (mapOfBins)
         {
-            A address = mapOfBins.get(item); 
+            A address = mapOfBins.get(ilk); 
             if (address == null)
             {
                 StrataPointer pointer = create();
@@ -73,9 +74,9 @@ public abstract class AbstractStorage<A> implements Storage
                 Stash stash = Fossil.newStash(mutator);
                 long root = schema.create(Fossil.newStash(mutator), new FossilStorage<BinRecord>(new BinRecordIO()));
                 
-                mapOfBins.put(item, record(pointer, root, mutator));
+                mapOfBins.put(ilk.key, record(pointer, root, mutator));
                 
-                mapOfBinStorage.put(item, new BinStorage(pack, schema.open(stash, root, new FossilStorage<BinRecord>(new BinRecordIO()))));
+                mapOfBinStorage.put(ilk.key, new BinStorage(pack, schema.open(stash, root, new FossilStorage<BinRecord>(new BinRecordIO()))));
     
                 mutator.commit();
             }
@@ -94,20 +95,20 @@ public abstract class AbstractStorage<A> implements Storage
                 Strata<BinRecord> strata = schema.open(new Stash(), pointer.getRootAddress(), new FossilStorage<BinRecord>(new BinRecordIO()));
                 storage = new BinStorage(pointer.getPack(), strata);
                 
-                mapOfBinStorage.put(item, storage);
+                mapOfBinStorage.put(ilk.key, storage);
             }
         }
         return storage;
     }
 
-    public <T, F extends Comparable<F>> IndexStorage open(Item<T> item, Index<F> index)
+    public <T, F extends Comparable<F>> IndexStorage open(Ilk<T> ilk, Index<F> index)
     {
         FossilStorage<IndexRecord> fossilStorage = new FossilStorage<IndexRecord>(new IndexRecordIO());
 
         IndexStorage storage;
         synchronized (mapOfIndexes)
         {
-            Map<Item<?>, Index<?>> key = Collections.<Item<?>, Index<?>>singletonMap(item, index);
+            Map<Ilk.Key, Index<?>> key = Collections.<Ilk.Key, Index<?>>singletonMap(ilk.key, index);
             A address = mapOfIndexes.get(key);
             if (address == null)
             {
@@ -120,7 +121,7 @@ public abstract class AbstractStorage<A> implements Storage
                 
                 schema.setInnerCapacity(7);
                 schema.setLeafCapacity(7);
-                schema.setComparableFactory(new ExtractorComparableFactory<IndexRecord, F>(new IndexExtractor<T, F>(item, index)));
+                schema.setComparableFactory(new ExtractorComparableFactory<IndexRecord, F>(new IndexExtractor<T, F>(ilk, index)));
                 
                 Stash stash = Fossil.newStash(mutator);
                 long rootAddress = schema.create(stash, fossilStorage);
@@ -142,7 +143,7 @@ public abstract class AbstractStorage<A> implements Storage
                 
                 schema.setInnerCapacity(7);
                 schema.setLeafCapacity(7);
-                schema.setComparableFactory(new ExtractorComparableFactory<IndexRecord, F>(new IndexExtractor<T, F>(item, index)));
+                schema.setComparableFactory(new ExtractorComparableFactory<IndexRecord, F>(new IndexExtractor<T, F>(ilk, index)));
                 
                 Strata<IndexRecord> strata = schema.open(new Stash(), rootAddress, fossilStorage);
                 storage = new IndexStorage(pack, strata);

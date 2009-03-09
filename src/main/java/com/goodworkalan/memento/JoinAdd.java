@@ -1,19 +1,21 @@
 package com.goodworkalan.memento;
 
+import com.goodworkalan.ilk.Ilk;
+
 public class JoinAdd<T>
 {
     private final JoinBuilder joinBuilder;
     
-    private final Item<T> item;
+    private final Ilk<T> ilk;
     
-    public JoinAdd(JoinBuilder joinBuilder, Item<T> item)
+    public JoinAdd(JoinBuilder joinBuilder, Ilk<T> item)
     {
         this.joinBuilder = joinBuilder;
-        this.item = item;
+        this.ilk = item;
     }
     
     public void add(T value)
     {
-        joinBuilder.push(item, value);
+        joinBuilder.push(ilk, value);
     }
 }

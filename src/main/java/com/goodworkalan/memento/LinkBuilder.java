@@ -5,6 +5,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.goodworkalan.ilk.Ilk;
+
 public class LinkBuilder
 {
 //    private final JoinSchemaTable joinSchemas;
@@ -41,8 +43,8 @@ public class LinkBuilder
         {
             throw new IllegalArgumentException();
         }
-        List<Item<?>> these = link.getItems();
-        List<Item<?>> those = alternate.getItems();
+        List<Ilk.Key> these = link.getIlkKeys();
+        List<Ilk.Key> those = alternate.getIlkKeys();
         if (!these.get(0).equals(those.get(1)) || !these.get(1).equals(those.get(0)))
         {
             throw new IllegalArgumentException();
@@ -52,19 +54,19 @@ public class LinkBuilder
 
     public LinkBuilder alternate(Link alternate, int...fields)
     {
-        List<Item<?>> these = link.getItems();
-        List<Item<?>> those = link.getItems();
+        List<Ilk.Key> these = link.getIlkKeys();
+        List<Ilk.Key> those = link.getIlkKeys();
         if (these.size() != those.size())
         {
             throw new IllegalArgumentException();
         }
         if (fields.length == 0)
         {
-            Map<Item<?>, int[]> seen = new HashMap<Item<?>, int[]>(); 
+            Map<Ilk.Key, int[]> seen = new HashMap<Ilk.Key, int[]>(); 
             fields = new int[these.size()];
             for (int i = 0; i <  those.size(); i++)
             {
-                Item<?> item = those.get(i);
+                Ilk.Key item = those.get(i);
                 if (!seen.containsKey(item))
                 {
                     seen.put(item, new int[] { 0 });
