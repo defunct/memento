@@ -4,35 +4,44 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import com.goodworkalan.ilk.UncheckedCast;
+import com.goodworkalan.ilk.Ilk;
 
-
-public class IndexTable<T> implements Iterable<IndexMutator<T, ?>>
+// TODO Document.
+public class IndexTable<T> implements Iterable<Ilk.Pair>
 {
-    private final Map<Index<?>, IndexMutator<T, ?>> table = new HashMap<Index<?>, IndexMutator<T, ?>>();
+    // TODO Document.
+    private final Map<Index<?>, Ilk.Pair> table = new HashMap<Index<?>, Ilk.Pair>();
     
+    // TODO Document.
     private final BinTable bins;
     
+    // TODO Document.
     private final IndexSchemaTable<T> indexSchemas;
     
+    // TODO Document.
     public IndexTable(BinTable bins, IndexSchemaTable<T> indexSchemas)
     {
         this.bins = bins;
         this.indexSchemas = indexSchemas;
     }
     
+    // TODO Document.
     public <F extends Comparable<F>> IndexMutator<T, F> get(Index<F> index)
     {
-        IndexMutator<T, ?> object = table.get(index);
-        if (object == null)
+        IndexSchema<T, F> indexSchema = indexSchemas.get(index);
+        
+        Ilk<IndexMutator<T, F>> indexMutatorIlk = new Ilk<IndexMutator<T,F>>(indexSchema.getIlk().key, index.getIlk().key) { };
+        Ilk.Pair pair = table.get(index);
+        if (pair == null)
         {
-            object = new IndexMutator<T, F>(bins, indexSchemas.get(index));
-            table.put(index, object);
+            pair = indexMutatorIlk.pair(new IndexMutator<T, F>(bins, indexSchemas.get(index)));
+            table.put(index, pair);
         }
-        return new UncheckedCast<IndexMutator<T, F>>().cast(object);
+        return pair.cast(indexMutatorIlk);
     }
     
-    public Iterator<IndexMutator<T, ?>> iterator()
+    // TODO Document.
+    public Iterator<Ilk.Pair> iterator()
     {
         return table.values().iterator();
     }

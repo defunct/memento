@@ -5,16 +5,19 @@ import java.nio.ByteBuffer;
 
 import com.goodworkalan.fossil.RecordIO;
 
+// TODO Document.
 public class SnapshotRecordIO implements RecordIO<SnapshotRecord>, Serializable
 {
+    // TODO Document.
     private static final long serialVersionUID = 20090107L;
 
+    // TODO Document.
     public int getSize()
     {
-        // TODO Auto-generated method stub
-        return 0;
+        return (Long.SIZE + Integer.SIZE) / Byte.SIZE;
     }
     
+    // TODO Document.
     public void write(ByteBuffer bytes, SnapshotRecord object)
     {
         if (object == null)
@@ -29,6 +32,7 @@ public class SnapshotRecordIO implements RecordIO<SnapshotRecord>, Serializable
         }
     }
     
+    // TODO Document.
     public SnapshotRecord read(ByteBuffer bytes)
     {
         long version = bytes.getLong();

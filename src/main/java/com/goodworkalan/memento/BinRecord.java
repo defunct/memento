@@ -1,13 +1,18 @@
 package com.goodworkalan.memento;
 
+// TODO Document.
 final class BinRecord
 {
+    // TODO Document.
     public final long key;
 
+    // TODO Document.
     public final long version;
 
+    // TODO Document.
     public final long address;
 
+    // TODO Document.
     public BinRecord(long key, long version, long address)
     {
         this.key = key;
@@ -15,6 +20,7 @@ final class BinRecord
         this.address = address;
     }
 
+    // TODO Document.
     public boolean equals(Object object)
     {
         if (object instanceof BinRecord)
@@ -25,6 +31,7 @@ final class BinRecord
         return false;
     }
 
+    // TODO Document.
     public int hashCode()
     {
         int hashCode = 1;

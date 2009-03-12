@@ -28,9 +28,9 @@ public class Link
         return this;
     }
     
-    public <T> Link bin(Class<T> itemClass)
+    public <T> Link bin(Class<T> meta)
     {
-        ilkKeys.add(new Ilk.Key(itemClass));
+        ilkKeys.add(new Ilk.Key(meta));
         return this;
     }
     

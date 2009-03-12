@@ -4,24 +4,29 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.goodworkalan.ilk.Ilk;
-import com.goodworkalan.ilk.UncheckedCast;
 
+// TODO Document.
 public class BinSchemaTable
 {
-    private final Map<Object, Object> table = new HashMap<Object, Object>();
+    // TODO Document.
+    private final Map<Ilk.Key, Ilk.Pair> table = new HashMap<Ilk.Key, Ilk.Pair>();
     
+    // TODO Document.
     public <T> BinSchema<T> get(Ilk<T> ilk)
     {
-        Object object = table.get(ilk.key);
-        if (object == null)
+        Ilk<BinSchema<T>> schemaIlk = new Ilk<BinSchema<T>>(ilk.key) { };
+        
+        Ilk.Pair pair = table.get(ilk.key);
+        if (pair == null)
         {
             BinSchema<T> binSchema = new BinSchema<T>(ilk);
             binSchema.setItemIO(SerializationIO.getInstance(ilk));
-            table.put(ilk.key, binSchema);
+            table.put(ilk.key, schemaIlk.pair(binSchema));
         }
-        return new UncheckedCast<BinSchema<T>>().cast(object);
+        return pair.cast(schemaIlk);
     }
     
+    // TODO Document.
     public boolean has(Ilk.Key key)
     {
         return table.containsKey(key);

@@ -8,8 +8,10 @@ import com.goodworkalan.strata.ExtractorComparableFactory;
 import com.goodworkalan.strata.Query;
 import com.goodworkalan.strata.Schema;
 
+// TODO Document.
 public class BinTree
 {
+    // TODO Document.
     public Query<BinRecord> create(Mutator mutator)
     {
         Schema<BinRecord> schema = new Schema<BinRecord>();

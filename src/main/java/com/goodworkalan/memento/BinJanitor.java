@@ -8,23 +8,30 @@ import com.goodworkalan.strata.Cursor;
 import com.goodworkalan.strata.Query;
 import com.goodworkalan.strata.Strata;
 
+// TODO Document.
 public final class BinJanitor<T>
 implements Janitor
 {
+    // TODO Document.
     private static final long serialVersionUID = 20070826L;
 
+    // TODO Document.
     private final Strata<BinRecord> isolation;
 
+    /** The super type token of the objects stored in the bin. */
     private final Ilk<T> ilk;
     
+    // TODO Document.
     private IndexTable<T> indexes;
 
+    // TODO Document.
     public BinJanitor(Query<BinRecord> isolation, Ilk<T> ilk)
     {
         this.isolation = isolation.getStrata();
         this.ilk = ilk;
     }
 
+    // TODO Document.
     public void rollback(Snapshot snapshot)
     {
         Bin<T> bin = snapshot.bin(ilk);
@@ -32,15 +39,17 @@ implements Janitor
         while (cursor.hasNext())
         {
             BinRecord record =  cursor.next();
-            for (IndexMutator<T, ?> indexMutator : indexes)
+            for (Ilk.Pair pair : indexes)
             {
-                indexMutator.remove(bin.mutator, bin, record.key, record.version);
+                IndexMutator<T, ?> index = pair.cast(new Ilk<IndexMutator<T, ?>>(ilk.key) { });
+                index.remove(bin.mutator, bin, record.key, record.version);
             }
             bin.query.remove(bin.query.comparable(record));
         }
         cursor.release();
     }
 
+    // TODO Document.
     public void dispose(Mutator mutator, boolean deallocate)
     {
         Query<BinRecord> query = isolation.query(Fossil.initialize(new Stash(), mutator));

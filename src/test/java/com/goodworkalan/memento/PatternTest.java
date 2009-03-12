@@ -1,11 +1,13 @@
 package com.goodworkalan.memento;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 
 import java.io.File;
 
 import org.testng.annotations.Test;
 
+import com.goodworkalan.ilk.Ilk;
 import com.goodworkalan.memento.serializable.Address;
 import com.goodworkalan.memento.serializable.Author;
 import com.goodworkalan.memento.serializable.Book;
@@ -14,6 +16,34 @@ import com.goodworkalan.memento.serializable.Person;
 public class PatternTest
 {
     @Test
+    public void bin()
+    {
+        Store store = new Store(new FileStorage(new File("test.memento")));
+        
+        store.create();
+        
+        store.store(Person.class).end();
+        
+        Snapshot snapshot = store.newSnapshot();
+
+        Person person = new Person();
+        
+        person.setFirstName("Alan");
+        person.setLastName("Gutierrez");
+        person.setEmail("alan@blogometer.com");
+
+        long key = snapshot.bin(Person.class).add(person);
+        
+        snapshot.commit();
+        
+        snapshot = store.newSnapshot();
+        
+        person = snapshot.bin(Person.class).get(key);
+        
+        assertNotNull(person);
+        assertEquals(person.getLastName(), "Gutierrez");
+    }
+
     public void store() 
     {
         Person person = new Person();
@@ -24,7 +54,7 @@ public class PatternTest
             .store(Person.class)
                 .subclass(Author.class)
                 .io(SerializationIO.getInstance(Person.class))
-                .index(new Index<String>("email") {})
+                .index(new Ilk<String>() { }, "email")
                     .indexer(new Indexer<Person, String>()
                     {
                         public String index(Person object)
@@ -33,7 +63,7 @@ public class PatternTest
                         }
                     })
                     .end()
-                .index(new Index<Ordered>("lastNameFirst") {})
+                .index(new Ilk<Ordered>() { }, "lastNameFirst")
                     .indexer(new Indexer<Person, Ordered>()
                     {
                         public Ordered index(Person object)

@@ -21,25 +21,35 @@ import com.goodworkalan.strata.Cursor;
 import com.goodworkalan.strata.Query;
 
 // FIXME Vacuum.
+// TODO Document.
 public final class Bin<T>
 {
+    // TODO Document.
     final Mutator mutator;
 
+    // TODO Document.
     private final Snapshot snapshot;
 
+    // TODO Document.
     private final BinSchema<T> binSchema;
 
+    // TODO Document.
     private final IndexTable<T> indexes;
     
+    // TODO Document.
     final Query<BinRecord> query;
 
+    // TODO Document.
     private final Query<BinRecord> isolation;
     
+    // TODO Document.
     private final WeakIdentityLookup outstandingKeys;
     
+    // TODO Document.
     private final WeakHashMap<Long, Box<T>> outstandingValues; 
 
-    public Bin(Storage storage, Snapshot snapshot, Mutator mutator, BinSchema<T> schema, IndexTable<T> indexes, Map<Long, Janitor> janitors)
+    // TODO Document.
+    public Bin(PackFactory storage, Snapshot snapshot, Mutator mutator, BinSchema<T> schema, IndexTable<T> indexes, Map<Long, Janitor> janitors)
     {
 //        BinStorage binStorage = storage.open(schema.getItem());
         query = schema.getStrata().query(Fossil.newStash(mutator));
@@ -70,21 +80,25 @@ public final class Bin<T>
         this.outstandingValues = new WeakHashMap<Long, Box<T>>();
     }
     
+    // TODO Document.
     public List<T> getAll()
     {
         return Collections.emptyList();
     }
     
+    // TODO Document.
     BinSchema<T> getBinSchema()
     {
         return binSchema;
     }
     
+    // TODO Document.
     IndexTable<T> getIndexes()
     {
         return indexes;
     }
 
+    // TODO Document.
     public void restore(long key, T object)
     {
         Box<T> box = new Box<T>(key, snapshot.getVersion(), object);
@@ -92,6 +106,7 @@ public final class Bin<T>
         binSchema.setIdentifierIf(key);
     }
 
+    // TODO Document.
     private void insert(Box<T> box)
     {
         PackOutputStream allocation = new PackOutputStream(mutator);
@@ -118,6 +133,7 @@ public final class Bin<T>
 //        }
     }
 
+    // TODO Document.
     public long add(T item)
     {
         Box<T> box = new Box<T>(binSchema.nextIdentifier(), snapshot.getVersion(), item);
@@ -127,11 +143,13 @@ public final class Bin<T>
         return box.getKey();
     }
 
+    // TODO Document.
     private static boolean isDeleted(BinRecord record)
     {
         return record.address == Pack.NULL_ADDRESS;
     }
 
+    // TODO Document.
     private BinRecord record(Long key)
     {
         BinRecord record = isolation.remove(new BinKeyComparable(key));
@@ -150,6 +168,7 @@ public final class Bin<T>
         return record;
     }
     
+    // TODO Document.
     public long update(T item)
     {
         Long key = outstandingKeys.get(item);
@@ -162,6 +181,7 @@ public final class Bin<T>
         return update(key, item).getKey();
     }
     
+    // TODO Document.
     public long replace(T then, T now)
     {
         Long key = outstandingKeys.get(then);
@@ -174,6 +194,7 @@ public final class Bin<T>
         return update(key, now).getKey();
     }
 
+    // TODO Document.
     public Box<T> update(long key, T item)
     {
         BinRecord record = record(key);
@@ -200,6 +221,7 @@ public final class Bin<T>
         return box;
     }
 
+    // TODO Document.
     public void delete(T item)
     {
         long key = key(item);
@@ -210,6 +232,7 @@ public final class Bin<T>
         delete(key);
     }
 
+    // TODO Document.
     public void delete(long key)
     {
         BinRecord record = record(key);
@@ -225,6 +248,7 @@ public final class Bin<T>
         }
     }
 
+    // TODO Document.
     private BinRecord getVersion(Cursor<BinRecord> cursor, Long key, Long version)
     {
         BinRecord candidate = null;
@@ -244,6 +268,7 @@ public final class Bin<T>
         return candidate;
     }
 
+    // TODO Document.
     private BinRecord get(Cursor<BinRecord> cursor, Long key, boolean isolated)
     {
         BinRecord candidate = null;
@@ -267,6 +292,7 @@ public final class Bin<T>
         return candidate;
     }
 
+    // TODO Document.
     private Box<T> unmarshall(BinRecord record)
     {
         ByteBuffer block = mutator.read(record.address);
@@ -274,6 +300,7 @@ public final class Bin<T>
         return new Box<T>(record.key, record.version, item);
     }
 
+    // TODO Document.
     private BinRecord getRecord(Long key)
     {
         BinRecord stored = get(query.find(new BinKeyComparable(key)), key, false);
@@ -289,6 +316,7 @@ public final class Bin<T>
         return null;
     }
 
+    // TODO Document.
     private BinRecord getRecord(Long key, Long version)
     {
         BinRecord stored = getVersion(query.find(new BinKeyComparable(key)), key, version);
@@ -304,6 +332,7 @@ public final class Bin<T>
         return null;
     }
 
+    // TODO Document.
     public T get(long key)
     { 
         Box<T> box = box(key);
@@ -314,6 +343,7 @@ public final class Bin<T>
         return box.getItem();
     }
 
+    // TODO Document.
     public long key(T item)
     {
         Long key = outstandingKeys.get(item);
@@ -324,6 +354,7 @@ public final class Bin<T>
         return key;
     }
 
+    // TODO Document.
     public Box<T> box(long key)
     {
         Box<T> box = outstandingValues.get(key);
@@ -339,12 +370,14 @@ public final class Bin<T>
         return box;
     }
 
+    // TODO Document.
     private Box<T> readBox(Long key)
     {
         BinRecord record = getRecord(key);
         return record == null ? null : unmarshall(record);
     }
 
+    // TODO Document.
     public Box<T> box(Long key, Long version)
     {
         Box<T> box = box(key);
@@ -357,6 +390,7 @@ public final class Bin<T>
     }
 
     // FIXME Call this somewhere somehow.
+    // TODO Document.
     void copacetic()
     {
         Set<Long> seen = new HashSet<Long>();
@@ -372,10 +406,12 @@ public final class Bin<T>
         }
     }
 
+    // TODO Document.
     void flush()
     {
     }
 
+    // TODO Document.
     void commit()
     {
         Cursor<BinRecord> isolated = isolation.first();
@@ -418,17 +454,20 @@ public final class Bin<T>
             throw new MementoException(110);
         }
 
-        for (IndexMutator<T, ?> index : indexes)
+        for (Ilk.Pair pair : indexes)
         {
+            IndexMutator<T, ?> index = pair.cast(new Ilk<IndexMutator<T, ?>>(binSchema.getIlk().key) { });
             index.commit(snapshot, mutator, this);
         }
     }
 
+    // TODO Document.
     public <F extends Comparable<F>> IndexCursor<T, F>  find(Index<F> index, F field)
     {
         return indexes.get(index).find(snapshot, mutator, this, field, false);
     }
 
+    // TODO Document.
     public <F extends Comparable<F>> IndexCursor<T, F> first(Index<F> index)
     {
         IndexMutator<T, F> indexMutator = indexes.get(index);
@@ -440,11 +479,13 @@ public final class Bin<T>
         return indexMutator.first(snapshot, mutator, this);
     }
 
+    // TODO Document.
     public BinCursor<T> first()
     {
         return new BinCursor<T>(snapshot, mutator, isolation.first(), binSchema.getStrata().query(Fossil.initialize(new Stash(), mutator)).first(), binSchema.getItemIO());
     }
     
+    // TODO Document.
     public <O> JoinAdd<O> join(T object, Class<O> other)
     {
         return new JoinAdd<O>(snapshot.join(new Link().bin(binSchema.getIlk()).bin(other)), new Ilk<O>(other));

@@ -4,49 +4,84 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import com.goodworkalan.ilk.Ilk;
-import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.strata.Cursor;
 import com.goodworkalan.strata.Query;
 
-
+// TODO Document.
 public class Store
 {
-    private final static Integer OPERATING = new Integer(1);
+    /** A snapshot record state for snapshots in progress. */
+    final static int OPERATING = 1;
 
-    final static Integer COMMITTED = new Integer(2);
-
+    /**  A snapshot record state for committed snapshots. */
+    final static int COMMITTED = 2;
+    
     private final BinSchemaTable binSchemas = new BinSchemaTable();
 
     private final JoinSchemaTable joinSchemas = new JoinSchemaTable();
     
-    private final Storage storage;
+    /** The storage strategy. */
+    private final PackFactory storage;
     
-    public Store(Storage storage)
+    /**
+     * Create a store with the given storage strategy.
+     * 
+     * @param storage The storage strategy.
+     */
+    public Store(PackFactory storage)
     {
         this.storage = storage;
     }
     
+    // TODO Document.
+    public void create()
+    {
+        storage.create();
+    }
+
+    /**
+     * Create a bin builder that will store objects of the given class.
+     * 
+     * @param <T>
+     *            The type of object to store.
+     * @param meta
+     *            The class of the objects to store in the bin.
+     * @return Return a bin builder.
+     */
     public <T> BinBuilder<T> store(Class<T> meta)
     {
         return new BinBuilder<T>(this, binSchemas, new Ilk<T>(meta));
     }
-    
+
+    /**
+     * Create a bin builder that will store objects of the type of the given
+     * super type token.
+     * 
+     * @param <T>
+     *            The type of object to store.
+     * @param ilk
+     *            The super type token of the objects to store in the bin.
+     * @return Return a bin builder.
+     */
     public <T> BinBuilder<T> store(Ilk<T> ilk)
     {
         return new BinBuilder<T>(this, binSchemas, ilk);
     }
     
+    // TODO Document.
     public LinkBuilder link(Link link)
     {
         return new LinkBuilder(joinSchemas, this, link);
     }
 
+    // TODO Document.
     public Snapshot newSnapshot()
     {
         Long version = new Long(System.currentTimeMillis());
         SnapshotRecord newSnapshot = new SnapshotRecord(version, OPERATING);
 
-        Query<SnapshotRecord> query = storage.newSnapshotQuery();
+        // FIXME Broken.
+        Query<SnapshotRecord> query = storage.getSnapshots().getStrata().query();
         Cursor<SnapshotRecord> versions = query.first();
         Set<Long> setOfCommitted = new TreeSet<Long>();
         while (versions.hasNext())
@@ -61,7 +96,7 @@ public class Store
 
         query.add(newSnapshot);
 
-        query.getStash().get(Storage.MUTATOR, Mutator.class).commit();
+//        query.getStash().get(Storage.MUTATOR, Mutator.class).commit();
 
         return new Snapshot(storage, null, setOfCommitted, version);
     }
@@ -90,6 +125,7 @@ public class Store
         return compare == 0 ? partial.length - full.length : compare;
     }
     
+    // TODO Document.
     public void end()
     {
     }

@@ -8,42 +8,46 @@ import java.io.OutputStream;
 
 import com.goodworkalan.ilk.Ilk;
 
+// TODO Document.
 public class SerializationIO<T> implements ItemIO<T>
 {
-    private final Caster<T> itemClass;
+    // TODO Document.
+    private final Ilk<T> ilk;
     
-    protected SerializationIO(Caster<T> itemClass)
+    // TODO Document.
+    protected SerializationIO(Ilk<T> ilk)
     {
-        this.itemClass = itemClass;
+        this.ilk = ilk;
     }
 
+    // TODO Document.
+    public static <Type> SerializationIO<Type> getInstance(Class<Type> itemClass)
+    {
+        return new SerializationIO<Type>(new Ilk<Type>(itemClass));
+    }
+    
+    // TODO Document.
+    public static <Type> SerializationIO<Type> getInstance(Ilk<Type> ilk)
+    {
+        return new SerializationIO<Type>(ilk);
+    }
+
+    // TODO Document.
     public void write(OutputStream out, T object)
     {
         try
         {
-            new ObjectOutputStream(out).writeObject(object);
+            ObjectOutputStream oos = new ObjectOutputStream(out);
+            oos.writeObject(ilk.pair(object));
+            oos.flush();
         }
         catch (IOException e)
         {
-            throw new MementoException(113, e);
+            throw new MementoException(MementoException.BOGUS_EXCEPTION_THROWN_BY_LOSER_BOY, e);
         }
     }
-    
-    public static <Type> SerializationIO<Type> getInstance(Class<Type> itemClass)
-    {
-        return new SerializationIO<Type>(new ClassCaster<Type>(itemClass));
-    }
-    
-    public static <Type> SerializationIO<Type> getInstance(Ilk<Type> itemClass)
-    {
-        return null /* new SerializationIO<Type>(new UncheckedCast<Type>()) */;
-    }
 
-    static <Type> SerializationIO<Type> getInstance(Caster<Type> itemClass)
-    {
-        return new SerializationIO<Type>(itemClass);
-    }
-
+    // TODO Document.
     public T read(InputStream in)
     {
         Object object;
@@ -55,6 +59,10 @@ public class SerializationIO<T> implements ItemIO<T>
         {
             throw new MementoException(114, e);
         }
-        return itemClass.cast(object);
+        if (object instanceof Ilk.Pair)
+        {
+            return ((Ilk.Pair) object).cast(ilk);
+        }
+        throw new MementoException(MementoException.BOGUS_EXCEPTION_THROWN_BY_LOSER_BOY);
     }
 }

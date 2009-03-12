@@ -12,13 +12,13 @@ implements Janitor
 {
     private static final long serialVersionUID = 1L;
 
-    private final Storage storage;
+    private final PackFactory storage;
 
     private final Link link;
     
     private final Strata<JoinRecord> isolation;
 
-    public JoinJanitor(Storage storage, Link link, Strata<JoinRecord> isolation)
+    public JoinJanitor(PackFactory storage, Link link, Strata<JoinRecord> isolation)
     {
         this.storage = storage;
         this.link = link;
@@ -28,7 +28,7 @@ implements Janitor
     public void rollback(Snapshot snapshot)
     {
         // FIXME Who gives me a mutator?
-        Query<JoinRecord> common = storage.open(link).getStrata().query(Fossil.initialize(new Stash(), null));
+        Query<JoinRecord> common = storage.getJoin(link).getStrata().query(Fossil.initialize(new Stash(), null));
         
         Cursor<JoinRecord> cursor = isolation.query().first();
         while (cursor.hasNext())

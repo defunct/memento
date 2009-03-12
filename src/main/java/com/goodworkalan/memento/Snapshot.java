@@ -9,35 +9,41 @@ import com.goodworkalan.ilk.Ilk;
 import com.goodworkalan.pack.Mutator;
 import com.goodworkalan.stash.Stash;
 import com.goodworkalan.strata.Query;
-import com.goodworkalan.strata.Strata;
 
+// TODO Document.
 public final class Snapshot
 {
-    private final Strata<SnapshotRecord> snapshots;
+    // TODO Document.
+    private final PackStrata<SnapshotRecord> snapshots;
     
 //    private final Storage storage;
 
+    // TODO Document.
     private final Map<Long, Janitor> mapOfJanitors;
 
+    // TODO Document.
     private final Set<Long> setOfCommitted;
 
+    // TODO Document.
     private final Mutator mutator;
 
+    // TODO Document.
     private final Long version;
 
+    // TODO Document.
     private final Long oldest;
 
+    // TODO Document.
     private boolean spent;
     
+    // TODO Document.
     private final BinTable bins = null;
     
+    // TODO Document.
     private final JoinTable joins;
 
-    public Snapshot(Storage storage,
-                    Mutator mutator,
-                    Set<Long> setOfCommitted,
-                    Long version
-                    )
+    // TODO Document.
+    public Snapshot(PackFactory storage, Mutator mutator, Set<Long> setOfCommitted, Long version)
     {
 //        this.storage = storage;
         this.snapshots = storage.getSnapshots();
@@ -49,26 +55,31 @@ public final class Snapshot
         this.joins = new JoinTable(storage, this, mutator, null);
     }
     
+    // TODO Document.
     public <T> Bin<T> bin(Ilk<T> ilk)
     {
         return bins.get(ilk);
     }
 
+    // TODO Document.
     public <T> Bin<T> bin(Class<T> itemClass)
     {
         return bins.get(new Ilk<T>(itemClass) {});
     }
     
+    // TODO Document.
     public JoinBuilder join(Link link)
     {
         return null;
     }
 
+    // TODO Document.
     public Long getVersion()
     {
         return version;
     }
 
+    // TODO Document.
     public boolean isVisible(Long version)
     {
         if (oldest.compareTo(version) >= 0)
@@ -82,6 +93,7 @@ public final class Snapshot
         return false;
     }
 
+    // TODO Document.
     public void commit()
     {
         if (spent)
@@ -91,9 +103,9 @@ public final class Snapshot
 
         spent = true;
         
-        for (Bin<?> bin : bins)
+        for (Ilk.Pair pair : bins)
         {
-            bin.flush();
+            ((Bin <?>) pair.getObject()).flush();
         }
 
         for (Join join : joins)
@@ -103,9 +115,9 @@ public final class Snapshot
 
         try
         {
-            for (Bin<?> bin : bins)
+            for (Ilk.Pair pair : bins)
             {
-                bin.commit();
+                ((Bin <?>) pair.getObject()).commit();
             }
 
             for (Join join : joins)
@@ -125,7 +137,7 @@ public final class Snapshot
 
             mutator.commit();
 
-            Query<SnapshotRecord> query = snapshots.query(Fossil.initialize(new Stash(), mutator));
+            Query<SnapshotRecord> query = snapshots.getStrata().query(Fossil.initialize(new Stash(), mutator));
             
             query.remove(new SnapshotVersionComparable(version));
 
@@ -138,7 +150,7 @@ public final class Snapshot
             entry.getValue().dispose(mutator, false);
         }
 
-        Query<SnapshotRecord> query = snapshots.query(Fossil.initialize(new Stash(), mutator));
+        Query<SnapshotRecord> query = snapshots.getStrata().query(Fossil.newStash(mutator));
 
         SnapshotRecord committed = new SnapshotRecord(version, Store.COMMITTED);
         query.add(committed);
@@ -158,7 +170,7 @@ public final class Snapshot
                 entry.getValue().dispose(mutator, true);
             }
 
-            Query<SnapshotRecord> query = snapshots.query(Fossil.initialize(new Stash(), mutator));
+            Query<SnapshotRecord> query = snapshots.getStrata().query(Fossil.initialize(new Stash(), mutator));
 
             query.remove(new SnapshotVersionComparable(version));
         }

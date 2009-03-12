@@ -14,7 +14,7 @@ import com.goodworkalan.strata.Strata;
 
 public final class Join
 {
-    private final Storage storage;
+    private final PackFactory storage;
     
     private final Snapshot snapshot;
 
@@ -24,7 +24,7 @@ public final class Join
 
     private final Map<Link, Strata<JoinRecord>> isolation;
 
-    public Join(Storage storage, Snapshot snapshot, Mutator mutator, JoinSchema joinSchema, List<Janitor> janitors)
+    public Join(PackFactory storage, Snapshot snapshot, Mutator mutator, JoinSchema joinSchema, List<Janitor> janitors)
     {
         Map<Link, Strata<JoinRecord>> isolation = new HashMap<Link, Strata<JoinRecord>>();
 

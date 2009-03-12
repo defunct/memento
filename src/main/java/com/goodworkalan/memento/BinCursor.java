@@ -8,27 +8,38 @@ import com.goodworkalan.pack.Pack;
 import com.goodworkalan.pack.io.ByteBufferInputStream;
 import com.goodworkalan.strata.Cursor;
 
+// TODO Document.
 public class BinCursor<T>
 implements Iterator<Box<T>>
 {
+    // TODO Document.
     private final Snapshot snapshot;
 
+    // TODO Document.
     private final Mutator mutator;
 
+    // TODO Document.
     private final Cursor<BinRecord> isolation;
 
+    // TODO Document.
     private final Cursor<BinRecord> common;
 
+    // TODO Document.
     private final ItemIO<T> io;
 
+    // TODO Document.
     private Box<T> nextIsolated;
 
+    // TODO Document.
     private Box<T> nextCommon;
 
+    // TODO Document.
     private BinRecord[] firstIsolated;
 
+    // TODO Document.
     private BinRecord[] firstCommon;
 
+    // TODO Document.
     public BinCursor(Snapshot snapshot, Mutator mutator, Cursor<BinRecord> isolation, Cursor<BinRecord> common, ItemIO<T> io)
     {
         this.snapshot = snapshot;
@@ -42,11 +53,13 @@ implements Iterator<Box<T>>
         this.nextCommon = next(common, firstCommon, false);
     }
 
+    // TODO Document.
     public boolean hasNext()
     {
         return !(nextIsolated == null && nextCommon == null);
     }
 
+    // TODO Document.
     private Box<T> next(Cursor<BinRecord> cursor, BinRecord[] first, boolean isolated)
     {
         while (first[0] == null && cursor.hasNext())
@@ -94,6 +107,7 @@ implements Iterator<Box<T>>
         return new Box<T>(candidate.key, candidate.version, io.read(new ByteBufferInputStream(block)));
     }
 
+    // TODO Document.
     public Box<T> nextBag()
     {
         Box<T> next = null;
@@ -133,16 +147,19 @@ implements Iterator<Box<T>>
         return next;
     }
 
+    // TODO Document.
     public Box<T> next()
     {
         return nextBag();
     }
 
+    // TODO Document.
     public void remove()
     {
         throw new UnsupportedOperationException();
     }
 
+    // TODO Document.
     public void release()
     {
         isolation.release();

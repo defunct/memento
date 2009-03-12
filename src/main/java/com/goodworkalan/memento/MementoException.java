@@ -9,7 +9,11 @@ public class MementoException extends RuntimeException
 {
     private final static long serialVersionUID = 1L;
     
-    protected final List<Object> listOfArguments = new ArrayList<Object>(); 
+    protected final List<Object> listOfArguments = new ArrayList<Object>();
+    
+    public final static int BOGUS_EXCEPTION_THROWN_BY_LOSER_BOY = 0;
+    
+    public final static int FILE_NOT_FOUND_EXCEPTION = 101;
     
     private final int code;
     
@@ -39,7 +43,7 @@ public class MementoException extends RuntimeException
     public String getMessage()
     {
         String key = Integer.toString(code);
-        ResourceBundle exceptions = ResourceBundle.getBundle("com.goodworkalan.dspl.exceptions");
+        ResourceBundle exceptions = ResourceBundle.getBundle("com.goodworkalan.memento.exceptions");
         String format;
         try
         {

@@ -12,7 +12,7 @@ public class JoinTable implements Iterable<Join>
 {
     private final Map<Link, Join> table = new HashMap<Link, Join>();
     
-    private final Storage storage;
+    private final PackFactory storage;
 
     private final Snapshot snapshot;
     
@@ -22,7 +22,7 @@ public class JoinTable implements Iterable<Join>
     
     private final List<Janitor> janitors = new ArrayList<Janitor>();
     
-    public JoinTable(Storage storage, Snapshot snapshot, Mutator mutator, JoinSchemaTable joinSchemas)
+    public JoinTable(PackFactory storage, Snapshot snapshot, Mutator mutator, JoinSchemaTable joinSchemas)
     {
         this.storage = storage;
         this.snapshot = snapshot;

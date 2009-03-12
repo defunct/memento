@@ -3,27 +3,33 @@ package com.goodworkalan.memento;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.goodworkalan.ilk.UncheckedCast;
+import com.goodworkalan.ilk.Ilk;
 
+// TODO Document.
 public class IndexSchemaTable<T>
 {
-    private final Map<Object, IndexSchema<T, ?>> table = new HashMap<Object, IndexSchema<T, ?>>();
+    // TODO Document.
+    private final Map<Index<?>, Ilk.Pair> table = new HashMap<Index<?>, Ilk.Pair>();
     
+    // TODO Document.
     private final BinSchema<T> binSchema;
     
+    // TODO Document.
     public IndexSchemaTable(BinSchema<T> binSchema)
     {
         this.binSchema = binSchema;
     }
 
+    // TODO Document.
     public <F extends Comparable<? super F>> IndexSchema<T, F> get(Index<F> index)
     {
-        IndexSchema<T, ?> indexSchema = table.get(index);
-        if (indexSchema == null)
+        Ilk<IndexSchema<T, F>> indexSchemaIlk = new Ilk<IndexSchema<T,F>>(binSchema.getIlk().key, index.getIlk().key) { };
+        Ilk.Pair pair = table.get(index);
+        if (pair == null)
         {
-            indexSchema = new IndexSchema<T, F>(binSchema.getIlk(), index);
-            table.put(index, indexSchema);
+            pair = indexSchemaIlk.pair(new IndexSchema<T, F>(binSchema.getIlk(), index));
+            table.put(index, pair);
         }
-        return new UncheckedCast<IndexSchema<T, F>>().cast(indexSchema); 
+        return pair.cast(indexSchemaIlk);
     }
 }

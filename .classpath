@@ -4,6 +4,7 @@
 	<classpathentry kind="src" output="target/test-classes" path="src/test/java"/>
 	<classpathentry excluding="**/*.java" kind="src" output="target/test-classes" path="src/test/resources"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/ilk"/>
 	<classpathentry kind="var" path="M2_REPO/junit/junit/4.4/junit-4.4.jar" sourcepath="M2_REPO/junit/junit/4.4/junit-4.4-sources.jar">
 		<attributes>
 			<attribute name="javadoc_location" value="jar:file:/Users/alan/.m2/repository/junit/junit/4.4/junit-4.4-javadoc.jar!/"/>
@@ -22,7 +23,6 @@
 	</classpathentry>
 	<classpathentry combineaccessrules="false" kind="src" path="/fossil"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/strata"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/ilk"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/pack"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/pack-io"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/sheaf"/>
