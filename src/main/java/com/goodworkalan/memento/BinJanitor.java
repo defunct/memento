@@ -39,9 +39,9 @@ implements Janitor
         while (cursor.hasNext())
         {
             BinRecord record =  cursor.next();
-            for (Ilk.Pair pair : indexes)
+            for (Ilk.Box box : indexes)
             {
-                IndexMutator<T, ?> index = pair.cast(new Ilk<IndexMutator<T, ?>>(ilk.key) { });
+                IndexMutator<T, ?> index = box.cast(new Ilk<IndexMutator<T, ?>>(ilk.key) { });
                 index.remove(bin.mutator, bin, record.key, record.version);
             }
             bin.query.remove(bin.query.comparable(record));

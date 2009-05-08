@@ -9,21 +9,21 @@ import com.goodworkalan.ilk.Ilk;
 public class BinSchemaTable
 {
     // TODO Document.
-    private final Map<Ilk.Key, Ilk.Pair> table = new HashMap<Ilk.Key, Ilk.Pair>();
+    private final Map<Ilk.Key, Ilk.Box> table = new HashMap<Ilk.Key, Ilk.Box>();
     
     // TODO Document.
     public <T> BinSchema<T> get(Ilk<T> ilk)
     {
         Ilk<BinSchema<T>> schemaIlk = new Ilk<BinSchema<T>>(ilk.key) { };
         
-        Ilk.Pair pair = table.get(ilk.key);
-        if (pair == null)
+        Ilk.Box box = table.get(ilk.key);
+        if (box == null)
         {
             BinSchema<T> binSchema = new BinSchema<T>(ilk);
             binSchema.setItemIO(SerializationIO.getInstance(ilk));
-            table.put(ilk.key, schemaIlk.pair(binSchema));
+            table.put(ilk.key, schemaIlk.box(binSchema));
         }
-        return pair.cast(schemaIlk);
+        return box.cast(schemaIlk);
     }
     
     // TODO Document.

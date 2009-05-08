@@ -9,7 +9,7 @@ import com.goodworkalan.ilk.Ilk;
 public class IndexSchemaTable<T>
 {
     // TODO Document.
-    private final Map<Index<?>, Ilk.Pair> table = new HashMap<Index<?>, Ilk.Pair>();
+    private final Map<Index<?>, Ilk.Box> table = new HashMap<Index<?>, Ilk.Box>();
     
     // TODO Document.
     private final BinSchema<T> binSchema;
@@ -24,12 +24,12 @@ public class IndexSchemaTable<T>
     public <F extends Comparable<? super F>> IndexSchema<T, F> get(Index<F> index)
     {
         Ilk<IndexSchema<T, F>> indexSchemaIlk = new Ilk<IndexSchema<T,F>>(binSchema.getIlk().key, index.getIlk().key) { };
-        Ilk.Pair pair = table.get(index);
-        if (pair == null)
+        Ilk.Box box = table.get(index);
+        if (box == null)
         {
-            pair = indexSchemaIlk.pair(new IndexSchema<T, F>(binSchema.getIlk(), index));
-            table.put(index, pair);
+            box = indexSchemaIlk.box(new IndexSchema<T, F>(binSchema.getIlk(), index));
+            table.put(index, box);
         }
-        return pair.cast(indexSchemaIlk);
+        return box.cast(indexSchemaIlk);
     }
 }

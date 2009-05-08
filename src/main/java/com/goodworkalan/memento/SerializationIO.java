@@ -38,7 +38,7 @@ public class SerializationIO<T> implements ItemIO<T>
         try
         {
             ObjectOutputStream oos = new ObjectOutputStream(out);
-            oos.writeObject(ilk.pair(object));
+            oos.writeObject(ilk.box(object));
             oos.flush();
         }
         catch (IOException e)
@@ -59,9 +59,9 @@ public class SerializationIO<T> implements ItemIO<T>
         {
             throw new MementoException(114, e);
         }
-        if (object instanceof Ilk.Pair)
+        if (object instanceof Ilk.Box)
         {
-            return ((Ilk.Pair) object).cast(ilk);
+            return ((Ilk.Box) object).cast(ilk);
         }
         throw new MementoException(MementoException.BOGUS_EXCEPTION_THROWN_BY_LOSER_BOY);
     }

@@ -7,10 +7,10 @@ import java.util.Map;
 import com.goodworkalan.ilk.Ilk;
 
 // TODO Document.
-public class IndexTable<T> implements Iterable<Ilk.Pair>
+public class IndexTable<T> implements Iterable<Ilk.Box>
 {
     // TODO Document.
-    private final Map<Index<?>, Ilk.Pair> table = new HashMap<Index<?>, Ilk.Pair>();
+    private final Map<Index<?>, Ilk.Box> table = new HashMap<Index<?>, Ilk.Box>();
     
     // TODO Document.
     private final BinTable bins;
@@ -31,17 +31,17 @@ public class IndexTable<T> implements Iterable<Ilk.Pair>
         IndexSchema<T, F> indexSchema = indexSchemas.get(index);
         
         Ilk<IndexMutator<T, F>> indexMutatorIlk = new Ilk<IndexMutator<T,F>>(indexSchema.getIlk().key, index.getIlk().key) { };
-        Ilk.Pair pair = table.get(index);
+        Ilk.Box pair = table.get(index);
         if (pair == null)
         {
-            pair = indexMutatorIlk.pair(new IndexMutator<T, F>(bins, indexSchemas.get(index)));
+            pair = indexMutatorIlk.box(new IndexMutator<T, F>(bins, indexSchemas.get(index)));
             table.put(index, pair);
         }
         return pair.cast(indexMutatorIlk);
     }
     
     // TODO Document.
-    public Iterator<Ilk.Pair> iterator()
+    public Iterator<Ilk.Box> iterator()
     {
         return table.values().iterator();
     }

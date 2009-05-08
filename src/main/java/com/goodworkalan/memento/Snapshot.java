@@ -103,9 +103,9 @@ public final class Snapshot
 
         spent = true;
         
-        for (Ilk.Pair pair : bins)
+        for (Ilk.Box box : bins)
         {
-            ((Bin <?>) pair.getObject()).flush();
+            ((Bin <?>) box.getObject()).flush();
         }
 
         for (Join join : joins)
@@ -115,9 +115,9 @@ public final class Snapshot
 
         try
         {
-            for (Ilk.Pair pair : bins)
+            for (Ilk.Box box : bins)
             {
-                ((Bin <?>) pair.getObject()).commit();
+                ((Bin <?>) box.getObject()).commit();
             }
 
             for (Join join : joins)

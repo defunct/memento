@@ -8,10 +8,10 @@ import com.goodworkalan.ilk.Ilk;
 import com.goodworkalan.pack.Mutator;
 
 // TODO Document.
-public class BinTable implements Iterable<Ilk.Pair>
+public class BinTable implements Iterable<Ilk.Box>
 {
     // TODO Document.
-    private final Map<Ilk.Key, Ilk.Pair> table = new HashMap<Ilk.Key, Ilk.Pair>();
+    private final Map<Ilk.Key, Ilk.Box> table = new HashMap<Ilk.Key, Ilk.Box>();
     
     // TODO Document.
     private final Snapshot snapshot;
@@ -38,19 +38,19 @@ public class BinTable implements Iterable<Ilk.Pair>
     public <T> Bin<T> get(Ilk<T> ilk)
     {
         Ilk<Bin<T>> binIlk = new Ilk<Bin<T>>(ilk.key) { };
-        Ilk.Pair pair = table.get(ilk.key);
-        if (pair == null)
+        Ilk.Box box = table.get(ilk.key);
+        if (box == null)
         {
             BinSchema<T> binSchema = binSchemas.get(ilk);
             IndexTable<T> indexes = new IndexTable<T>(this, binSchema.getIndexSchemas());
-            pair = binIlk.pair(new Bin<T>(null, snapshot, mutator, binSchemas.get(ilk), indexes, janitors));
-            table.put(ilk.key, pair);
+            box = binIlk.box(new Bin<T>(null, snapshot, mutator, binSchemas.get(ilk), indexes, janitors));
+            table.put(ilk.key, box);
         }
-        return pair.cast(binIlk);
+        return box.cast(binIlk);
     }
     
     // TODO Document.
-    public Iterator<Ilk.Pair> iterator()
+    public Iterator<Ilk.Box> iterator()
     {
         return table.values().iterator();
     }

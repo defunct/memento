@@ -454,9 +454,9 @@ public final class Bin<T>
             throw new MementoException(110);
         }
 
-        for (Ilk.Pair pair : indexes)
+        for (Ilk.Box box : indexes)
         {
-            IndexMutator<T, ?> index = pair.cast(new Ilk<IndexMutator<T, ?>>(binSchema.getIlk().key) { });
+            IndexMutator<T, ?> index = box.cast(new Ilk<IndexMutator<T, ?>>(binSchema.getIlk().key) { });
             index.commit(snapshot, mutator, this);
         }
     }
