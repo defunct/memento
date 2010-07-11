@@ -1,5 +1,6 @@
 package com.goodworkalan.memento;
 
+import java.lang.reflect.TypeVariable;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -37,7 +38,7 @@ public class BinTable implements Iterable<Ilk.Box>
     // TODO Document.
     public <T> Bin<T> get(Ilk<T> ilk)
     {
-        Ilk<Bin<T>> binIlk = new Ilk<Bin<T>>(ilk.key) { };
+        Ilk<Bin<T>> binIlk = new Ilk<Bin<T>>() { }.assign((TypeVariable<?>) new Ilk<T>() {}.key.type, ilk.key.type);
         Ilk.Box box = table.get(ilk.key);
         if (box == null)
         {

@@ -55,7 +55,7 @@ public class WeakIdentityLookup
     }
     
     // TODO Document.
-    private final static class SearchKey
+    final static class SearchKey
     {
         // TODO Document.
         public final Object referant;

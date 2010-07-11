@@ -1,5 +1,6 @@
 package com.goodworkalan.memento;
 
+import java.lang.reflect.TypeVariable;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -30,7 +31,10 @@ public class IndexTable<T> implements Iterable<Ilk.Box>
     {
         IndexSchema<T, F> indexSchema = indexSchemas.get(index);
         
-        Ilk<IndexMutator<T, F>> indexMutatorIlk = new Ilk<IndexMutator<T,F>>(indexSchema.getIlk().key, index.getIlk().key) { };
+        Ilk<IndexMutator<T, F>> indexMutatorIlk = new Ilk<IndexMutator<T,F>>() {}
+        .assign((TypeVariable<?>) new Ilk<T>() {}.key.type, 
+        indexSchema.getIlk().key.type).assign( (TypeVariable<?>) new Ilk<T>() {}.key.type,
+                index.getIlk().key.type);
         Ilk.Box pair = table.get(index);
         if (pair == null)
         {

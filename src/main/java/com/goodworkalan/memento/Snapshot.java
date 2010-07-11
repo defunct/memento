@@ -50,7 +50,7 @@ public final class Snapshot
         this.mutator = mutator;
         this.version = version;
         this.setOfCommitted = setOfCommitted;
-        this.oldest = (Long) setOfCommitted.iterator().next();
+        this.oldest = setOfCommitted.iterator().next();
         this.mapOfJanitors = new HashMap<Long, Janitor>();
         this.joins = new JoinTable(storage, this, mutator, null);
     }
@@ -105,7 +105,7 @@ public final class Snapshot
         
         for (Ilk.Box box : bins)
         {
-            ((Bin <?>) box.getObject()).flush();
+            ((Bin <?>) box.object).flush();
         }
 
         for (Join join : joins)
@@ -117,7 +117,7 @@ public final class Snapshot
         {
             for (Ilk.Box box : bins)
             {
-                ((Bin <?>) box.getObject()).commit();
+                ((Bin <?>) box.object).commit();
             }
 
             for (Join join : joins)

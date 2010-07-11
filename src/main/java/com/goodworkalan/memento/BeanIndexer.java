@@ -21,7 +21,7 @@ implements Indexer<T, Ordered>
     {
         Type superclass = getClass().getGenericSuperclass();
 
-        if (superclass instanceof Class)
+        if (superclass instanceof Class<?>)
         {
             throw new RuntimeException("Missing type parameter.");
         }

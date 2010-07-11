@@ -33,7 +33,7 @@ public class Index<T>
     // TODO Document.
     public boolean equals(Object object)
     {
-        if (object instanceof Index)
+        if (object instanceof Index<?>)
         {
             Index<?> index = (Index<?>) object;
             return ilk.key.equals(index.ilk.key) && name.equals(index.name);

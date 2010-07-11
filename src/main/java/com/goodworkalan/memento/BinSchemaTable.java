@@ -1,5 +1,6 @@
 package com.goodworkalan.memento;
 
+import java.lang.reflect.TypeVariable;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -14,7 +15,7 @@ public class BinSchemaTable
     // TODO Document.
     public <T> BinSchema<T> get(Ilk<T> ilk)
     {
-        Ilk<BinSchema<T>> schemaIlk = new Ilk<BinSchema<T>>(ilk.key) { };
+        Ilk<BinSchema<T>> schemaIlk = new Ilk<BinSchema<T>>() { }.assign((TypeVariable<?>) new Ilk<T>() {}.key.type, ilk.key.type);
         
         Ilk.Box box = table.get(ilk.key);
         if (box == null)

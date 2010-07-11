@@ -1,5 +1,7 @@
 package com.goodworkalan.memento;
 
+import java.lang.reflect.TypeVariable;
+
 import com.goodworkalan.fossil.Fossil;
 import com.goodworkalan.ilk.Ilk;
 import com.goodworkalan.pack.Mutator;
@@ -41,7 +43,7 @@ implements Janitor
             BinRecord record =  cursor.next();
             for (Ilk.Box box : indexes)
             {
-                IndexMutator<T, ?> index = box.cast(new Ilk<IndexMutator<T, ?>>(ilk.key) { });
+                IndexMutator<T, ?> index = box.cast(new Ilk<IndexMutator<T, ?>>() { }.assign((TypeVariable<?>) new Ilk<T>() {}.key.type, ilk.key.type));
                 index.remove(bin.mutator, bin, record.key, record.version);
             }
             bin.query.remove(bin.query.comparable(record));

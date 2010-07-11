@@ -2,6 +2,7 @@ package com.goodworkalan.memento;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.lang.reflect.TypeVariable;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashSet;
@@ -456,7 +457,7 @@ public final class Bin<T>
 
         for (Ilk.Box box : indexes)
         {
-            IndexMutator<T, ?> index = box.cast(new Ilk<IndexMutator<T, ?>>(binSchema.getIlk().key) { });
+            IndexMutator<T, ?> index = box.cast(new Ilk<IndexMutator<T, ?>>() { }.assign((TypeVariable<?>) new Ilk<T>() {}.key.type, binSchema.getIlk().key.type));
             index.commit(snapshot, mutator, this);
         }
     }
