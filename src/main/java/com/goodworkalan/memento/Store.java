@@ -88,7 +88,7 @@ public class Store {
     public void commit(Mutation commitment) {
         for (;;) {
             try {
-                commitment.commit(new Mutator(this));
+                commitment.mutate(new Mutator(this));
                 break;
             } catch (NonRepatableReadException e) {
                 continue;

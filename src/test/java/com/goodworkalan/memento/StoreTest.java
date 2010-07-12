@@ -40,7 +40,7 @@ public class StoreTest {
         Store store = new Store(serializer);
         store.commit(new Mutation() {
             int count = 0;
-            public void commit(Mutator mutator) {
+            public void mutate(Mutator mutator) {
                 if (count++ == 0) {
                     throw new NonRepatableReadException();
                 }

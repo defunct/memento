@@ -23,7 +23,7 @@ public class UseCaseTest {
         serializer.start();
         Store store = new Store(serializer);
         store.commit(new Mutation() {
-            public void commit(Mutator mutation) {
+            public void mutate(Mutator mutation) {
                 Person person = new Person();
                 person.firstName = "Dwight";
                 person.lastName = "Eisenhower";

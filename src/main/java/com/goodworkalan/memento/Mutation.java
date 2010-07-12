@@ -12,5 +12,5 @@ public interface Mutation {
      * @param mutator
      *            The mutator.
      */
-    public void commit(Mutator mutator);
+    public void mutate(Mutator mutator);
 }
